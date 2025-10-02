@@ -5,13 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Influencer Marketplace</title>
     
-    <!-- CSS Styles -->
-    <link rel="stylesheet" href="css/style.css">
-    
-    <!-- Font Awesome -->
+    <!-- PERCORSI CORRETTI -->
+    <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -91,7 +87,6 @@
                 </div>
             </div>
             <div class="hero-image">
-                <!-- Using placeholder since image might not exist -->
                 <div class="placeholder-image">
                     <i class="fas fa-users fa-8x"></i>
                 </div>
@@ -304,7 +299,7 @@
         </div>
     </footer>
 
-    <!-- JavaScript -->
-    <script src="js/script.js"></script>
+    <!-- PERCORSO JAVASCRIPT CORRETTO -->
+    <script src="assets/js/script.js"></script>
 </body>
 </html>
