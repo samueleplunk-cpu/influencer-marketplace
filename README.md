@@ -1,34 +1,35 @@
-# Influencer Marketplace
+# 🚀 Influencer Marketplace
 
-Una piattaforma PHP che connette influencer con brand per collaborazioni.
+Una piattaforma innovativa che collega influencer con brand per collaborazioni di marketing autentiche e misurabili.
 
-## 🚀 Funzionalità
-- [x] Sistema di autenticazione
-- [x] Header/Footer modulari  
-- [x] Database structure
-- [ ] Pannello Admin
-- [ ] Profili Influencer
-- [ ] Ricerca avanzata
-- [ ] Sistema di pagamento
+## ✨ Caratteristiche
 
-## 🛠 Tecnologie
-- PHP
-- MySQL
-- Bootstrap 5
-- JavaScript
+### 🎯 Per Influencer
+- **Dashboard Personalizzata** - Gestisci il tuo profilo, portfolio e collaborazioni
+- **Profilo Completo** - Mostra la tua niche, tariffe e statistiche social
+- **Portfolio Digitale** - Carica e organizza i tuoi migliori lavori
+- **Sistema di Matching** - Trova brand compatibili con il tuo audience
 
-## 📁 Struttura
-/marketplace/
-├── admin/
-├── includes/
-├── assets/
-├── auth/
-└── index.php
+### 🏢 Per Brand
+- **Ricerca Avanzata** - Trova influencer per niche, budget e metriche
+- **Gestione Campagne** - Organizza e monitora le collaborazioni
+- **Analytics** - Misura il ROI delle campagne influencer
 
-text
+### 🔧 Tecnical Features
+- **Design Responsive** - Ottimizzato per mobile, tablet e desktop
+- **Interfaccia Moderna** - UI/UX pulita e intuitiva
+- **Database Sicuro** - Struttura dati robusta e scalabile
+- **Performance** - Caricamento veloce e esperienza fluida
 
-## 🚦 Installazione
-1. Clona il repository
-2. Configura il database
-3. Importa `database_schema.sql`
-4. Modifica `includes/config.php`
+## 🛠️ Installazione
+
+### Prerequisiti
+- PHP 7.4+
+- MySQL 5.7+
+- Web server (Apache/Nginx)
+
+### Setup Locale
+1. **Clona il repository**
+   ```bash
+   git clone https://github.com/samueleplunk-cpu/influencer-marketplace.git
+   cd influencer-marketplace

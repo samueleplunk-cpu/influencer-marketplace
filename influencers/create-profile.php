@@ -9,8 +9,8 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'influencer') {
 // Configurazione database - MODIFICA QUESTE CREDENZIALI CON LE TUE
 $host = 'localhost';
 $dbname = 'influencer_marketplace';
-$username = 'root';
-$password = '';
+$username = 'sam';
+$password = 'A6Hd&Q%plvx4lxp7';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
