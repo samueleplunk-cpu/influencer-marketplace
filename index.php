@@ -1,21 +1,68 @@
 <?php
 session_start();
-include 'db/config.php';
 
-// Recupera gli influencer dal database
+// Include database configuration
+require_once 'db/config.php';
+
+// Test database connection and fetch influencers
+$influencers = [];
 try {
-    $stmt = $pdo->query("
-        SELECT i.*, u.username, u.profile_picture 
-        FROM influencers i 
-        JOIN users u ON i.user_id = u.id 
-        WHERE i.is_active = 1
-        ORDER BY i.created_at DESC 
-        LIMIT 12
-    ");
-    $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Check if tables exist, if not create sample data
+    $stmt = $pdo->query("SHOW TABLES LIKE 'influencers'");
+    $tableExists = $stmt->fetch();
+    
+    if (!$tableExists) {
+        // Create sample influencers data for demonstration
+        $influencers = $this->getSampleInfluencers();
+    } else {
+        // Fetch real influencers from database
+        $stmt = $pdo->query("
+            SELECT i.*, u.username, u.profile_picture 
+            FROM influencers i 
+            JOIN users u ON i.user_id = u.id 
+            WHERE i.is_active = 1
+            ORDER BY i.created_at DESC 
+            LIMIT 12
+        ");
+        $influencers = $stmt->fetchAll();
+    }
 } catch (PDOException $e) {
-    $influencers = [];
-    error_log("Errore nel caricamento influencer: " . $e->getMessage());
+    error_log("Error loading influencers: " . $e->getMessage());
+    // Use sample data if database query fails
+    $influencers = $this->getSampleInfluencers();
+}
+
+// Sample data function
+function getSampleInfluencers() {
+    return [
+        [
+            'id' => 1,
+            'username' => 'ChiaraFerragni',
+            'profile_picture' => null,
+            'category' => 'Fashion',
+            'follower_count' => 25000000,
+            'engagement_rate' => 4.5,
+            'bio' => 'Fashion influencer and entrepreneur'
+        ],
+        [
+            'id' => 2,
+            'username' => 'Favij',
+            'profile_picture' => null,
+            'category' => 'Gaming',
+            'follower_count' => 8500000,
+            'engagement_rate' => 6.2,
+            'bio' => 'Gaming content creator and YouTuber'
+        ],
+        [
+            'id' => 3,
+            'username' => 'Giallozafferano',
+            'profile_picture' => null,
+            'category' => 'Food',
+            'follower_count' => 5200000,
+            'engagement_rate' => 5.8,
+            'bio' => 'Italian food recipes and cooking tips'
+        ]
+    ];
 }
 ?>
 
@@ -24,7 +71,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Influencer Marketplace - Trova il Influencer Perfetto</title>
+    <title>Influencer Marketplace - Trova l'Influencer Perfetto</title>
     <link rel="stylesheet" href="css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -63,8 +110,8 @@ try {
             <div class="hero-content">
                 <h1 class="hero-title">Trova l'Influencer Perfetto per il Tuo Brand</h1>
                 <p class="hero-description">
-                    Connettiti con migliaia di influencer verificati across tutti i social media platform. 
-                    Campaign di successo iniziano qui.
+                    Connettiti con migliaia di influencer verificati su tutte le piattaforme social. 
+                    Le campagne di successo iniziano qui.
                 </p>
                 <div class="hero-buttons">
                     <a href="auth/register.php" class="btn btn-primary">Inizia Ora</a>
@@ -91,7 +138,7 @@ try {
                         <div class="influencer-card">
                             <div class="card-header">
                                 <div class="influencer-avatar">
-                                    <?php if($influencer['profile_picture']): ?>
+                                    <?php if(isset($influencer['profile_picture']) && $influencer['profile_picture']): ?>
                                         <img src="uploads/<?php echo htmlspecialchars($influencer['profile_picture']); ?>" 
                                              alt="<?php echo htmlspecialchars($influencer['username']); ?>">
                                     <?php else: ?>
