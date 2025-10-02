@@ -1,35 +1,35 @@
 <?php
 session_start();
 
-// Include database configuration
-require_once 'db/config.php';
+// Debug: Abilita gli errori
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
-// Test database connection and fetch influencers
-$influencers = [];
+// Include database configuration - PERCORSO CORRETTO
 try {
-    // Check if tables exist, if not create sample data
-    $stmt = $pdo->query("SHOW TABLES LIKE 'influencers'");
-    $tableExists = $stmt->fetch();
-    
-    if (!$tableExists) {
-        // Create sample influencers data for demonstration
-        $influencers = $this->getSampleInfluencers();
-    } else {
-        // Fetch real influencers from database
-        $stmt = $pdo->query("
-            SELECT i.*, u.username, u.profile_picture 
-            FROM influencers i 
-            JOIN users u ON i.user_id = u.id 
-            WHERE i.is_active = 1
-            ORDER BY i.created_at DESC 
-            LIMIT 12
-        ");
-        $influencers = $stmt->fetchAll();
-    }
+    require_once 'includes/config.php';
+} catch (Exception $e) {
+    die("Errore di configurazione: " . $e->getMessage());
+}
+
+// Fetch influencers with fallback
+$influencers = [];
+
+try {
+    // Try to fetch from database
+    $stmt = $pdo->query("
+        SELECT i.*, u.username, u.profile_picture 
+        FROM influencers i 
+        JOIN users u ON i.user_id = u.id 
+        WHERE i.is_active = 1
+        ORDER BY i.created_at DESC 
+        LIMIT 12
+    ");
+    $influencers = $stmt->fetchAll();
 } catch (PDOException $e) {
-    error_log("Error loading influencers: " . $e->getMessage());
-    // Use sample data if database query fails
-    $influencers = $this->getSampleInfluencers();
+    // Use sample data if database fails
+    error_log("Database error: " . $e->getMessage());
+    $influencers = getSampleInfluencers();
 }
 
 // Sample data function
