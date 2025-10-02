@@ -1,0 +1,50 @@
+/* Stili Custom per Influencer Marketplace */
+
+.hero-section {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.section-title {
+    position: relative;
+    padding-bottom: 15px;
+}
+
+.section-title:after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 3px;
+    background: #007bff;
+}
+
+.influencer-card {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.influencer-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+}
+
+.step-card, .feature-icon {
+    transition: transform 0.3s ease;
+}
+
+.step-card:hover, .feature-icon:hover {
+    transform: scale(1.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .display-4 {
+        font-size: 2.5rem;
+    }
+    
+    .hero-section .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}

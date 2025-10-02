@@ -11,12 +11,12 @@ ini_set('display_errors', 1);
 // Configurazione Database
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'influencer_marketplace');
-define('DB_USER', 'root');
-define('DB_PASS', '');
+define('DB_USER', 'sam');
+define('DB_PASS', 'A6Hd&Q%plvx4lxp7');
 define('DB_CHARSET', 'utf8mb4');
 
 // URL Base del sito
-define('BASE_URL', 'http://localhost/marketplace');
+define('BASE_URL', 'https://tutorialbay.it/infl/');
 
 // Path assoluti
 define('ROOT_PATH', dirname(dirname(__FILE__)));
