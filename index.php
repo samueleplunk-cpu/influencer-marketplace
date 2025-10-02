@@ -1,284 +1,205 @@
 <?php
-// TEMPORANEO - Mostra tutti gli errori
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+session_start();
+include 'db/config.php';
 
-require_once 'includes/config.php';
-
-// COMMENTA le query per test - PROBLEMA DATABASE
-/*
+// Recupera gli influencer dal database
 try {
-    $stmt = $pdo->prepare("
-        SELECT u.name, u.email, ip.bio, ip.follower_count, ip.niche, ip.engagement_rate
-        FROM users u 
-        LEFT JOIN influencer_profiles ip ON u.id = ip.user_id 
-        WHERE u.user_type = 'influencer' 
-        AND ip.follower_count > 0 
-        ORDER BY ip.follower_count DESC 
-        LIMIT 6
+    $stmt = $pdo->query("
+        SELECT i.*, u.username, u.profile_picture 
+        FROM influencers i 
+        JOIN users u ON i.user_id = u.id 
+        WHERE i.is_active = 1
+        ORDER BY i.created_at DESC 
+        LIMIT 12
     ");
-    $stmt->execute();
-    $featured_influencers = $stmt->fetchAll();
+    $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    $featured_influencers = [];
+    $influencers = [];
+    error_log("Errore nel caricamento influencer: " . $e->getMessage());
 }
-*/
-
-$featured_influencers = [];
-
-/*
-try {
-    $influencer_count = $pdo->query("SELECT COUNT(*) FROM users WHERE user_type = 'influencer'")->fetchColumn();
-    $brand_count = $pdo->query("SELECT COUNT(*) FROM users WHERE user_type = 'brand'")->fetchColumn();
-    $campaign_count = 0; // Da implementare in futuro
-} catch (PDOException $e) {
-    $influencer_count = $brand_count = $campaign_count = 0;
-}
-*/
-
-$influencer_count = 0;
-$brand_count = 0;
-$campaign_count = 0;
-
-include 'includes/header.php';
 ?>
 
-<!-- Hero Section -->
-<section class="hero-section bg-primary text-white py-5">
-    <div class="container">
-        <div class="row align-items-center">
-            <div class="col-lg-6">
-                <h1 class="display-4 fw-bold mb-4">Connettiamo Influencer e Brand</h1>
-                <p class="lead mb-4">
-                    La piattaforma tutto-in-uno per collaborazioni di successo. 
-                    Trova gli influencer perfetti per il tuo brand o monetizza i tuoi social media.
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Influencer Marketplace - Trova il Influencer Perfetto</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="nav-logo">
+                    <a href="index.php" class="logo-link">
+                        <i class="fas fa-star"></i>
+                        InfluencerMarket
+                    </a>
+                </div>
+                
+                <div class="nav-menu">
+                    <a href="index.php" class="nav-link active">Home</a>
+                    <a href="browse.php" class="nav-link">Influencer</a>
+                    <a href="about.php" class="nav-link">Chi Siamo</a>
+                    
+                    <?php if(isset($_SESSION['user_id'])): ?>
+                        <a href="dashboard.php" class="nav-link">Dashboard</a>
+                        <a href="auth/logout.php" class="nav-link">Logout</a>
+                    <?php else: ?>
+                        <a href="auth/login.php" class="nav-link">Login</a>
+                        <a href="auth/register.php" class="nav-link">Registrati</a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Trova l'Influencer Perfetto per il Tuo Brand</h1>
+                <p class="hero-description">
+                    Connettiti con migliaia di influencer verificati across tutti i social media platform. 
+                    Campaign di successo iniziano qui.
                 </p>
-                <div class="d-flex flex-wrap gap-3">
-                    <a href="<?php echo BASE_URL; ?>/auth/register.php?type=brand" class="btn btn-light btn-lg">
-                        🚀 Sono un Brand
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>/auth/register.php?type=influencer" class="btn btn-outline-light btn-lg">
-                        💫 Sono un Influencer
-                    </a>
+                <div class="hero-buttons">
+                    <a href="auth/register.php" class="btn btn-primary">Inizia Ora</a>
+                    <a href="browse.php" class="btn btn-secondary">Esplora Influencer</a>
                 </div>
             </div>
-            <div class="col-lg-6 text-center">
-                <div class="hero-image mt-4 mt-lg-0">
-                    <div style="width: 100%; height: 300px; background: rgba(255,255,255,0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center;">
-                        <span style="color: rgba(255,255,255,0.7);">Illustrazione Marketplace</span>
-                    </div>
-                    <small class="text-light opacity-75">Illustrazione rappresentativa della connessione tra brand e influencer</small>
+            <div class="hero-image">
+                <div class="image-placeholder">
+                    <i class="fas fa-users fa-5x"></i>
                 </div>
             </div>
         </div>
-    </div>
-</section>
+    </section>
 
-<!-- Stats Section -->
-<section class="stats-section py-5 bg-light">
-    <div class="container">
-        <div class="row text-center">
-            <div class="col-md-4">
-                <div class="stat-item">
-                    <h2 class="display-4 text-primary fw-bold"><?php echo $influencer_count; ?></h2>
-                    <p class="lead">Influencer Attivi</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-item">
-                    <h2 class="display-4 text-success fw-bold"><?php echo $brand_count; ?></h2>
-                    <p class="lead">Brand Registrati</p>
-                </div>
-            </div>
-            <div class="col-md-4">
-                <div class="stat-item">
-                    <h2 class="display-4 text-warning fw-bold"><?php echo $campaign_count; ?></h2>
-                    <p class="lead">Campagne Attive</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- How It Works -->
-<section class="how-it-works py-5">
-    <div class="container">
-        <div class="row text-center mb-5">
-            <div class="col-12">
-                <h2 class="section-title">Come Funziona</h2>
-                <p class="lead text-muted">Tre semplici passi per iniziare</p>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-4 text-center">
-                <div class="step-card p-4">
-                    <div class="step-icon bg-primary text-white rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; line-height: 80px; font-size: 2rem;">
-                        1
-                    </div>
-                    <h4>Registrati</h4>
-                    <p class="text-muted">
-                        Crea il tuo account come Influencer o Brand in pochi secondi
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-4 text-center">
-                <div class="step-card p-4">
-                    <div class="step-icon bg-success text-white rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; line-height: 80px; font-size: 2rem;">
-                        2
-                    </div>
-                    <h4>Connetti</h4>
-                    <p class="text-muted">
-                        Gli influencer creano il profilo, i brand cercano i partner ideali
-                    </p>
-                </div>
-            </div>
-            <div class="col-md-4 text-center">
-                <div class="step-card p-4">
-                    <div class="step-icon bg-warning text-white rounded-circle mx-auto mb-3" style="width: 80px; height: 80px; line-height: 80px; font-size: 2rem;">
-                        3
-                    </div>
-                    <h4>Collabora</h4>
-                    <p class="text-muted">
-                        Avvia campagne di successo e monitora i risultati
-                    </p>
-                </div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Featured Influencers -->
-<section class="featured-influencers py-5 bg-light">
-    <div class="container">
-        <div class="row mb-5">
-            <div class="col-12 text-center">
-                <h2 class="section-title">Influencer in Evidenza</h2>
-                <p class="lead text-muted">Scopri alcuni dei nostri creator più popolari</p>
-            </div>
-        </div>
-        
-        <?php if (!empty($featured_influencers)): ?>
-        <div class="row">
-            <?php foreach ($featured_influencers as $influencer): ?>
-            <div class="col-lg-4 col-md-6 mb-4">
-                <div class="card influencer-card h-100">
-                    <div class="card-body text-center">
-                        <div class="influencer-avatar bg-primary rounded-circle mx-auto mb-3" 
-                             style="width: 80px; height: 80px; line-height: 80px; font-size: 1.5rem; color: white;">
-                            <?php echo strtoupper(substr($influencer['name'], 0, 2)); ?>
-                        </div>
-                        <h5 class="card-title"><?php echo htmlspecialchars($influencer['name']); ?></h5>
-                        <?php if ($influencer['niche']): ?>
-                            <span class="badge bg-primary mb-2"><?php echo htmlspecialchars($influencer['niche']); ?></span>
-                        <?php endif; ?>
-                        <p class="card-text text-muted small">
-                            <?php 
-                            if (!empty($influencer['bio'])) {
-                                echo strlen($influencer['bio']) > 100 ? 
-                                    substr($influencer['bio'], 0, 100) . '...' : 
-                                    $influencer['bio'];
-                            } else {
-                                echo 'Influencer specializzato nel suo settore.';
-                            }
-                            ?>
-                        </p>
-                        <div class="influencer-stats">
-                            <div class="row text-center">
-                                <div class="col-6">
-                                    <strong class="text-primary"><?php echo number_format($influencer['follower_count']); ?></strong>
-                                    <div class="text-muted small">Followers</div>
+    <!-- Featured Influencers -->
+    <section class="featured-influencers">
+        <div class="container">
+            <h2 class="section-title">Influencer in Evidenza</h2>
+            <p class="section-subtitle">Scopri i creator più popolari della piattaforma</p>
+            
+            <div class="influencers-grid">
+                <?php if(!empty($influencers)): ?>
+                    <?php foreach($influencers as $influencer): ?>
+                        <div class="influencer-card">
+                            <div class="card-header">
+                                <div class="influencer-avatar">
+                                    <?php if($influencer['profile_picture']): ?>
+                                        <img src="uploads/<?php echo htmlspecialchars($influencer['profile_picture']); ?>" 
+                                             alt="<?php echo htmlspecialchars($influencer['username']); ?>">
+                                    <?php else: ?>
+                                        <div class="avatar-placeholder">
+                                            <i class="fas fa-user"></i>
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
-                                <div class="col-6">
-                                    <strong class="text-success"><?php echo $influencer['engagement_rate'] ? $influencer['engagement_rate'] . '%' : 'N/A'; ?></strong>
-                                    <div class="text-muted small">Engagement</div>
+                                <div class="influencer-info">
+                                    <h3 class="influencer-name"><?php echo htmlspecialchars($influencer['username']); ?></h3>
+                                    <p class="influencer-category"><?php echo htmlspecialchars($influencer['category'] ?? 'Generale'); ?></p>
                                 </div>
                             </div>
+                            
+                            <div class="card-stats">
+                                <div class="stat">
+                                    <span class="stat-value"><?php echo number_format($influencer['follower_count'] ?? 0); ?></span>
+                                    <span class="stat-label">Followers</span>
+                                </div>
+                                <div class="stat">
+                                    <span class="stat-value"><?php echo number_format($influencer['engagement_rate'] ?? 0, 1); ?>%</span>
+                                    <span class="stat-label">Engagement</span>
+                                </div>
+                            </div>
+                            
+                            <div class="card-description">
+                                <p><?php echo htmlspecialchars($influencer['bio'] ?? 'Nessuna bio disponibile'); ?></p>
+                            </div>
+                            
+                            <div class="card-actions">
+                                <a href="influencer-profile.php?id=<?php echo $influencer['id']; ?>" class="btn btn-outline">Vedi Profilo</a>
+                                <button class="btn btn-primary">Contatta</button>
+                            </div>
                         </div>
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="no-influencers">
+                        <i class="fas fa-users fa-3x"></i>
+                        <p>Nessun influencer disponibile al momento</p>
                     </div>
-                    <div class="card-footer bg-transparent">
-                        <a href="#" class="btn btn-outline-primary btn-sm w-100">Vedi Profilo</a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="container">
+            <h2 class="section-title">Perché Scegliere Noi</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-check-circle"></i>
                     </div>
+                    <h3>Influencer Verificati</h3>
+                    <p>Tutti i creator sono verificati e autentici con metriche reali</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h3>Metriche Dettagliate</h3>
+                    <p>Accesso a dati approfonditi su engagement e performance</p>
+                </div>
+                
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3>Transazioni Sicure</h3>
+                    <p>Pagamenti protetti e sistema di recensioni trasparente</p>
                 </div>
             </div>
-            <?php endforeach; ?>
         </div>
-        <?php else: ?>
-        <div class="row">
-            <div class="col-12 text-center">
-                <div class="alert alert-info">
-                    <h5>Database non connesso</h5>
-                    <p>Le funzionalità di database sono temporaneamente disabilitate</p>
-                    <a href="<?php echo BASE_URL; ?>/auth/register.php?type=influencer" class="btn btn-primary">
-                        Registrati come Influencer
-                    </a>
-                </div>
-            </div>
-        </div>
-        <?php endif; ?>
-    </div>
-</section>
+    </section>
 
-<!-- CTA Section -->
-<section class="cta-section py-5 bg-primary text-white">
-    <div class="container">
-        <div class="row text-center">
-            <div class="col-12">
-                <h2 class="display-5 fw-bold mb-4">Pronto a Iniziare?</h2>
-                <p class="lead mb-4">
-                    Unisciti a migliaia di influencer e brand che già collaborano con successo
-                </p>
-                <div class="d-flex justify-content-center flex-wrap gap-3">
-                    <a href="<?php echo BASE_URL; ?>/auth/register.php?type=influencer" class="btn btn-light btn-lg">
-                        💫 Diventa Influencer
-                    </a>
-                    <a href="<?php echo BASE_URL; ?>/auth/register.php?type=brand" class="btn btn-outline-light btn-lg">
-                        🚀 Diventa Partner
-                    </a>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>InfluencerMarket</h3>
+                    <p>La piattaforma leader per connettere brand e influencer</p>
                 </div>
+                
+                <div class="footer-section">
+                    <h4>Link Veloci</h4>
+                    <ul>
+                        <li><a href="index.php">Home</a></li>
+                        <li><a href="browse.php">Influencer</a></li>
+                        <li><a href="about.php">Chi Siamo</a></li>
+                    </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Contatti</h4>
+                    <ul>
+                        <li><i class="fas fa-envelope"></i> info@influencermarket.it</li>
+                        <li><i class="fas fa-phone"></i> +39 02 1234567</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; 2024 InfluencerMarket. Tutti i diritti riservati.</p>
             </div>
         </div>
-    </div>
-</section>
-
-<!-- Features -->
-<section class="features-section py-5">
-    <div class="container">
-        <div class="row text-center mb-5">
-            <div class="col-12">
-                <h2 class="section-title">Perché Sceglierci</h2>
-            </div>
-        </div>
-        <div class="row">
-            <div class="col-md-3 text-center mb-4">
-                <div class="feature-icon bg-primary text-white rounded-circle mx-auto mb-3" style="width: 60px; height: 60px; line-height: 60px; font-size: 1.5rem;">
-                    ⚡
-                </div>
-                <h5>Veloce</h5>
-                <p class="text-muted">Connettiti con i partner ideali in pochi click</p>
-            </div>
-            <div class="col-md-3 text-center mb-4">
-                <div class="feature-icon bg-success text-white rounded-circle mx-auto mb-3" style="width: 60px; height: 60px; line-height: 60px; font-size: 1.5rem;">
-                    🔒
-                </div>
-                <h5>Sicuro</h5>
-                <p class="text-muted">Pagamenti protetti e contratti trasparenti</p>
-            </div>
-            <div class="col-md-3 text-center mb-4">
-                <div class="feature-icon bg-warning text-white rounded-circle mx-auto mb-3" style="width: 60px; height: 60px; line-height: 60px; font-size: 1.5rem;">
-                    📊
-                </div>
-                <h5>Analitiche</h5>
-                <p class="text-muted">Monitora le performance delle tue campagne</p>
-            </div>
-            <div class="col-md-3 text-center mb-4">
-                <div class="feature-icon bg-info text-white rounded-circle mx-auto mb-3" style="width: 60px; height: 60px; line-height: 60px; font-size: 1.5rem;">
-                    🌍
-                </div>
-                <h5>Globale</h5>
-                <p class="text-muted">Influencer e brand da tutto il mondo</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<?php include 'includes/footer.php'; ?>
+    </footer>
+</body>
+</html>
