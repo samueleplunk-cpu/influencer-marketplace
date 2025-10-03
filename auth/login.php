@@ -28,19 +28,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $user_type = $_POST['user_type'] ?? 'influencer';
     
     try {
-        // Cerca utente nella tabella appropriata
-        if ($user_type === 'influencer') {
-            $stmt = $pdo->prepare("SELECT id, password, name FROM influencers WHERE email = ?");
-        } else {
-            $stmt = $pdo->prepare("SELECT id, password, company_name as name FROM brands WHERE email = ?");
-        }
-        
-        $stmt->execute([$email]);
+        // Cerca utente nella tabella USERS (dove sono le credenziali)
+        $stmt = $pdo->prepare("SELECT id, email, password, user_type FROM users WHERE email = ? AND user_type = ?");
+        $stmt->execute([$email, $user_type]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($user && password_verify($password, $user['password'])) {
-            // Login successful
-            login_user($user['id'], $user_type, $user['name']);
+            // Login successful - ora recupera i dettagli specifici
+            if ($user_type === 'influencer') {
+                $stmt_details = $pdo->prepare("SELECT full_name FROM influencers WHERE user_id = ?");
+                $stmt_details->execute([$user['id']]);
+                $details = $stmt_details->fetch(PDO::FETCH_ASSOC);
+                $name = $details['full_name'] ?? '';
+            } else {
+                $stmt_details = $pdo->prepare("SELECT company_name FROM brands WHERE user_id = ?");
+                $stmt_details->execute([$user['id']]);
+                $details = $stmt_details->fetch(PDO::FETCH_ASSOC);
+                $name = $details['company_name'] ?? '';
+            }
+            
+            login_user($user['id'], $user_type, $name);
             
             // Redirect to appropriate dashboard
             if ($user_type === 'influencer') {

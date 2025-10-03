@@ -16,8 +16,7 @@ if (ini_get("session.use_cookies")) {
 // Distrugge la sessione
 session_destroy();
 
-// Reindirizza alla homepage con messaggio di successo
-$_SESSION['success_message'] = 'Logout effettuato con successo!';
-redirect('/');
+// Reindirizza alla homepage
+header("Location: /infl/");
 exit;
 ?>
