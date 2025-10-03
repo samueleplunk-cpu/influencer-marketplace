@@ -1,5 +1,5 @@
 <?php
-session_start();
+// === CORREZIONE: Rimuovi session_start() duplicato e usa PDO ===
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth_functions.php';
 
@@ -9,18 +9,23 @@ if (!is_logged_in()) {
     exit();
 }
 
-// Verifica che l'utente non abbia già un profilo influencer
+// === MODIFICA: Verifica più flessibile per permettere la creazione profilo ===
 $user_id = $_SESSION['user_id'];
-$check_sql = "SELECT id FROM influencers WHERE user_id = ?";
-$check_stmt = $conn->prepare($check_sql);
-$check_stmt->bind_param("i", $user_id);
-$check_stmt->execute();
-$check_result = $check_stmt->get_result();
 
-if ($check_result->num_rows > 0) {
-    $_SESSION['error'] = "Hai già un profilo influencer!";
-    header('Location: /infl/influencers/dashboard.php');
-    exit();
+// Verifica che l'utente non abbia già un profilo influencer
+try {
+    $check_sql = "SELECT id FROM influencers WHERE user_id = ?";
+    $check_stmt = $pdo->prepare($check_sql);
+    $check_stmt->execute([$user_id]);
+    
+    if ($check_stmt->rowCount() > 0) {
+        $_SESSION['error'] = "Hai già un profilo influencer!";
+        header('Location: /infl/influencers/dashboard.php');
+        exit();
+    }
+} catch (PDOException $e) {
+    error_log("Error checking existing profile: " . $e->getMessage());
+    $error = "Errore di sistema. Riprova più tardi.";
 }
 
 $error = '';
@@ -75,22 +80,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             if (empty($error)) {
-                // Inserimento nel database
+                // Inserimento nel database usando PDO
                 $sql = "INSERT INTO influencers (user_id, name, bio, follower_count, niche, social_handle, profile_image, created_at) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+                        VALUES (:user_id, :name, :bio, :follower_count, :niche, :social_handle, :profile_image, NOW())";
                 
-                $stmt = $conn->prepare($sql);
-                $stmt->bind_param("ississs", $user_id, $name, $bio, $follower_count, $niche, $social_handle, $profile_image);
+                $stmt = $pdo->prepare($sql);
+                $result = $stmt->execute([
+                    ':user_id' => $user_id,
+                    ':name' => $name,
+                    ':bio' => $bio,
+                    ':follower_count' => $follower_count,
+                    ':niche' => $niche,
+                    ':social_handle' => $social_handle,
+                    ':profile_image' => $profile_image
+                ]);
                 
-                if ($stmt->execute()) {
+                if ($result) {
+                    // === IMPORTANTE: Imposta user_type come influencer dopo la creazione profilo ===
+                    $_SESSION['user_type'] = 'influencer';
                     $_SESSION['success'] = "Profilo influencer creato con successo!";
                     header('Location: /infl/influencers/dashboard.php');
                     exit();
                 } else {
-                    $error = "Errore nella creazione del profilo: " . $conn->error;
+                    $error = "Errore nella creazione del profilo";
                 }
             }
+        } catch (PDOException $e) {
+            error_log("Database error in create-profile: " . $e->getMessage());
+            $error = "Errore di sistema durante la creazione del profilo. Riprova più tardi.";
         } catch (Exception $e) {
+            error_log("General error in create-profile: " . $e->getMessage());
             $error = "Errore: " . $e->getMessage();
         }
     }
