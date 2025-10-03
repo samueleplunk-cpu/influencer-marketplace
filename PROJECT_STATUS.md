@@ -1,72 +1,82 @@
-# 📊 Stato del Progetto - Influencer Marketplace
+# PROJECT STATUS - INFLUENCER MARKETPLACE
 
-## 🎯 Panoramica
-Piattaforma di collegamento tra influencer e brand per collaborazioni di marketing.
+## 📊 STATO PROGETTO
+**Data Aggiornamento:** $(date)
+**Ultimo Fix:** Risoluzione pagine bianche dashboard
+**Stato:** ⚠️ IN SVILUPPO - PARTIAL FIX
 
-## 📈 Progresso Complessivo: 25%
+## ✅ COMPLETATI
+- [x] Configurazione base PHP/MySQL (includes/config.php)
+- [x] Sistema di autenticazione (includes/auth_functions.php)
+- [x] Header/Footer template (includes/header.php, includes/footer.php)
+- [x] Pagina login (infl/auth/login.php)
+- [x] Dashboard influencer (infl/influencers/dashboard.php)
+- [x] Gestione errori PHP e sessioni
+- [x] Percorsi assoluti corretti
 
-### ✅ COMPLETATI
-- [x] **Layout Homepage** (index.php)
-- [x] **CSS Responsive** (assets/css/style.css)
-- [x] **JavaScript Base** (assets/js/script.js)
-- [x] **Dashboard Influencer** (influencers/dashboard.php)
-- [x] **Creazione Profilo Influencer** (influencers/create-profile.php)
-- [x] **Schema Database** (preparato)
+## ⚠️ IN CORSO
+- [ ] Creazione profilo influencer (infl/influencers/create-profile.php)
+- [ ] Pagina registrazione (infl/auth/register.php)
+- [ ] Logout system (infl/auth/logout.php)
+- [ ] Dashboard brand (infl/brands/dashboard.php)
+- [ ] Assets management (css, js, images)
 
-### 🚧 IN SVILUPPO
-- [ ] **Sistema di Autenticazione** (login/registrazione)
-- [ ] **Header/Footer Comuni** (includes/)
-- [ ] **Backend Database** (connessione e query)
-- [ ] **Pagina Brands** (brands.php)
-- [ ] **Pagina Influencers** (influencers.php)
+## 🔴 DA VERIFICARE/FIXARE
+- [ ] **create-profile.php** - Pagina bianca
+- [ ] **register.php** - Funzionalità registrazione
+- [ ] **logout.php** - Sistema logout
+- [ ] **Assets CSS/JS** - Stili e funzionalità frontend
+- [ ] **Upload system** - Gestione immagini profilo
 
-### 📋 DA INIZIARE
-- [ ] **Sistema di Matching** (ricerca e collegamento)
-- [ ] **Profilo Brand** con campagne
-- [ ] **Sistema di Pagamento**
-- [ ] **Portfolio Upload** per influencer
-- [ ] **Sistema di Messaggistica**
-- [ ] **API Social Media Integration**
+## 🗂️ STRUTTURA FILE CRITICI
+### INCLUDES/
+- `config.php` ✅ **FUNZIONANTE**
+- `auth_functions.php` ✅ **FUNZIONANTE**
+- `header.php` ✅ **FUNZIONANTE**
+- `footer.php` ✅ **FUNZIONANTE**
 
-## 🗓️ Timeline Sviluppo
+### INFL/AUTH/
+- `login.php` ✅ **FUNZIONANTE**
+- `logout.php` 🔴 **DA VERIFICARE**
+- `register.php` 🔴 **DA VERIFICARE**
 
-### Fase 1: Foundation (IN CORSO)
-- **Scadenza**: ASAP
-- **Obiettivi**:
-  - ✅ Sistema base di navigazione
-  - ✅ Dashboard influencer
-  - 🚧 Autenticazione utenti
-  - 🚧 Database setup
+### INFL/INFLUENCERS/
+- `dashboard.php` ✅ **FUNZIONANTE**
+- `create-profile.php` 🔴 **PAGINA BIANCA**
 
-### Fase 2: Core Features (PROSSIMA)
-- **Obiettivi**:
-  - Sistema di profili completi
-  - Ricerca e filtri
-  - Sistema di matching base
+### ASSETS/
+- `css/style.css` 🔴 **DA VERIFICARE**
+- `js/script.js` 🔴 **DA VERIFICARE**
+- `images/` 🔴 **DA VERIFICARE**
+- `uploads/profiles/` 🔴 **DA VERIFICARE**
 
-### Fase 3: Advanced Features
-- **Obiettivi**:
-  - Sistema di pagamento
-  - Messaggistica
-  - Analytics
+## 🐛 PROBLEMI RISOLTI
+1. **Pagine bianche dashboard** ✅ FIXED
+   - Causa: Percorsi include errati e funzioni mancanti
+   - Soluzione: Implementati percorsi assoluti e auth_functions.php
 
-## 🐛 Problemi Noti
-1. **Database**: Credenziali da configurare in dashboard.php e create-profile.php
-2. **Autenticazione**: Sistema login non ancora implementato
-3. **Header/Footer**: File includes/ non ancora creati
+2. **Errore is_logged_in() non definita** ✅ FIXED
+   - Causa: Funzioni autenticazione mancanti
+   - Soluzione: Creato includes/auth_functions.php
 
-## 🔄 Ultimo Aggiornamento
-- **Data**: $(date)
-- **Cambiamenti**:
-  - Aggiunta dashboard completa per influencer
-  - Sistema di gestione profilo
-  - Schema database preparato
-  - Interfaccia a tab responsive
+3. **Connessione database** ✅ FIXED
+   - Causa: Variabile $pdo non definita
+   - Soluzione: Config.php aggiornato con connessione PDO
 
-## 👥 Team
-- **Sviluppatore**: [Il Tuo Nome]
-- **Designer**: [Il Tuo Nome/Team]
+## 🗃️ STRUTTURA DATABASE
+```sql
+-- Tabella influencers (DA VERIFICARE)
+CREATE TABLE influencers (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    name VARCHAR(255),
+    bio TEXT,
+    follower_count INT,
+    niche VARCHAR(100),
+    social_handle VARCHAR(255),
+    profile_image VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-## 📞 Contatti
-- **Repository**: https://github.com/samueleplunk-cpu/influencer-marketplace.git
-- **Email**: [tua-email]
+-- Tabella brands (DA IMPLEMENTARE)
+-- Tabella users (DA IMPLEMENTARE)
