@@ -1,244 +1,447 @@
+<?php
+session_start();
+require_once __DIR__ . '/includes/config.php';
+require_once __DIR__ . '/includes/auth_functions.php';
+
+$is_logged_in = is_logged_in();
+$user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
+?>
+
 <!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Influencer Marketplace</title>
-    
-    <!-- PERCORSI CORRETTI -->
-    <link rel="stylesheet" href="assets/css/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Influencer Marketplace - Connetti Brand e Influencer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+        }
+
+        /* Header & Navigation */
+        .navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 1rem 0;
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 2rem;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: #667eea;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-links a:hover {
+            color: #667eea;
+        }
+
+        .auth-buttons {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline {
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-outline:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+            border: 2px solid #667eea;
+        }
+
+        .btn-primary:hover {
+            background: #5a6fd8;
+            border-color: #5a6fd8;
+        }
+
+        /* Hero Section */
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 120px 0 80px;
+            text-align: center;
+        }
+
+        .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .hero p {
+            font-size: 1.3rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn-large {
+            padding: 1rem 2rem;
+            font-size: 1.1rem;
+        }
+
+        .btn-white {
+            background: white;
+            color: #667eea;
+            border: 2px solid white;
+        }
+
+        .btn-white:hover {
+            background: transparent;
+            color: white;
+        }
+
+        /* Features Section */
+        .features {
+            padding: 80px 0;
+            background: #f8f9fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .section-title {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .section-title h2 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .section-title p {
+            font-size: 1.2rem;
+            color: #666;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .feature-card p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* How It Works */
+        .how-it-works {
+            padding: 80px 0;
+            background: white;
+        }
+
+        .steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .step {
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .step-number {
+            width: 60px;
+            height: 60px;
+            background: #667eea;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0 auto 1rem;
+        }
+
+        .step h3 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        /* CTA Section */
+        .cta {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 80px 0;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .cta p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            opacity: 0.9;
+        }
+
+        /* Footer */
+        .footer {
+            background: #333;
+            color: white;
+            padding: 40px 0 20px;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-section h3 {
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+
+        .footer-section a {
+            color: #ccc;
+            text-decoration: none;
+            display: block;
+            margin-bottom: 0.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-section a:hover {
+            color: #667eea;
+        }
+
+        .footer-bottom {
+            text-align: center;
+            padding-top: 2rem;
+            border-top: 1px solid #444;
+            color: #ccc;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .nav-container {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .nav-links {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <nav class="navbar">
-            <div class="nav-container">
-                <div class="nav-logo">
-                    <a href="index.php" class="logo-link">
-                        <i class="fas fa-star"></i>
-                        <span>InfluencerMarket</span>
-                    </a>
-                </div>
+    <!-- Navigation -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <a href="/infl/" class="logo">InfluencerMarket</a>
+            <div class="nav-links">
+                <a href="#features">Funzionalità</a>
+                <a href="#how-it-works">Come Funziona</a>
+                <a href="#about">Chi Siamo</a>
                 
-                <div class="nav-menu" id="nav-menu">
-                    <ul class="nav-list">
-                        <li class="nav-item">
-                            <a href="index.php" class="nav-link active">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#influencers" class="nav-link">Influencer</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#brands" class="nav-link">Brand</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#about" class="nav-link">About</a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="#contact" class="nav-link">Contact</a>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="nav-actions">
-                    <button class="btn btn-login">Login</button>
-                    <button class="btn btn-primary">Sign Up</button>
-                </div>
-                
-                <div class="hamburger" id="hamburger">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                </div>
+                <?php if ($is_logged_in): ?>
+                    <div class="auth-buttons">
+                        <span>Ciao, <?php echo htmlspecialchars($user_name); ?>!</span>
+                        <a href="/infl/influencers/dashboard.php" class="btn btn-primary">Dashboard</a>
+                        <a href="/infl/auth/logout.php" class="btn btn-outline">Logout</a>
+                    </div>
+                <?php else: ?>
+                    <div class="auth-buttons">
+                        <a href="/infl/auth/login.php" class="btn btn-outline">Login</a>
+                        <a href="/infl/auth/register.php" class="btn btn-primary">Sign Up</a>
+                    </div>
+                <?php endif; ?>
             </div>
-        </nav>
-    </header>
+        </div>
+    </nav>
 
     <!-- Hero Section -->
     <section class="hero">
-        <div class="container">
-            <div class="hero-content">
-                <h1 class="hero-title">
-                    Connetti Brand e <span class="highlight">Influencer</span> di Qualità
-                </h1>
-                <p class="hero-description">
-                    La piattaforma definitiva per collaborazioni autentiche tra marchi e creator. 
-                    Trova i partner perfetti per la tua prossima campagna.
-                </p>
-                <div class="hero-actions">
-                    <button class="btn btn-primary btn-large">Inizia Ora</button>
-                    <button class="btn btn-secondary btn-large">Scopri di Più</button>
-                </div>
-                <div class="hero-stats">
-                    <div class="stat">
-                        <span class="stat-number">500+</span>
-                        <span class="stat-label">Influencer</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">200+</span>
-                        <span class="stat-label">Brand</span>
-                    </div>
-                    <div class="stat">
-                        <span class="stat-number">1K+</span>
-                        <span class="stat-label">Collaborazioni</span>
-                    </div>
-                </div>
-            </div>
-            <div class="hero-image">
-                <div class="placeholder-image">
-                    <i class="fas fa-users fa-8x"></i>
-                </div>
+        <div class="hero-content">
+            <h1>Connettiamo Brand e Influencer</h1>
+            <p>La piattaforma perfetta per trovare collaborazioni autentiche e crescere insieme</p>
+            <div class="hero-buttons">
+                <?php if ($is_logged_in): ?>
+                    <a href="/infl/influencers/dashboard.php" class="btn btn-primary btn-large">Vai alla Dashboard</a>
+                    <a href="/infl/influencers/create-profile.php" class="btn btn-white btn-large">Crea Profilo</a>
+                <?php else: ?>
+                    <a href="/infl/auth/register.php" class="btn btn-primary btn-large">Inizia Ora</a>
+                    <a href="/infl/auth/login.php" class="btn btn-white btn-large">Accedi</a>
+                <?php endif; ?>
             </div>
         </div>
     </section>
 
     <!-- Features Section -->
-    <section class="features">
+    <section id="features" class="features">
         <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">Perché Sceglierci</h2>
-                <p class="section-description">
-                    Scopri i vantaggi della nostra piattaforma
-                </p>
+            <div class="section-title">
+                <h2>Funzionalità Principali</h2>
+                <p>Tutto ciò di cui hai bisogno per far crescere la tua presenza online</p>
             </div>
-            
             <div class="features-grid">
                 <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    <h3 class="feature-title">Ricerca Avanzata</h3>
-                    <p class="feature-description">
-                        Trova influencer perfetti con il nostro sistema di filtri avanzati
-                    </p>
+                    <div class="feature-icon">🤝</div>
+                    <h3>Collaborazioni</h3>
+                    <p>Connettiti con brand affini al tuo contenuto e trova partnership autentiche</p>
                 </div>
-                
                 <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-shield-alt"></i>
-                    </div>
-                    <h3 class="feature-title">Sicurezza</h3>
-                    <p class="feature-description">
-                        Transazioni sicure e protezione per entrambe le parti
-                    </p>
+                    <div class="feature-icon">📊</div>
+                    <h3>Analisi Dettagliate</h3>
+                    <p>Monitora le performance delle tue campagne e ottimizza le strategie</p>
                 </div>
-                
                 <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <h3 class="feature-title">Analytics</h3>
-                    <p class="feature-description">
-                        Metriche dettagliate per misurare il successo delle campagne
-                    </p>
-                </div>
-                
-                <div class="feature-card">
-                    <div class="feature-icon">
-                        <i class="fas fa-handshake"></i>
-                    </div>
-                    <h3 class="feature-title">Collaborazione</h3>
-                    <p class="feature-description">
-                        Strumenti integrati per una collaborazione efficiente
-                    </p>
+                    <div class="feature-icon">💼</div>
+                    <h3>Gestione Contratti</h3>
+                    <p>Gestisci facilmente accordi, pagamenti e comunicazioni in un unico posto</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- Influencers Section -->
-    <section class="influencers-section" id="influencers">
+    <!-- How It Works -->
+    <section id="how-it-works" class="how-it-works">
         <div class="container">
-            <div class="section-header">
-                <h2 class="section-title">Influencer in Evidenza</h2>
-                <p class="section-description">
-                    Scopri i creator più popolari della piattaforma
-                </p>
+            <div class="section-title">
+                <h2>Come Funziona</h2>
+                <p>Inizia in pochi semplici passaggi</p>
             </div>
-            
-            <div class="influencers-grid">
-                <div class="influencer-card">
-                    <div class="influencer-avatar">
-                        <i class="fas fa-user-circle fa-4x"></i>
-                    </div>
-                    <div class="influencer-info">
-                        <h3 class="influencer-name">Sarah Johnson</h3>
-                        <p class="influencer-category">Lifestyle & Travel</p>
-                        <div class="influencer-stats">
-                            <span class="stat">
-                                <i class="fas fa-users"></i>
-                                150K
-                            </span>
-                            <span class="stat">
-                                <i class="fas fa-heart"></i>
-                                4.9
-                            </span>
-                        </div>
-                    </div>
+            <div class="steps">
+                <div class="step">
+                    <div class="step-number">1</div>
+                    <h3>Crea il Profilo</h3>
+                    <p>Registrati e compila il tuo profilo influencer con tutte le informazioni</p>
                 </div>
-                
-                <div class="influencer-card">
-                    <div class="influencer-avatar">
-                        <i class="fas fa-user-circle fa-4x"></i>
-                    </div>
-                    <div class="influencer-info">
-                        <h3 class="influencer-name">Mike Chen</h3>
-                        <p class="influencer-category">Tech & Gadgets</p>
-                        <div class="influencer-stats">
-                            <span class="stat">
-                                <i class="fas fa-users"></i>
-                                250K
-                            </span>
-                            <span class="stat">
-                                <i class="fas fa-heart"></i>
-                                4.8
-                            </span>
-                        </div>
-                    </div>
+                <div class="step">
+                    <div class="step-number">2</div>
+                    <h3>Connetti con i Brand</h3>
+                    <p>I brand ti troveranno in base alla tua niche e follower</p>
                 </div>
-                
-                <div class="influencer-card">
-                    <div class="influencer-avatar">
-                        <i class="fas fa-user-circle fa-4x"></i>
-                    </div>
-                    <div class="influencer-info">
-                        <h3 class="influencer-name">Emma Davis</h3>
-                        <p class="influencer-category">Fashion & Beauty</p>
-                        <div class="influencer-stats">
-                            <span class="stat">
-                                <i class="fas fa-users"></i>
-                                180K
-                            </span>
-                            <span class="stat">
-                                <i class="fas fa-heart"></i>
-                                4.9
-                            </span>
-                        </div>
-                    </div>
+                <div class="step">
+                    <div class="step-number">3</div>
+                    <h3>Collabora e Guadagna</h3>
+                    <p>Accetta collaborazioni e inizia a monetizzare la tua influenza</p>
                 </div>
-            </div>
-            
-            <div class="section-actions">
-                <button class="btn btn-outline">Vedi Tutti gli Influencer</button>
             </div>
         </div>
     </section>
 
     <!-- CTA Section -->
-    <section class="cta-section">
+    <section class="cta">
         <div class="container">
-            <div class="cta-content">
-                <h2 class="cta-title">Pronto a Iniziare?</h2>
-                <p class="cta-description">
-                    Unisciti a migliaia di brand e influencer che già utilizzano la nostra piattaforma
-                </p>
-                <div class="cta-actions">
-                    <button class="btn btn-primary btn-large">Registrati Gratis</button>
-                    <button class="btn btn-secondary btn-large">Contattaci</button>
-                </div>
-            </div>
+            <h2>Pronto a Iniziare?</h2>
+            <p>Unisciti a migliaia di influencer e brand che già usano la nostra piattaforma</p>
+            <?php if ($is_logged_in): ?>
+                <a href="/infl/influencers/dashboard.php" class="btn btn-white btn-large">Vai alla Dashboard</a>
+            <?php else: ?>
+                <a href="/infl/auth/register.php" class="btn btn-white btn-large">Registrati Gratis</a>
+            <?php endif; ?>
         </div>
     </section>
 
@@ -247,59 +450,29 @@
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <div class="footer-logo">
-                        <i class="fas fa-star"></i>
-                        <span>InfluencerMarket</span>
-                    </div>
-                    <p class="footer-description">
-                        La piattaforma leader per connettere brand e influencer di qualità.
-                    </p>
-                    <div class="social-links">
-                        <a href="#" class="social-link"><i class="fab fa-facebook"></i></a>
-                        <a href="#" class="social-link"><i class="fab fa-twitter"></i></a>
-                        <a href="#" class="social-link"><i class="fab fa-instagram"></i></a>
-                        <a href="#" class="social-link"><i class="fab fa-linkedin"></i></a>
-                    </div>
+                    <h3>InfluencerMarket</h3>
+                    <p>La piattaforma leader per connettere brand e influencer in modo autentico ed efficace.</p>
                 </div>
-                
                 <div class="footer-section">
-                    <h3 class="footer-title">Link Veloci</h3>
-                    <ul class="footer-links">
-                        <li><a href="index.php">Home</a></li>
-                        <li><a href="#influencers">Influencer</a></li>
-                        <li><a href="#brands">Brand</a></li>
-                        <li><a href="#about">Chi Siamo</a></li>
-                        <li><a href="#contact">Contatti</a></li>
-                    </ul>
+                    <h3>Link Veloci</h3>
+                    <a href="/infl/">Home</a>
+                    <a href="#features">Funzionalità</a>
+                    <a href="#how-it-works">Come Funziona</a>
+                    <a href="/infl/auth/login.php">Login</a>
+                    <a href="/infl/auth/register.php">Registrati</a>
                 </div>
-                
                 <div class="footer-section">
-                    <h3 class="footer-title">Risorse</h3>
-                    <ul class="footer-links">
-                        <li><a href="#">Blog</a></li>
-                        <li><a href="#">FAQ</a></li>
-                        <li><a href="#">Guide</a></li>
-                        <li><a href="#">Supporto</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-section">
-                    <h3 class="footer-title">Contatti</h3>
-                    <ul class="footer-links">
-                        <li><i class="fas fa-envelope"></i> info@influencermarket.com</li>
-                        <li><i class="fas fa-phone"></i> +39 02 1234567</li>
-                        <li><i class="fas fa-map-marker-alt"></i> Milano, Italia</li>
-                    </ul>
+                    <h3>Supporto</h3>
+                    <a href="#">Contattaci</a>
+                    <a href="#">FAQ</a>
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Termini di Servizio</a>
                 </div>
             </div>
-            
             <div class="footer-bottom">
                 <p>&copy; 2024 InfluencerMarket. Tutti i diritti riservati.</p>
             </div>
         </div>
     </footer>
-
-    <!-- PERCORSO JAVASCRIPT CORRETTO -->
-    <script src="assets/js/script.js"></script>
 </body>
 </html>
