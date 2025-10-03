@@ -1,141 +1,118 @@
 <?php
-require_once '../includes/config.php';
 
-// Se l'utente è già loggato, reindirizza alla dashboard
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
+// Percorso assoluto a config
+$config_file = dirname(__DIR__) . '/includes/config.php';
+if (!file_exists($config_file)) {
+    die("Config file not found");
+}
+require_once $config_file;
+
+// Se già loggato, reindirizza alla dashboard appropriata
 if (is_logged_in()) {
-    $user_type = get_user_type();
-    if ($user_type === 'admin') {
-        redirect('/admin/dashboard.php');
-    } elseif ($user_type === 'influencer') {
-        redirect('/influencers/dashboard.php');
-    } elseif ($user_type === 'brand') {
-        redirect('/brands/dashboard.php');
+    if (is_influencer()) {
+        header("Location: /infl/influencers/dashboard.php");
     } else {
-        redirect('/');
+        header("Location: /infl/brands/dashboard.php");
     }
-    exit;
+    exit();
 }
 
 $error = '';
-$success = '';
 
-// Gestione del form di login
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $email = sanitize_input($_POST['email']);
-    $password = $_POST['password'];
+    $email = $_POST['email'] ?? '';
+    $password = $_POST['password'] ?? '';
+    $user_type = $_POST['user_type'] ?? 'influencer';
     
-    // Validazione
-    if (empty($email) || empty($password)) {
-        $error = 'Inserisci email e password';
-    } else {
-        try {
-            // Cerca l'utente per email
-            $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? AND is_active = 1");
-            $stmt->execute([$email]);
-            $user = $stmt->fetch();
-            
-            if ($user && password_verify($password, $user['password'])) {
-                // Login riuscito - imposta la sessione
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['user_type'] = $user['user_type'];
-                $_SESSION['user_name'] = $user['name'];
-                $_SESSION['user_email'] = $user['email'];
-                
-                // Reindirizza in base al tipo utente
-                $redirect_url = '/';
-                switch ($user['user_type']) {
-                    case 'admin':
-                        $redirect_url = '/admin/dashboard.php';
-                        break;
-                    case 'influencer':
-                        $redirect_url = '/influencers/dashboard.php';
-                        break;
-                    case 'brand':
-                        $redirect_url = '/brands/dashboard.php';
-                        break;
-                }
-                
-                $success = 'Login effettuato con successo!';
-                redirect($redirect_url);
-                
-            } else {
-                $error = 'Email o password non validi';
-            }
-            
-        } catch (PDOException $e) {
-            $error = 'Errore durante il login: ' . $e->getMessage();
+    try {
+        // Cerca utente nella tabella appropriata
+        if ($user_type === 'influencer') {
+            $stmt = $pdo->prepare("SELECT id, password, name FROM influencers WHERE email = ?");
+        } else {
+            $stmt = $pdo->prepare("SELECT id, password, company_name as name FROM brands WHERE email = ?");
         }
+        
+        $stmt->execute([$email]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($user && password_verify($password, $user['password'])) {
+            // Login successful
+            login_user($user['id'], $user_type, $user['name']);
+            
+            // Redirect to appropriate dashboard
+            if ($user_type === 'influencer') {
+                header("Location: /infl/influencers/dashboard.php");
+            } else {
+                header("Location: /infl/brands/dashboard.php");
+            }
+            exit();
+            
+        } else {
+            $error = "Email o password non validi";
+        }
+        
+    } catch (PDOException $e) {
+        $error = "Errore di sistema: " . $e->getMessage();
     }
 }
-
-include '../includes/header.php';
 ?>
 
-<div class="row justify-content-center">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h4>Accedi al tuo account</h4>
-            </div>
-            <div class="card-body">
-                
-                <?php if ($error): ?>
-                    <div class="alert alert-danger"><?php echo $error; ?></div>
-                <?php endif; ?>
-                
-                <?php if ($success): ?>
-                    <div class="alert alert-success"><?php echo $success; ?></div>
-                <?php endif; ?>
-
-                <form method="POST" action="">
-                    <div class="mb-3">
-                        <label for="email" class="form-label">Email</label>
-                        <input type="email" class="form-control" id="email" name="email" 
-                               value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>" 
-                               required>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input type="password" class="form-control" id="password" name="password" required>
-                    </div>
-                    
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="remember" name="remember">
-                        <label class="form-check-label" for="remember">Ricordami</label>
-                    </div>
-                    
-                    <button type="submit" class="btn btn-primary w-100">Accedi</button>
-                </form>
-                
-                <div class="mt-3 text-center">
-                    <p>Non hai un account? 
-                        <a href="<?php echo BASE_URL; ?>/auth/register.php" class="text-decoration-none">
-                            Registrati qui
-                        </a>
-                    </p>
-                    <p>
-                        <a href="<?php echo BASE_URL; ?>/auth/forgot-password.php" class="text-decoration-none">
-                            Password dimenticata?
-                        </a>
-                    </p>
-                </div>
-                
-                <div class="mt-4">
-                    <div class="d-grid gap-2">
-                        <a href="<?php echo BASE_URL; ?>/auth/register.php?type=influencer" 
-                           class="btn btn-outline-primary">
-                            Registrati come Influencer
-                        </a>
-                        <a href="<?php echo BASE_URL; ?>/auth/register.php?type=brand" 
-                           class="btn btn-outline-success">
-                            Registrati come Brand
-                        </a>
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Influencer Marketplace</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <div class="container">
+        <div class="row justify-content-center min-vh-100 align-items-center">
+            <div class="col-md-6">
+                <div class="card shadow">
+                    <div class="card-body p-5">
+                        <h2 class="text-center mb-4">Accedi</h2>
+                        
+                        <?php if ($error): ?>
+                            <div class="alert alert-danger"><?php echo htmlspecialchars($error); ?></div>
+                        <?php endif; ?>
+                        
+                        <?php if (isset($_GET['timeout'])): ?>
+                            <div class="alert alert-warning">Sessione scaduta. Effettua nuovamente il login.</div>
+                        <?php endif; ?>
+                        
+                        <form method="POST">
+                            <div class="mb-3">
+                                <label for="email" class="form-label">Email</label>
+                                <input type="email" class="form-control" id="email" name="email" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="password" class="form-label">Password</label>
+                                <input type="password" class="form-control" id="password" name="password" required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="user_type" class="form-label">Tipo Utente</label>
+                                <select class="form-control" id="user_type" name="user_type" required>
+                                    <option value="influencer">Influencer</option>
+                                    <option value="brand">Brand</option>
+                                </select>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100">Accedi</button>
+                        </form>
+                        
+                        <div class="text-center mt-3">
+                            <a href="register.php">Non hai un account? Registrati</a>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
-<?php include '../includes/footer.php'; ?>
+</body>
+</html>

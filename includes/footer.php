@@ -1,68 +1,81 @@
-    </div> <!-- Chiude il container di header.php -->
+<?php
+// includes/footer.php
+?>
+    </main>
 
-    <footer class="bg-dark text-white mt-5">
-        <div class="container py-4">
-            <div class="row">
-                <div class="col-md-4">
-                    <h5>Influencer Marketplace</h5>
-                    <p class="text-muted">
-                        La piattaforma che connette influencer e brand per collaborazioni di successo.
-                    </p>
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>Influencer Marketplace</h3>
+                    <p>La piattaforma leader per connettere influencer e brand in collaborazioni di successo.</p>
+                    <div class="social-links">
+                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
+                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
+                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                        <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
+                    </div>
                 </div>
-                <div class="col-md-2">
-                    <h6>Link Veloci</h6>
-                    <ul class="list-unstyled">
-                        <li><a href="<?php echo BASE_URL; ?>/" class="text-muted text-decoration-none">Home</a></li>
-                        <li><a href="<?php echo BASE_URL; ?>/auth/login.php" class="text-muted text-decoration-none">Login</a></li>
-                        <li><a href="<?php echo BASE_URL; ?>/auth/register.php" class="text-muted text-decoration-none">Registrati</a></li>
+                
+                <div class="footer-section">
+                    <h4>Link Veloci</h4>
+                    <ul>
+                        <li><a href="<?php echo base_url('index.php'); ?>">Home</a></li>
+                        <li><a href="<?php echo base_url('about.php'); ?>">Chi Siamo</a></li>
+                        <li><a href="<?php echo base_url('contact.php'); ?>">Contatti</a></li>
+                        <li><a href="<?php echo base_url('privacy.php'); ?>">Privacy Policy</a></li>
+                        <li><a href="<?php echo base_url('terms.php'); ?>">Termini di Servizio</a></li>
                     </ul>
                 </div>
-                <div class="col-md-3">
-                    <h6>Per Influencer</h6>
-                    <ul class="list-unstyled">
-                        <li><a href="<?php echo BASE_URL; ?>/auth/register.php?type=influencer" class="text-muted text-decoration-none">Diventa Influencer</a></li>
-                        <li><a href="#" class="text-muted text-decoration-none">Come Funziona</a></li>
-                        <li><a href="#" class="text-muted text-decoration-none">Tariffe</a></li>
+                
+                <div class="footer-section">
+                    <h4>Per Influencer</h4>
+                    <ul>
+                        <li><a href="<?php echo base_url('register.php?type=influencer'); ?>">Diventa Influencer</a></li>
+                        <li><a href="<?php echo base_url('campaigns.php'); ?>">Trova Campagne</a></li>
+                        <li><a href="<?php echo base_url('resources.php'); ?>">Risorse</a></li>
+                        <li><a href="<?php echo base_url('help.php'); ?>">Guida</a></li>
                     </ul>
                 </div>
-                <div class="col-md-3">
-                    <h6>Per Brand</h6>
-                    <ul class="list-unstyled">
-                        <li><a href="<?php echo BASE_URL; ?>/auth/register.php?type=brand" class="text-muted text-decoration-none">Diventa Partner</a></li>
-                        <li><a href="#" class="text-muted text-decoration-none">Cerca Influencer</a></li>
-                        <li><a href="#" class="text-muted text-decoration-none">Case Studies</a></li>
+                
+                <div class="footer-section">
+                    <h4>Per Brand</h4>
+                    <ul>
+                        <li><a href="<?php echo base_url('register.php?type=brand'); ?>">Registra Brand</a></li>
+                        <li><a href="<?php echo base_url('influencers.php'); ?>">Cerca Influencer</a></li>
+                        <li><a href="<?php echo base_url('pricing.php'); ?>">Prezzi</a></li>
+                        <li><a href="<?php echo base_url('case-studies.php'); ?>">Case Studies</a></li>
                     </ul>
+                </div>
+                
+                <div class="footer-section">
+                    <h4>Contatti</h4>
+                    <div class="contact-info">
+                        <p><i class="fas fa-envelope"></i> info@influencer-marketplace.it</p>
+                        <p><i class="fas fa-phone"></i> +39 02 1234 5678</p>
+                        <p><i class="fas fa-map-marker-alt"></i> Milano, Italia</p>
+                    </div>
                 </div>
             </div>
-            <hr class="my-4">
-            <div class="row align-items-center">
-                <div class="col-md-6">
-                    <p class="text-muted mb-0">&copy; 2024 Influencer Marketplace. Tutti i diritti riservati.</p>
-                </div>
-                <div class="col-md-6 text-md-end">
-                    <a href="#" class="text-muted text-decoration-none me-3">Privacy Policy</a>
-                    <a href="#" class="text-muted text-decoration-none">Termini di Servizio</a>
-                </div>
+            
+            <div class="footer-bottom">
+                <p>&copy; <?php echo date('Y'); ?> Influencer Marketplace. Tutti i diritti riservati.</p>
+                <p>P.IVA 12345678901</p>
             </div>
         </div>
     </footer>
 
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="<?php echo BASE_URL; ?>/assets/js/script.js"></script>
+    <!-- JavaScript -->
+    <script src="<?php echo base_url('assets/js/script.js'); ?>"></script>
     
-    <!-- Script per gestire messaggi flash -->
+    <?php if (isset($_SESSION['flash_message'])): ?>
     <script>
-    // Auto-hide per alert dopo 5 secondi
-    document.addEventListener('DOMContentLoaded', function() {
-        const alerts = document.querySelectorAll('.alert');
-        alerts.forEach(function(alert) {
-            setTimeout(function() {
-                const bsAlert = new bootstrap.Alert(alert);
-                bsAlert.close();
-            }, 5000);
+        document.addEventListener('DOMContentLoaded', function() {
+            showNotification('<?php echo $_SESSION['flash_message']['type']; ?>', '<?php echo $_SESSION['flash_message']['message']; ?>');
+            <?php unset($_SESSION['flash_message']); ?>
         });
-    });
     </script>
+    <?php endif; ?>
 </body>
 </html>
