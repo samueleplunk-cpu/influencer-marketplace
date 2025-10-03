@@ -55,6 +55,7 @@ try {
 // Path constants
 define('ROOT_PATH', BASE_DIR);
 define('INCLUDES_PATH', BASE_DIR . '/includes');
+define('BASE_URL', '/infl');
 
 // Flag per evitare inclusioni multiple
 $config_loaded = true;

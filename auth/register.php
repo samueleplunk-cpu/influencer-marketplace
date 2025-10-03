@@ -35,8 +35,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'La password deve essere di almeno 6 caratteri';
     } else {
         try {
-            // Verifica se l'email esiste già
-            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+            // VERIFICA SE L'EMAIL ESISTE GIÀ NELLE TABELLE CORRETTE
+            if ($user_type === 'influencer') {
+                $stmt = $pdo->prepare("SELECT id FROM influencers WHERE email = ?");
+            } else {
+                $stmt = $pdo->prepare("SELECT id FROM brands WHERE email = ?");
+            }
+            
             $stmt->execute([$email]);
             
             if ($stmt->fetch()) {
@@ -45,33 +50,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Hash della password
                 $password_hash = password_hash($password, PASSWORD_DEFAULT);
                 
-                // Inserisce l'utente nel database
-                $stmt = $pdo->prepare("INSERT INTO users (name, email, password, user_type) VALUES (?, ?, ?, ?)");
-                $stmt->execute([$name, $email, $password_hash, $user_type]);
-                
-                $user_id = $pdo->lastInsertId();
-                
-                // Se è un influencer, crea il profilo vuoto
+                // INSERISCI NELLA TABELLA CORRETTA
                 if ($user_type === 'influencer') {
-                    $stmt = $pdo->prepare("INSERT INTO influencer_profiles (user_id) VALUES (?)");
-                    $stmt->execute([$user_id]);
+                    $stmt = $pdo->prepare("INSERT INTO influencers (name, email, password) VALUES (?, ?, ?)");
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO brands (company_name, email, password) VALUES (?, ?, ?)");
                 }
-                // Se è un brand, crea il profilo vuoto
-                elseif ($user_type === 'brand') {
-                    $stmt = $pdo->prepare("INSERT INTO brand_profiles (user_id) VALUES (?)");
-                    $stmt->execute([$user_id]);
-                }
+                
+                $stmt->execute([$name, $email, $password_hash]);
+                $user_id = $pdo->lastInsertId();
                 
                 $success = 'Registrazione completata con successo! Ora puoi effettuare il login.';
                 
                 // Reindirizza al login dopo 2 secondi
-                header("refresh:2;url=" . BASE_URL . "/auth/login.php");
+                header("refresh:2;url=/infl/auth/login.php");
+                exit();
             }
             
         } catch (PDOException $e) {
             $error = 'Errore durante la registrazione: ' . $e->getMessage();
         }
     }
+}
+
+// TEMP FIX - Funzioni mancanti
+if (!function_exists('redirect')) {
+    function redirect($url) {
+        header("Location: $url");
+        exit;
+    }
+}
+
+if (!function_exists('sanitize_input')) {
+    function sanitize_input($data) {
+        return htmlspecialchars(trim($data));
+    }
+}
+
+// DEFINISCI BASE_URL SE NON ESISTE
+if (!defined('BASE_URL')) {
+    define('BASE_URL', '/infl');
 }
 
 include '../includes/header.php';

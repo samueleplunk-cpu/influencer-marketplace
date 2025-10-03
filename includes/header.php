@@ -32,4 +32,4 @@ if (session_status() === PHP_SESSION_NONE) {
             <a class="navbar-brand" href="/infl">Influencer Marketplace</a>
         </div>
     </nav>
-    <div class="container mt-4">
+    <main class="container mt-4">

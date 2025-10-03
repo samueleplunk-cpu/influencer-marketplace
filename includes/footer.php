@@ -1,81 +1,40 @@
 <?php
-// includes/footer.php
+// includes/footer.php - VERSIONE SEMPLIFICATA E FUNZIONANTE
 ?>
-    </main>
+    </main> <!-- Chiude il <main> aperto in header.php -->
 
-    <!-- Footer -->
-    <footer class="footer">
+    <!-- Footer Semplificato -->
+    <footer class="bg-dark text-light mt-5 py-4">
         <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>Influencer Marketplace</h3>
-                    <p>La piattaforma leader per connettere influencer e brand in collaborazioni di successo.</p>
-                    <div class="social-links">
-                        <a href="#" aria-label="Facebook"><i class="fab fa-facebook"></i></a>
-                        <a href="#" aria-label="Instagram"><i class="fab fa-instagram"></i></a>
-                        <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
-                        <a href="#" aria-label="LinkedIn"><i class="fab fa-linkedin"></i></a>
-                    </div>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Influencer Marketplace</h5>
+                    <p class="mb-2">La piattaforma per connettere influencer e brand.</p>
                 </div>
-                
-                <div class="footer-section">
-                    <h4>Link Veloci</h4>
-                    <ul>
-                        <li><a href="<?php echo base_url('index.php'); ?>">Home</a></li>
-                        <li><a href="<?php echo base_url('about.php'); ?>">Chi Siamo</a></li>
-                        <li><a href="<?php echo base_url('contact.php'); ?>">Contatti</a></li>
-                        <li><a href="<?php echo base_url('privacy.php'); ?>">Privacy Policy</a></li>
-                        <li><a href="<?php echo base_url('terms.php'); ?>">Termini di Servizio</a></li>
+                <div class="col-md-3">
+                    <h6>Link Utili</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="/infl/" class="text-light text-decoration-none">Home</a></li>
+                        <li><a href="/infl/auth/login.php" class="text-light text-decoration-none">Login</a></li>
+                        <li><a href="/infl/auth/register.php" class="text-light text-decoration-none">Registrati</a></li>
                     </ul>
                 </div>
-                
-                <div class="footer-section">
-                    <h4>Per Influencer</h4>
-                    <ul>
-                        <li><a href="<?php echo base_url('register.php?type=influencer'); ?>">Diventa Influencer</a></li>
-                        <li><a href="<?php echo base_url('campaigns.php'); ?>">Trova Campagne</a></li>
-                        <li><a href="<?php echo base_url('resources.php'); ?>">Risorse</a></li>
-                        <li><a href="<?php echo base_url('help.php'); ?>">Guida</a></li>
+                <div class="col-md-3">
+                    <h6>Contatti</h6>
+                    <ul class="list-unstyled">
+                        <li>Email: info@marketplace.it</li>
+                        <li>Tel: +39 02 1234 5678</li>
                     </ul>
-                </div>
-                
-                <div class="footer-section">
-                    <h4>Per Brand</h4>
-                    <ul>
-                        <li><a href="<?php echo base_url('register.php?type=brand'); ?>">Registra Brand</a></li>
-                        <li><a href="<?php echo base_url('influencers.php'); ?>">Cerca Influencer</a></li>
-                        <li><a href="<?php echo base_url('pricing.php'); ?>">Prezzi</a></li>
-                        <li><a href="<?php echo base_url('case-studies.php'); ?>">Case Studies</a></li>
-                    </ul>
-                </div>
-                
-                <div class="footer-section">
-                    <h4>Contatti</h4>
-                    <div class="contact-info">
-                        <p><i class="fas fa-envelope"></i> info@influencer-marketplace.it</p>
-                        <p><i class="fas fa-phone"></i> +39 02 1234 5678</p>
-                        <p><i class="fas fa-map-marker-alt"></i> Milano, Italia</p>
-                    </div>
                 </div>
             </div>
-            
-            <div class="footer-bottom">
-                <p>&copy; <?php echo date('Y'); ?> Influencer Marketplace. Tutti i diritti riservati.</p>
-                <p>P.IVA 12345678901</p>
+            <hr class="my-3 bg-light">
+            <div class="text-center">
+                <p class="mb-0">&copy; <?php echo date('Y'); ?> Influencer Marketplace. Tutti i diritti riservati.</p>
             </div>
         </div>
     </footer>
 
-    <!-- JavaScript -->
-    <script src="<?php echo base_url('assets/js/script.js'); ?>"></script>
-    
-    <?php if (isset($_SESSION['flash_message'])): ?>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            showNotification('<?php echo $_SESSION['flash_message']['type']; ?>', '<?php echo $_SESSION['flash_message']['message']; ?>');
-            <?php unset($_SESSION['flash_message']); ?>
-        });
-    </script>
-    <?php endif; ?>
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
