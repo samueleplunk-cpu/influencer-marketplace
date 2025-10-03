@@ -5,6 +5,20 @@ require_once __DIR__ . '/includes/auth_functions.php';
 
 $is_logged_in = is_logged_in();
 $user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
+
+// Determina il percorso della dashboard in base al tipo di utente
+$dashboard_url = "/infl/influencers/dashboard.php"; // default
+$create_profile_url = "/infl/influencers/create-profile.php"; // default
+
+if (isset($_SESSION['user_type'])) {
+    if ($_SESSION['user_type'] === 'brand') {
+        $dashboard_url = "/infl/brands/dashboard.php";
+        $create_profile_url = "#"; // I brand potrebbero non avere un create-profile
+    } elseif ($_SESSION['user_type'] === 'influencer') {
+        $dashboard_url = "/infl/influencers/dashboard.php";
+        $create_profile_url = "/infl/influencers/create-profile.php";
+    }
+}
 ?>
 
 <!DOCTYPE html>
@@ -73,6 +87,7 @@ $user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
         .auth-buttons {
             display: flex;
             gap: 1rem;
+            align-items: center;
         }
 
         .btn {
@@ -348,7 +363,7 @@ $user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
                 <?php if ($is_logged_in): ?>
                     <div class="auth-buttons">
                         <span>Ciao, <?php echo htmlspecialchars($user_name); ?>!</span>
-                        <a href="/infl/influencers/dashboard.php" class="btn btn-primary">Dashboard</a>
+                        <a href="<?php echo $dashboard_url; ?>" class="btn btn-primary">Dashboard</a>
                         <a href="/infl/auth/logout.php" class="btn btn-outline">Logout</a>
                     </div>
                 <?php else: ?>
@@ -368,8 +383,10 @@ $user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
             <p>La piattaforma perfetta per trovare collaborazioni autentiche e crescere insieme</p>
             <div class="hero-buttons">
                 <?php if ($is_logged_in): ?>
-                    <a href="/infl/influencers/dashboard.php" class="btn btn-primary btn-large">Vai alla Dashboard</a>
-                    <a href="/infl/influencers/create-profile.php" class="btn btn-white btn-large">Crea Profilo</a>
+                    <a href="<?php echo $dashboard_url; ?>" class="btn btn-primary btn-large">Vai alla Dashboard</a>
+                    <?php if ($_SESSION['user_type'] === 'influencer'): ?>
+                        <a href="<?php echo $create_profile_url; ?>" class="btn btn-white btn-large">Crea Profilo</a>
+                    <?php endif; ?>
                 <?php else: ?>
                     <a href="/infl/auth/register.php" class="btn btn-primary btn-large">Inizia Ora</a>
                     <a href="/infl/auth/login.php" class="btn btn-white btn-large">Accedi</a>
@@ -438,7 +455,7 @@ $user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
             <h2>Pronto a Iniziare?</h2>
             <p>Unisciti a migliaia di influencer e brand che già usano la nostra piattaforma</p>
             <?php if ($is_logged_in): ?>
-                <a href="/infl/influencers/dashboard.php" class="btn btn-white btn-large">Vai alla Dashboard</a>
+                <a href="<?php echo $dashboard_url; ?>" class="btn btn-white btn-large">Vai alla Dashboard</a>
             <?php else: ?>
                 <a href="/infl/auth/register.php" class="btn btn-white btn-large">Registrati Gratis</a>
             <?php endif; ?>
