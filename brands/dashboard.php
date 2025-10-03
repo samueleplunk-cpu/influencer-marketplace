@@ -1,5 +1,4 @@
 <?php
-// infl/influencers/dashboard.php - VERSIONE CORRETTA COMPLETA
 
 // =============================================
 // CONFIGURAZIONE ERRORI E SICUREZZA
@@ -26,9 +25,9 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-// Verifica che l'utente sia un influencer
-if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
-    die("Accesso negato: Questa area è riservata agli influencer.");
+// Verifica che l'utente sia un brand
+if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'brand') {
+    die("Accesso negato: Questa area è riservata ai brand.");
 }
 
 // =============================================
@@ -41,23 +40,23 @@ if (!file_exists($header_file)) {
 require_once $header_file;
 
 // =============================================
-// RECUPERO DATI INFLUENCER DAL DATABASE
+// RECUPERO DATI BRAND DAL DATABASE
 // =============================================
-$influencer = null;
+$brand = null;
 $error = '';
 $success = '';
 
 try {
-    // Prepara e esegui query per recuperare i dati dell'influencer
+    // Prepara e esegui query per recuperare i dati del brand
     $stmt = $pdo->prepare("
-        SELECT * FROM influencers 
+        SELECT * FROM brands 
         WHERE user_id = ?
     ");
     $stmt->execute([$_SESSION['user_id']]);
-    $influencer = $stmt->fetch(PDO::FETCH_ASSOC);
+    $brand = $stmt->fetch(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
-    $error = "Errore nel caricamento del profilo: " . $e->getMessage();
+    $error = "Errore nel caricamento del profilo brand: " . $e->getMessage();
 }
 
 // =============================================
@@ -68,10 +67,10 @@ try {
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Dashboard Influencer</h2>
-            <?php if (!$influencer): ?>
+            <h2>Dashboard Brand</h2>
+            <?php if (!$brand): ?>
                 <a href="create-profile.php" class="btn btn-primary">
-                    Crea Profilo Influencer
+                    Completa Profilo Aziendale
                 </a>
             <?php else: ?>
                 <a href="/infl/auth/logout.php" class="btn btn-outline-primary">
@@ -90,22 +89,22 @@ try {
 
         <?php if (isset($_GET['success']) && $_GET['success'] == 'profile_created'): ?>
             <div class="alert alert-success alert-dismissible fade show" role="alert">
-                Profilo creato con successo!
+                Profilo brand creato con successo!
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
 
         <!-- Sezione: Profilo Mancante -->
-        <?php if (!$influencer): ?>
+        <?php if (!$brand): ?>
             <div class="card border-warning">
                 <div class="card-body text-center">
-                    <h4 class="card-title text-warning">Profilo Non Creato</h4>
+                    <h4 class="card-title text-warning">Profilo Brand Non Completato</h4>
                     <p class="card-text">
-                        Per accedere alle funzionalità complete della piattaforma, 
-                        devi prima creare il tuo profilo influencer.
+                        Per iniziare a cercare influencer e creare campagne, 
+                        completa il profilo della tua azienda.
                     </p>
                     <a href="create-profile.php" class="btn btn-warning btn-lg">
-                        Crea il Tuo Profilo Ora
+                        Completa Profilo Aziendale
                     </a>
                 </div>
             </div>
@@ -113,34 +112,34 @@ try {
         <!-- Sezione: Profilo Esistente -->
         <?php else: ?>
             <div class="row">
-                <!-- Riepilogo Profilo -->
+                <!-- Riepilogo Profilo Brand -->
                 <div class="col-md-6">
                     <div class="card mb-4">
                         <div class="card-header bg-primary text-white">
-                            <h5 class="card-title mb-0">Il Tuo Profilo</h5>
+                            <h5 class="card-title mb-0">Profilo Aziendale</h5>
                         </div>
                         <div class="card-body">
                             <div class="mb-3">
-                                <strong>Nome:</strong>
-                                <span class="float-end"><?php echo htmlspecialchars($influencer['name'] ?? 'Non specificato'); ?></span>
+                                <strong>Azienda:</strong>
+                                <span class="float-end"><?php echo htmlspecialchars($brand['company_name'] ?? 'Non specificato'); ?></span>
                             </div>
                             <div class="mb-3">
-                                <strong>Niche:</strong>
-                                <span class="float-end badge bg-info"><?php echo htmlspecialchars($influencer['niche'] ?? 'Non specificata'); ?></span>
+                                <strong>Settore:</strong>
+                                <span class="float-end badge bg-info"><?php echo htmlspecialchars($brand['industry'] ?? 'Non specificato'); ?></span>
                             </div>
                             <div class="mb-3">
-                                <strong>Followers:</strong>
-                                <span class="float-end"><?php echo number_format($influencer['follower_count'] ?? 0); ?></span>
+                                <strong>Sito Web:</strong>
+                                <span class="float-end"><?php echo htmlspecialchars($brand['website'] ?? 'Non specificato'); ?></span>
                             </div>
                             <div class="mb-3">
-                                <strong>Social Handle:</strong>
-                                <span class="float-end"><?php echo htmlspecialchars($influencer['social_handle'] ?? 'Non specificato'); ?></span>
+                                <strong>Dimensione Azienda:</strong>
+                                <span class="float-end"><?php echo htmlspecialchars($brand['company_size'] ?? 'Non specificata'); ?></span>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Statistiche -->
+                <!-- Statistiche e Azioni -->
                 <div class="col-md-6">
                     <div class="card mb-4">
                         <div class="card-header bg-success text-white">
@@ -153,11 +152,11 @@ try {
                                     <?php 
                                     $completed = 0;
                                     $total = 5;
-                                    if (!empty($influencer['name'])) $completed++;
-                                    if (!empty($influencer['niche'])) $completed++;
-                                    if (!empty($influencer['bio'])) $completed++;
-                                    if (!empty($influencer['social_handle'])) $completed++;
-                                    if (!empty($influencer['follower_count'])) $completed++;
+                                    if (!empty($brand['company_name'])) $completed++;
+                                    if (!empty($brand['industry'])) $completed++;
+                                    if (!empty($brand['description'])) $completed++;
+                                    if (!empty($brand['website'])) $completed++;
+                                    if (!empty($brand['company_size'])) $completed++;
                                     echo $completed . '/' . $total;
                                     ?>
                                 </span>
@@ -169,26 +168,26 @@ try {
                                 </div>
                             </div>
                             <small class="text-muted">
-                                Completa il tuo profilo per aumentare la visibilità
+                                Profilo completo: maggiore visibilità per gli influencer
                             </small>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Bio -->
-            <?php if (!empty($influencer['bio'])): ?>
+            <!-- Descrizione Azienda -->
+            <?php if (!empty($brand['description'])): ?>
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5 class="card-title mb-0">Biografia</h5>
+                        <h5 class="card-title mb-0">Descrizione Azienda</h5>
                     </div>
                     <div class="card-body">
-                        <p class="card-text"><?php echo nl2br(htmlspecialchars($influencer['bio'])); ?></p>
+                        <p class="card-text"><?php echo nl2br(htmlspecialchars($brand['description'])); ?></p>
                     </div>
                 </div>
             <?php endif; ?>
 
-            <!-- Azioni Rapide -->
+            <!-- Azioni Rapide Brand -->
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">Azioni Rapide</h5>
@@ -201,18 +200,18 @@ try {
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="campaigns.php" class="btn btn-outline-success w-100 mb-2">
-                                Campagne Attive
+                            <a href="search-influencers.php" class="btn btn-outline-success w-100 mb-2">
+                                Cerca Influencer
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="analytics.php" class="btn btn-outline-info w-100 mb-2">
-                                Analytics
+                            <a href="create-campaign.php" class="btn btn-outline-info w-100 mb-2">
+                                Crea Campagna
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="settings.php" class="btn btn-outline-secondary w-100 mb-2">
-                                Impostazioni
+                            <a href="campaigns.php" class="btn btn-outline-warning w-100 mb-2">
+                                Le Mie Campagne
                             </a>
                         </div>
                     </div>
