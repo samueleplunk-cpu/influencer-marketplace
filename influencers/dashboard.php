@@ -1,5 +1,4 @@
 <?php
-// infl/influencers/dashboard.php - VERSIONE CORRETTA COMPLETA
 
 // =============================================
 // CONFIGURAZIONE ERRORI E SICUREZZA
@@ -21,12 +20,10 @@ require_once $config_file;
 // VERIFICA AUTENTICAZIONE UTENTE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
-    // Reindirizza al login se non autenticato
     header("Location: /infl/auth/login.php");
     exit();
 }
 
-// Verifica che l'utente sia un influencer
 if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
     die("Accesso negato: Questa area è riservata agli influencer.");
 }
@@ -48,9 +45,13 @@ $error = '';
 $success = '';
 
 try {
-    // Prepara e esegui query per recuperare i dati dell'influencer
+    // QUERY CORRETTA - RATING SENZA 'S'
     $stmt = $pdo->prepare("
-        SELECT * FROM influencers 
+        SELECT id, user_id, full_name, bio, niche, 
+               instagram_handle, tiktok_handle, youtube_handle, 
+               website, rate, profile_image, profile_views, rating,
+               created_at, updated_at 
+        FROM influencers 
         WHERE user_id = ?
     ");
     $stmt->execute([$_SESSION['user_id']]);
@@ -113,64 +114,87 @@ try {
         <!-- Sezione: Profilo Esistente -->
         <?php else: ?>
             <div class="row">
-                <!-- Riepilogo Profilo -->
-                <div class="col-md-6">
+                <!-- Immagine Profilo e Dati Base -->
+                <div class="col-md-4">
                     <div class="card mb-4">
                         <div class="card-header bg-primary text-white">
-                            <h5 class="card-title mb-0">Il Tuo Profilo</h5>
+                            <h5 class="card-title mb-0">Profilo</h5>
                         </div>
-                        <div class="card-body">
-                            <div class="mb-3">
-                                <strong>Nome:</strong>
-                                <span class="float-end"><?php echo htmlspecialchars($influencer['name'] ?? 'Non specificato'); ?></span>
-                            </div>
-                            <div class="mb-3">
-                                <strong>Niche:</strong>
-                                <span class="float-end badge bg-info"><?php echo htmlspecialchars($influencer['niche'] ?? 'Non specificata'); ?></span>
-                            </div>
-                            <div class="mb-3">
-                                <strong>Followers:</strong>
-                                <span class="float-end"><?php echo number_format($influencer['follower_count'] ?? 0); ?></span>
-                            </div>
-                            <div class="mb-3">
-                                <strong>Social Handle:</strong>
-                                <span class="float-end"><?php echo htmlspecialchars($influencer['social_handle'] ?? 'Non specificato'); ?></span>
-                            </div>
+                        <div class="card-body text-center">
+                            <?php if (!empty($influencer['profile_image'])): ?>
+                                <img src="/infl/uploads/<?php echo htmlspecialchars($influencer['profile_image']); ?>" 
+                                     class="rounded-circle mb-3" 
+                                     alt="Profile Image" 
+                                     style="width: 150px; height: 150px; object-fit: cover;">
+                            <?php else: ?>
+                                <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" 
+                                     style="width: 150px; height: 150px;">
+                                    <span class="text-white">No Image</span>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <h4><?php echo htmlspecialchars($influencer['full_name']); ?></h4>
+                            <span class="badge bg-info"><?php echo htmlspecialchars($influencer['niche']); ?></span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Statistiche -->
-                <div class="col-md-6">
+                <!-- Dettagli Profilo -->
+                <div class="col-md-8">
                     <div class="card mb-4">
                         <div class="card-header bg-success text-white">
-                            <h5 class="card-title mb-0">Statistiche</h5>
+                            <h5 class="card-title mb-0">Dettagli Profilo</h5>
                         </div>
                         <div class="card-body">
-                            <div class="mb-3">
-                                <strong>Profilo Completato:</strong>
-                                <span class="float-end">
-                                    <?php 
-                                    $completed = 0;
-                                    $total = 5;
-                                    if (!empty($influencer['name'])) $completed++;
-                                    if (!empty($influencer['niche'])) $completed++;
-                                    if (!empty($influencer['bio'])) $completed++;
-                                    if (!empty($influencer['social_handle'])) $completed++;
-                                    if (!empty($influencer['follower_count'])) $completed++;
-                                    echo $completed . '/' . $total;
-                                    ?>
-                                </span>
-                            </div>
-                            <div class="progress mb-3">
-                                <div class="progress-bar" role="progressbar" 
-                                     style="width: <?php echo ($completed/$total)*100; ?>%">
-                                    <?php echo round(($completed/$total)*100); ?>%
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <strong>Instagram:</strong>
+                                        <span class="float-end"><?php echo !empty($influencer['instagram_handle']) ? htmlspecialchars($influencer['instagram_handle']) : 'Non specificato'; ?></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>TikTok:</strong>
+                                        <span class="float-end"><?php echo !empty($influencer['tiktok_handle']) ? htmlspecialchars($influencer['tiktok_handle']) : 'Non specificato'; ?></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>YouTube:</strong>
+                                        <span class="float-end"><?php echo !empty($influencer['youtube_handle']) ? htmlspecialchars($influencer['youtube_handle']) : 'Non specificato'; ?></span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <strong>Tariffa:</strong>
+                                        <span class="float-end">€<?php echo !empty($influencer['rate']) ? number_format($influencer['rate'], 2) : '0.00'; ?></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Visualizzazioni:</strong>
+                                        <span class="float-end"><?php echo number_format($influencer['profile_views'] ?? 0); ?></span>
+                                    </div>
+                                    <div class="mb-3">
+                                        <strong>Rating:</strong>
+                                        <span class="float-end">
+                                            <?php 
+                                            if (!empty($influencer['rating']) && $influencer['rating'] > 0) {
+                                                echo number_format($influencer['rating'], 1) . '/5';
+                                            } else {
+                                                echo 'N/A';
+                                            }
+                                            ?>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                            <small class="text-muted">
-                                Completa il tuo profilo per aumentare la visibilità
-                            </small>
+                            
+                            <?php if (!empty($influencer['website'])): ?>
+                                <div class="mb-3">
+                                    <strong>Website:</strong>
+                                    <span class="float-end">
+                                        <a href="<?php echo htmlspecialchars($influencer['website']); ?>" target="_blank">
+                                            <?php echo htmlspecialchars($influencer['website']); ?>
+                                        </a>
+                                    </span>
+                                </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -188,6 +212,44 @@ try {
                 </div>
             <?php endif; ?>
 
+            <!-- Statistiche Completamento Profilo -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Completamento Profilo</h5>
+                </div>
+                <div class="card-body">
+                    <?php 
+                    $completed = 0;
+                    $total_fields = 8; // full_name, bio, niche, instagram_handle, rate, profile_image, website, almeno un social
+                    
+                    if (!empty($influencer['full_name'])) $completed++;
+                    if (!empty($influencer['bio'])) $completed++;
+                    if (!empty($influencer['niche'])) $completed++;
+                    if (!empty($influencer['instagram_handle'])) $completed++;
+                    if (!empty($influencer['rate'])) $completed++;
+                    if (!empty($influencer['profile_image'])) $completed++;
+                    if (!empty($influencer['website'])) $completed++;
+                    if (!empty($influencer['instagram_handle']) || !empty($influencer['tiktok_handle']) || !empty($influencer['youtube_handle'])) $completed++;
+                    
+                    $percentage = round(($completed / $total_fields) * 100);
+                    ?>
+                    <div class="mb-3">
+                        <strong>Profilo Completato:</strong>
+                        <span class="float-end"><?php echo $completed . '/' . $total_fields . ' (' . $percentage . '%)'; ?></span>
+                    </div>
+                    <div class="progress mb-3">
+                        <div class="progress-bar <?php echo $percentage >= 80 ? 'bg-success' : ($percentage >= 50 ? 'bg-warning' : 'bg-danger'); ?>" 
+                             role="progressbar" 
+                             style="width: <?php echo $percentage; ?>%">
+                            <?php echo $percentage; ?>%
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        Completa tutti i campi per aumentare la tua visibilità del <?php echo (100 - $percentage); ?>%
+                    </small>
+                </div>
+            </div>
+
             <!-- Azioni Rapide -->
             <div class="card">
                 <div class="card-header">
@@ -197,22 +259,22 @@ try {
                     <div class="row">
                         <div class="col-md-3">
                             <a href="edit-profile.php" class="btn btn-outline-primary w-100 mb-2">
-                                Modifica Profilo
+                                ✏️ Modifica Profilo
                             </a>
                         </div>
                         <div class="col-md-3">
                             <a href="campaigns.php" class="btn btn-outline-success w-100 mb-2">
-                                Campagne Attive
+                                📊 Campagne Attive
                             </a>
                         </div>
                         <div class="col-md-3">
                             <a href="analytics.php" class="btn btn-outline-info w-100 mb-2">
-                                Analytics
+                                📈 Analytics
                             </a>
                         </div>
                         <div class="col-md-3">
                             <a href="settings.php" class="btn btn-outline-secondary w-100 mb-2">
-                                Impostazioni
+                                ⚙️ Impostazioni
                             </a>
                         </div>
                     </div>

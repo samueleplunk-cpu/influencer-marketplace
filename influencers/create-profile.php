@@ -1,5 +1,6 @@
 <?php
-// === CORREZIONE: Rimuovi session_start() duplicato e usa PDO ===
+// infl/influencers/create-profile.php - VERSIONE CORRETTA CON RATING SENZA 'S'
+
 require_once __DIR__ . '/../includes/config.php';
 require_once __DIR__ . '/../includes/auth_functions.php';
 
@@ -9,7 +10,6 @@ if (!is_logged_in()) {
     exit();
 }
 
-// === MODIFICA: Verifica più flessibile per permettere la creazione profilo ===
 $user_id = $_SESSION['user_id'];
 
 // Verifica che l'utente non abbia già un profilo influencer
@@ -33,21 +33,24 @@ $success = '';
 
 // Gestione del form di creazione profilo
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Validazione e sanitizzazione dei dati
-    $name = trim($_POST['name'] ?? '');
+    // Validazione e sanitizzazione dei dati con campi REALI del DB
+    $full_name = trim($_POST['full_name'] ?? '');
     $bio = trim($_POST['bio'] ?? '');
-    $follower_count = intval($_POST['follower_count'] ?? 0);
     $niche = trim($_POST['niche'] ?? '');
-    $social_handle = trim($_POST['social_handle'] ?? '');
+    $instagram_handle = trim($_POST['instagram_handle'] ?? '');
+    $tiktok_handle = trim($_POST['tiktok_handle'] ?? '');
+    $youtube_handle = trim($_POST['youtube_handle'] ?? '');
+    $website = trim($_POST['website'] ?? '');
+    $rate = floatval($_POST['rate'] ?? 0);
     
     // Validazione base
-    if (empty($name) || empty($bio) || empty($niche) || empty($social_handle)) {
-        $error = "Tutti i campi obbligatori devono essere compilati!";
-    } elseif ($follower_count < 0) {
-        $error = "Il numero di follower non può essere negativo!";
+    if (empty($full_name) || empty($bio) || empty($niche)) {
+        $error = "Nome, Bio e Niche sono campi obbligatori!";
+    } elseif ($rate < 0) {
+        $error = "La tariffa non può essere negativa!";
     } else {
         try {
-            // Gestione upload immagine profilo
+            // Gestione upload immagine profilo (stessa logica di edit-profile.php)
             $profile_image = null;
             if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
                 $upload_dir = __DIR__ . '/../uploads/profiles/';
@@ -57,14 +60,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     mkdir($upload_dir, 0755, true);
                 }
                 
-                $file_extension = pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION);
+                $file_extension = strtolower(pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION));
                 $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
                 
-                if (in_array(strtolower($file_extension), $allowed_extensions)) {
+                if (in_array($file_extension, $allowed_extensions)) {
                     // Verifica dimensione file (max 5MB)
                     if ($_FILES['profile_image']['size'] > 5 * 1024 * 1024) {
                         $error = "L'immagine è troppo grande! Dimensione massima: 5MB";
                     } else {
+                        // Genera nome file univoco
                         $filename = uniqid() . '_' . time() . '.' . $file_extension;
                         $upload_path = $upload_dir . $filename;
                         
@@ -80,26 +84,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             if (empty($error)) {
-                // Inserimento nel database usando PDO
-                $sql = "INSERT INTO influencers (user_id, name, bio, follower_count, niche, social_handle, profile_image, created_at) 
-                        VALUES (:user_id, :name, :bio, :follower_count, :niche, :social_handle, :profile_image, NOW())";
+                // INSERIMENTO CORRETTO con RATING SENZA 'S'
+                $sql = "INSERT INTO influencers (
+                            user_id, full_name, bio, niche, 
+                            instagram_handle, tiktok_handle, youtube_handle, 
+                            website, rate, profile_image, profile_views, rating,
+                            created_at, updated_at
+                        ) VALUES (
+                            :user_id, :full_name, :bio, :niche,
+                            :instagram_handle, :tiktok_handle, :youtube_handle,
+                            :website, :rate, :profile_image, 0, 0,
+                            NOW(), NOW()
+                        )";
                 
                 $stmt = $pdo->prepare($sql);
                 $result = $stmt->execute([
                     ':user_id' => $user_id,
-                    ':name' => $name,
+                    ':full_name' => $full_name,
                     ':bio' => $bio,
-                    ':follower_count' => $follower_count,
                     ':niche' => $niche,
-                    ':social_handle' => $social_handle,
+                    ':instagram_handle' => $instagram_handle,
+                    ':tiktok_handle' => $tiktok_handle,
+                    ':youtube_handle' => $youtube_handle,
+                    ':website' => $website,
+                    ':rate' => $rate,
                     ':profile_image' => $profile_image
                 ]);
                 
                 if ($result) {
-                    // === IMPORTANTE: Imposta user_type come influencer dopo la creazione profilo ===
+                    // Imposta user_type come influencer dopo la creazione profilo
                     $_SESSION['user_type'] = 'influencer';
                     $_SESSION['success'] = "Profilo influencer creato con successo!";
-                    header('Location: /infl/influencers/dashboard.php');
+                    header('Location: /infl/influencers/dashboard.php?success=profile_created');
                     exit();
                 } else {
                     $error = "Errore nella creazione del profilo";
@@ -145,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             padding: 40px;
             width: 100%;
-            max-width: 600px;
+            max-width: 800px;
         }
 
         .header {
@@ -262,13 +278,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .back-link a:hover {
             text-decoration: underline;
         }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+        }
+
+        .form-row .form-group {
+            flex: 1;
+        }
+
+        .social-handles {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .social-handles h3 {
+            margin-bottom: 15px;
+            color: #333;
+            font-size: 1.2rem;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🎯 Crea Profilo</h1>
-            <p>Completa il tuo profilo influencer per iniziare a collaborare</p>
+            <h1>🎯 Crea Profilo Influencer</h1>
+            <p>Completa il tuo profilo per iniziare a collaborare con i brand</p>
         </div>
 
         <?php if (!empty($error)): ?>
@@ -277,54 +315,81 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </div>
         <?php endif; ?>
 
-        <?php if (!empty($success)): ?>
-            <div class="alert alert-success">
-                <?php echo htmlspecialchars($success); ?>
-            </div>
-        <?php endif; ?>
-
         <form method="POST" enctype="multipart/form-data">
+            <!-- Informazioni Base -->
             <div class="form-group">
-                <label for="name">Nome Completo *</label>
-                <input type="text" id="name" name="name" required 
-                       value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+                <label for="full_name">Nome Completo *</label>
+                <input type="text" id="full_name" name="full_name" required 
+                       value="<?php echo htmlspecialchars($_POST['full_name'] ?? ''); ?>"
+                       placeholder="Il tuo nome e cognome">
             </div>
 
             <div class="form-group">
                 <label for="bio">Biografia *</label>
                 <textarea id="bio" name="bio" required 
-                          placeholder="Racconta la tua storia, i tuoi interessi..."><?php echo htmlspecialchars($_POST['bio'] ?? ''); ?></textarea>
+                          placeholder="Racconta la tua storia, i tuoi interessi, la tua expertise..."><?php echo htmlspecialchars($_POST['bio'] ?? ''); ?></textarea>
+                <div class="form-help">Descriviti in modo autentico per attirare i brand giusti</div>
             </div>
 
-            <div class="form-group">
-                <label for="follower_count">Numero di Follower</label>
-                <input type="number" id="follower_count" name="follower_count" min="0" 
-                       value="<?php echo htmlspecialchars($_POST['follower_count'] ?? ''); ?>">
-                <div class="form-help">Inserisci il numero totale dei tuoi follower su tutte le piattaforme</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="niche">Niche *</label>
+                    <input type="text" id="niche" name="niche" required 
+                           value="<?php echo htmlspecialchars($_POST['niche'] ?? ''); ?>" 
+                           placeholder="Es: Beauty, Gaming, Travel, Fashion...">
+                </div>
+
+                <div class="form-group">
+                    <label for="rate">Tariffa (€) *</label>
+                    <input type="number" id="rate" name="rate" step="0.01" min="0" required 
+                           value="<?php echo htmlspecialchars($_POST['rate'] ?? ''); ?>"
+                           placeholder="0.00">
+                    <div class="form-help">Tariffa per collaborazione</div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="niche">Niche *</label>
-                <input type="text" id="niche" name="niche" required 
-                       value="<?php echo htmlspecialchars($_POST['niche'] ?? ''); ?>" 
-                       placeholder="Es: Beauty, Gaming, Travel...">
+            <!-- Social Handles -->
+            <div class="social-handles">
+                <h3>📱 I Tuoi Social Media</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="instagram_handle">Instagram</label>
+                        <input type="text" id="instagram_handle" name="instagram_handle" 
+                               value="<?php echo htmlspecialchars($_POST['instagram_handle'] ?? ''); ?>" 
+                               placeholder="@tuonome">
+                    </div>
+                    <div class="form-group">
+                        <label for="tiktok_handle">TikTok</label>
+                        <input type="text" id="tiktok_handle" name="tiktok_handle" 
+                               value="<?php echo htmlspecialchars($_POST['tiktok_handle'] ?? ''); ?>" 
+                               placeholder="@tuonome">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="youtube_handle">YouTube</label>
+                        <input type="text" id="youtube_handle" name="youtube_handle" 
+                               value="<?php echo htmlspecialchars($_POST['youtube_handle'] ?? ''); ?>" 
+                               placeholder="@tuonome o Channel Name">
+                    </div>
+                    <div class="form-group">
+                        <label for="website">Sito Web/Blog</label>
+                        <input type="text" id="website" name="website" 
+                               value="<?php echo htmlspecialchars($_POST['website'] ?? ''); ?>" 
+                               placeholder="https://tuosito.com">
+                    </div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="social_handle">Social Handle Principale *</label>
-                <input type="text" id="social_handle" name="social_handle" required 
-                       value="<?php echo htmlspecialchars($_POST['social_handle'] ?? ''); ?>" 
-                       placeholder="Es: @tuonome">
-            </div>
-
+            <!-- Immagine Profilo -->
             <div class="form-group">
                 <label for="profile_image">Immagine Profilo</label>
                 <input type="file" id="profile_image" name="profile_image" 
                        accept="image/jpeg,image/png,image/gif">
-                <div class="form-help">Formati supportati: JPG, PNG, GIF (max 5MB)</div>
+                <div class="form-help">Formati supportati: JPG, PNG, GIF (max 5MB). Immagine quadrata consigliata.</div>
             </div>
 
-            <button type="submit" class="btn btn-block">Crea Profilo</button>
+            <button type="submit" class="btn btn-block">🚀 Crea Profilo Influencer</button>
         </form>
 
         <div class="back-link">
