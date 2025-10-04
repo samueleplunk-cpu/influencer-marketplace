@@ -1,4 +1,5 @@
 <?php
+// infl/influencers/edit-profile.php
 
 // =============================================
 // CONFIGURAZIONE E SICUREZZA
@@ -105,38 +106,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Gestione upload nuova immagine profilo
             if (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] === UPLOAD_ERR_OK) {
+                // CORREZIONE: Percorso assoluto corretto
                 $upload_dir = dirname(__DIR__) . '/uploads/profiles/';
+                
+                // Debug: verifica il percorso
+                error_log("Upload directory: " . $upload_dir);
                 
                 // Crea directory se non esiste
                 if (!is_dir($upload_dir)) {
-                    mkdir($upload_dir, 0755, true);
+                    if (!mkdir($upload_dir, 0755, true)) {
+                        $error = "Impossibile creare la cartella per le immagini!";
+                    }
                 }
                 
-                $file_extension = strtolower(pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION));
-                $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
+                // Verifica permessi scrittura
+                if (is_dir($upload_dir) && !is_writable($upload_dir)) {
+                    $error = "La cartella uploads non ha i permessi di scrittura!";
+                }
                 
-                if (in_array($file_extension, $allowed_extensions)) {
-                    if ($_FILES['profile_image']['size'] <= 5 * 1024 * 1024) {
-                        $filename = uniqid() . '_' . time() . '.' . $file_extension;
-                        $upload_path = $upload_dir . $filename;
-                        
-                        if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $upload_path)) {
-                            $new_profile_image = 'profiles/' . $filename;
+                if (empty($error)) {
+                    $file_extension = strtolower(pathinfo($_FILES['profile_image']['name'], PATHINFO_EXTENSION));
+                    $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
+                    
+                    if (in_array($file_extension, $allowed_extensions)) {
+                        if ($_FILES['profile_image']['size'] <= 5 * 1024 * 1024) {
+                            $filename = uniqid() . '_' . time() . '.' . $file_extension;
+                            $upload_path = $upload_dir . $filename;
                             
-                            // Se c'era un'immagine precedente, segnala per la cancellazione
-                            if (!empty($influencer['profile_image'])) {
-                                $old_image_to_delete = dirname(__DIR__) . '/uploads/' . $influencer['profile_image'];
+                            if (move_uploaded_file($_FILES['profile_image']['tmp_name'], $upload_path)) {
+                                // CORREZIONE: Percorso relativo per il database
+                                $new_profile_image = 'profiles/' . $filename;
+                                
+                                // Se c'era un'immagine precedente, segnala per la cancellazione
+                                if (!empty($influencer['profile_image'])) {
+                                    $old_image_to_delete = dirname(__DIR__) . '/uploads/' . $influencer['profile_image'];
+                                }
+                                
+                                $profile_image = $new_profile_image;
+                                error_log("Immagine caricata con successo: " . $upload_path);
+                            } else {
+                                $error = "Errore nel salvataggio dell'immagine!";
+                                error_log("Errore move_uploaded_file per: " . $_FILES['profile_image']['tmp_name'] . " -> " . $upload_path);
                             }
-                            
-                            $profile_image = $new_profile_image;
                         } else {
-                            $error = "Errore nel salvataggio dell'immagine!";
+                            $error = "L'immagine è troppo grande! Dimensione massima: 5MB";
                         }
                     } else {
-                        $error = "L'immagine è troppo grande! Dimensione massima: 5MB";
+                        $error = "Formato immagine non supportato! Usa JPG, PNG o GIF.";
                     }
-                } else {
-                    $error = "Formato immagine non supportato! Usa JPG, PNG o GIF.";
                 }
             } elseif (isset($_FILES['profile_image']) && $_FILES['profile_image']['error'] !== UPLOAD_ERR_NO_FILE) {
                 // Gestisci errori di upload (tranne "nessun file selezionato")
@@ -180,7 +197,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($result && $stmt->rowCount() > 0) {
                     // Cancella vecchia immagine SOLO dopo update riuscito
                     if ($old_image_to_delete && file_exists($old_image_to_delete)) {
-                        unlink($old_image_to_delete);
+                        if (unlink($old_image_to_delete)) {
+                            error_log("Vecchia immagine cancellata: " . $old_image_to_delete);
+                        } else {
+                            error_log("Errore cancellazione vecchia immagine: " . $old_image_to_delete);
+                        }
                     }
                     
                     $_SESSION['success'] = "Profilo aggiornato con successo!";
