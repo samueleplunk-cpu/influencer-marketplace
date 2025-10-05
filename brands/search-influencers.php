@@ -318,7 +318,7 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
                                     </div>
 
                                     <div class="card-footer bg-transparent">
-                                        <a href="/infl/influencer/profile.php?id=<?php echo $influencer['id']; ?>" 
+                                        <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
                                            class="btn btn-outline-primary btn-sm w-100">
                                             Vedi Profilo Completo
                                         </a>
