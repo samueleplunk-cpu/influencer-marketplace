@@ -25,37 +25,45 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
-    $user_type = $_POST['user_type'] ?? 'influencer';
     
     try {
-        // Cerca utente nella tabella USERS (dove sono le credenziali)
-        $stmt = $pdo->prepare("SELECT id, email, password, user_type FROM users WHERE email = ? AND user_type = ?");
-        $stmt->execute([$email, $user_type]);
+        // Cerca utente nella tabella USERS (senza specificare user_type)
+        $stmt = $pdo->prepare("SELECT id, email, password, user_type FROM users WHERE email = ? AND is_active = 1");
+        $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
         if ($user && password_verify($password, $user['password'])) {
-            // Login successful - ora recupera i dettagli specifici
+            // Login successful - ora recupera i dettagli specifici in base al user_type
+            $user_type = $user['user_type'];
+            $name = '';
+            
             if ($user_type === 'influencer') {
                 $stmt_details = $pdo->prepare("SELECT full_name FROM influencers WHERE user_id = ?");
                 $stmt_details->execute([$user['id']]);
                 $details = $stmt_details->fetch(PDO::FETCH_ASSOC);
                 $name = $details['full_name'] ?? '';
-            } else {
+            } else if ($user_type === 'brand') {
                 $stmt_details = $pdo->prepare("SELECT company_name FROM brands WHERE user_id = ?");
                 $stmt_details->execute([$user['id']]);
                 $details = $stmt_details->fetch(PDO::FETCH_ASSOC);
                 $name = $details['company_name'] ?? '';
-            }
-            
-            login_user($user['id'], $user_type, $name);
-            
-            // Redirect to appropriate dashboard
-            if ($user_type === 'influencer') {
-                header("Location: /infl/influencers/dashboard.php");
             } else {
-                header("Location: /infl/brands/dashboard.php");
+                // Tipo utente non riconosciuto
+                $error = "Tipo utente non valido";
+                $user_type = null;
             }
-            exit();
+            
+            if ($user_type) {
+                login_user($user['id'], $user_type, $name);
+                
+                // Redirect to appropriate dashboard
+                if ($user_type === 'influencer') {
+                    header("Location: /infl/influencers/dashboard.php");
+                } else {
+                    header("Location: /infl/brands/dashboard.php");
+                }
+                exit();
+            }
             
         } else {
             $error = "Email o password non validi";
@@ -94,20 +102,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <form method="POST">
                             <div class="mb-3">
                                 <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" required>
+                                <input type="email" class="form-control" id="email" name="email" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
                             </div>
                             
                             <div class="mb-3">
                                 <label for="password" class="form-label">Password</label>
                                 <input type="password" class="form-control" id="password" name="password" required>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="user_type" class="form-label">Tipo Utente</label>
-                                <select class="form-control" id="user_type" name="user_type" required>
-                                    <option value="influencer">Influencer</option>
-                                    <option value="brand">Brand</option>
-                                </select>
                             </div>
                             
                             <button type="submit" class="btn btn-primary w-100">Accedi</button>
