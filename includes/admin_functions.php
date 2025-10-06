@@ -18,6 +18,16 @@ function require_admin_login() {
 }
 
 /**
+ * Controlla login admin e reindirizza se non loggato
+ */
+function checkAdminLogin() {
+    if (!is_admin_logged_in()) {
+        header("Location: /infl/auth/admin_login.php");
+        exit();
+    }
+}
+
+/**
  * Login admin
  */
 function login_admin($admin_id, $username, $is_super_admin = false) {
@@ -146,6 +156,381 @@ function cleanup_soft_deleted_users() {
     global $pdo;
     $stmt = $pdo->prepare("DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
     return $stmt->execute();
+}
+
+// =============================================================================
+// FUNZIONI PER GESTIONE INFLUENCER E BRANDS
+// =============================================================================
+
+/**
+ * Costruisce la stringa query per i filtri
+ */
+function buildQueryString($filters) {
+    $params = [];
+    foreach ($filters as $key => $value) {
+        if (!empty($value)) {
+            $params[] = $key . '=' . urlencode($value);
+        }
+    }
+    return $params ? '&' . implode('&', $params) : '';
+}
+
+/**
+ * Ottiene gli influencer con paginazione e filtri
+ */
+function getInfluencers($page = 1, $per_page = 15, $filters = []) {
+    global $pdo;
+    
+    $offset = ($page - 1) * $per_page;
+    $where_conditions = ["user_type = 'influencer'"];
+    $params = [];
+    
+    // Filtro per stato
+    if (!empty($filters['status'])) {
+        switch($filters['status']) {
+            case 'active':
+                $where_conditions[] = "is_active = 1 AND deleted_at IS NULL AND is_blocked = 0 AND (is_suspended = 0 OR suspension_end < NOW())";
+                break;
+            case 'suspended':
+                $where_conditions[] = "is_suspended = 1 AND deleted_at IS NULL AND suspension_end >= NOW()";
+                break;
+            case 'blocked':
+                $where_conditions[] = "is_blocked = 1 AND deleted_at IS NULL";
+                break;
+            case 'deleted':
+                $where_conditions[] = "deleted_at IS NOT NULL";
+                break;
+            case 'inactive':
+                $where_conditions[] = "is_active = 0 AND deleted_at IS NULL";
+                break;
+        }
+    } else {
+        // Di default mostra solo utenti non eliminati
+        $where_conditions[] = "deleted_at IS NULL";
+    }
+    
+    // Filtro per data
+    if (!empty($filters['date_from'])) {
+        $where_conditions[] = "created_at >= ?";
+        $params[] = $filters['date_from'];
+    }
+    
+    if (!empty($filters['date_to'])) {
+        $where_conditions[] = "created_at <= ?";
+        $params[] = $filters['date_to'] . ' 23:59:59';
+    }
+    
+    // Ricerca per nome/email
+    if (!empty($filters['search'])) {
+        $where_conditions[] = "(name LIKE ? OR email LIKE ?)";
+        $search_term = "%{$filters['search']}%";
+        $params[] = $search_term;
+        $params[] = $search_term;
+    }
+    
+    $where_sql = implode(' AND ', $where_conditions);
+    
+    // Query per il conteggio totale
+    $count_sql = "SELECT COUNT(*) as total FROM users WHERE $where_sql";
+    $count_stmt = $pdo->prepare($count_sql);
+    $count_stmt->execute($params);
+    $total_count = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    
+    // Query per i dati
+    $sql = "SELECT * FROM users WHERE $where_sql ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    $params[] = $per_page;
+    $params[] = $offset;
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    return [
+        'data' => $influencers,
+        'total' => $total_count,
+        'page' => $page,
+        'per_page' => $per_page,
+        'total_pages' => ceil($total_count / $per_page)
+    ];
+}
+
+/**
+ * Ottiene un singolo influencer per ID
+ */
+function getInfluencerById($id) {
+    global $pdo;
+    
+    $sql = "SELECT * FROM users WHERE id = ? AND user_type = 'influencer'";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Crea o aggiorna un influencer
+ */
+function saveInfluencer($data, $id = null) {
+    global $pdo;
+    
+    if ($id) {
+        // Update
+        $sql = "UPDATE users SET name = ?, email = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$data['name'], $data['email'], $data['is_active'], $id]);
+    } else {
+        // Insert
+        $sql = "INSERT INTO users (name, email, password, user_type, is_active, created_at) VALUES (?, ?, ?, 'influencer', ?, NOW())";
+        $password_hash = password_hash('password123', PASSWORD_DEFAULT); // Password temporanea
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$data['name'], $data['email'], $password_hash, $data['is_active']]);
+    }
+}
+
+/**
+ * Gestisce lo stato di un influencer (sospensione, blocco, etc.)
+ */
+function updateInfluencerStatus($id, $action, $suspension_end = null) {
+    global $pdo;
+    
+    switch($action) {
+        case 'suspend':
+            $sql = "UPDATE users SET is_suspended = 1, suspension_end = ?, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$suspension_end, $id]);
+            
+        case 'unsuspend':
+            $sql = "UPDATE users SET is_suspended = 0, suspension_end = NULL, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'block':
+            $sql = "UPDATE users SET is_blocked = 1, is_suspended = 0, suspension_end = NULL, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'unblock':
+            $sql = "UPDATE users SET is_blocked = 0, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'delete':
+            $sql = "UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'restore':
+            $sql = "UPDATE users SET deleted_at = NULL, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        default:
+            return false;
+    }
+}
+
+/**
+ * Ottiene i brands con paginazione e filtri
+ */
+function getBrands($page = 1, $per_page = 15, $filters = []) {
+    global $pdo;
+    
+    $offset = ($page - 1) * $per_page;
+    $where_conditions = ["user_type = 'brand'"];
+    $params = [];
+    
+    // Filtro per stato
+    if (!empty($filters['status'])) {
+        switch($filters['status']) {
+            case 'active':
+                $where_conditions[] = "is_active = 1 AND deleted_at IS NULL AND is_blocked = 0 AND (is_suspended = 0 OR suspension_end < NOW())";
+                break;
+            case 'suspended':
+                $where_conditions[] = "is_suspended = 1 AND deleted_at IS NULL AND suspension_end >= NOW()";
+                break;
+            case 'blocked':
+                $where_conditions[] = "is_blocked = 1 AND deleted_at IS NULL";
+                break;
+            case 'deleted':
+                $where_conditions[] = "deleted_at IS NOT NULL";
+                break;
+            case 'inactive':
+                $where_conditions[] = "is_active = 0 AND deleted_at IS NULL";
+                break;
+        }
+    } else {
+        // Di default mostra solo utenti non eliminati
+        $where_conditions[] = "deleted_at IS NULL";
+    }
+    
+    // Filtro per data
+    if (!empty($filters['date_from'])) {
+        $where_conditions[] = "created_at >= ?";
+        $params[] = $filters['date_from'];
+    }
+    
+    if (!empty($filters['date_to'])) {
+        $where_conditions[] = "created_at <= ?";
+        $params[] = $filters['date_to'] . ' 23:59:59';
+    }
+    
+    // Ricerca per nome/email/azienda
+    if (!empty($filters['search'])) {
+        $where_conditions[] = "(name LIKE ? OR email LIKE ? OR company_name LIKE ?)";
+        $search_term = "%{$filters['search']}%";
+        $params[] = $search_term;
+        $params[] = $search_term;
+        $params[] = $search_term;
+    }
+    
+    $where_sql = implode(' AND ', $where_conditions);
+    
+    // Query per il conteggio totale
+    $count_sql = "SELECT COUNT(*) as total FROM users WHERE $where_sql";
+    $count_stmt = $pdo->prepare($count_sql);
+    $count_stmt->execute($params);
+    $total_count = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    
+    // Query per i dati
+    $sql = "SELECT * FROM users WHERE $where_sql ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    $params[] = $per_page;
+    $params[] = $offset;
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $brands = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    return [
+        'data' => $brands,
+        'total' => $total_count,
+        'page' => $page,
+        'per_page' => $per_page,
+        'total_pages' => ceil($total_count / $per_page)
+    ];
+}
+
+/**
+ * Ottiene un singolo brand per ID
+ */
+function getBrandById($id) {
+    global $pdo;
+    
+    $sql = "SELECT * FROM users WHERE id = ? AND user_type = 'brand'";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Crea o aggiorna un brand
+ */
+function saveBrand($data, $id = null) {
+    global $pdo;
+    
+    if ($id) {
+        // Update
+        $sql = "UPDATE users SET name = ?, email = ?, company_name = ?, website = ?, description = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            $data['name'], 
+            $data['email'], 
+            $data['company_name'],
+            $data['website'],
+            $data['description'],
+            $data['is_active'],
+            $id
+        ]);
+    } else {
+        // Insert
+        $sql = "INSERT INTO users (name, email, password, user_type, company_name, website, description, is_active, created_at) 
+                VALUES (?, ?, ?, 'brand', ?, ?, ?, ?, NOW())";
+        $password_hash = password_hash('password123', PASSWORD_DEFAULT); // Password temporanea
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            $data['name'], 
+            $data['email'], 
+            $password_hash,
+            $data['company_name'],
+            $data['website'],
+            $data['description'],
+            $data['is_active']
+        ]);
+    }
+}
+
+/**
+ * Gestisce lo stato di un brand (sospensione, blocco, etc.)
+ */
+function updateBrandStatus($id, $action, $suspension_end = null) {
+    global $pdo;
+    
+    switch($action) {
+        case 'suspend':
+            $sql = "UPDATE users SET is_suspended = 1, suspension_end = ?, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$suspension_end, $id]);
+            
+        case 'unsuspend':
+            $sql = "UPDATE users SET is_suspended = 0, suspension_end = NULL, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'block':
+            $sql = "UPDATE users SET is_blocked = 1, is_suspended = 0, suspension_end = NULL, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'unblock':
+            $sql = "UPDATE users SET is_blocked = 0, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'delete':
+            $sql = "UPDATE users SET deleted_at = NOW(), updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        case 'restore':
+            $sql = "UPDATE users SET deleted_at = NULL, updated_at = NOW() WHERE id = ?";
+            return $pdo->prepare($sql)->execute([$id]);
+            
+        default:
+            return false;
+    }
+}
+
+/**
+ * Verifica se l'email esiste già (escludendo l'utente corrente per l'edit)
+ */
+function emailExists($email, $exclude_user_id = null) {
+    global $pdo;
+    
+    if ($exclude_user_id) {
+        $sql = "SELECT COUNT(*) FROM users WHERE email = ? AND id != ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$email, $exclude_user_id]);
+    } else {
+        $sql = "SELECT COUNT(*) FROM users WHERE email = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$email]);
+    }
+    
+    return $stmt->fetchColumn() > 0;
+}
+
+/**
+ * Ottiene lo stato completo di un utente
+ */
+function getUserStatus($user) {
+    if ($user['deleted_at']) {
+        return 'deleted';
+    } elseif ($user['is_blocked']) {
+        return 'blocked';
+    } elseif ($user['is_suspended'] && $user['suspension_end'] && strtotime($user['suspension_end']) > time()) {
+        return 'suspended';
+    } elseif (!$user['is_active']) {
+        return 'inactive';
+    } else {
+        return 'active';
+    }
+}
+
+/**
+ * Formatta la data per la visualizzazione
+ */
+function formatDate($date, $format = 'd/m/Y H:i') {
+    if (empty($date)) return '-';
+    return date($format, strtotime($date));
 }
 
 ?>
