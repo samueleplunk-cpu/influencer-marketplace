@@ -82,11 +82,51 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Influencer Marketplace</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .min-vh-100 {
+            min-height: 100vh;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            padding: 10px;
+            font-weight: 500;
+        }
+        .form-control {
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .form-control:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+        .alert {
+            border-radius: 8px;
+            border: none;
+        }
+        .links-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .links-container a {
+            text-decoration: none;
+            color: #6c757d;
+            transition: color 0.2s;
+        }
+        .links-container a:hover {
+            color: #007bff;
+        }
+    </style>
 </head>
 <body class="bg-light">
     <div class="container">
         <div class="row justify-content-center min-vh-100 align-items-center">
-            <div class="col-md-6">
+            <div class="col-md-6 col-lg-5">
                 <div class="card shadow">
                     <div class="card-body p-5">
                         <h2 class="text-center mb-4">Accedi</h2>
@@ -99,27 +139,41 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <div class="alert alert-warning">Sessione scaduta. Effettua nuovamente il login.</div>
                         <?php endif; ?>
                         
+                        <?php if (isset($_GET['password_reset'])): ?>
+                            <div class="alert alert-success">Password reimpostata con successo! Ora puoi accedere con la nuova password.</div>
+                        <?php endif; ?>
+                        
+                        <?php if (isset($_GET['logout'])): ?>
+                            <div class="alert alert-info">Logout effettuato con successo.</div>
+                        <?php endif; ?>
+                        
                         <form method="POST">
                             <div class="mb-3">
                                 <label for="email" class="form-label">Email</label>
-                                <input type="email" class="form-control" id="email" name="email" required value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+                                <input type="email" class="form-control" id="email" name="email" required 
+                                       value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>"
+                                       placeholder="Inserisci la tua email">
                             </div>
                             
                             <div class="mb-3">
                                 <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
+                                <input type="password" class="form-control" id="password" name="password" required
+                                       placeholder="Inserisci la tua password">
                             </div>
                             
-                            <button type="submit" class="btn btn-primary w-100">Accedi</button>
+                            <button type="submit" class="btn btn-primary w-100 py-2">Accedi</button>
                         </form>
                         
-                        <div class="text-center mt-3">
+                        <div class="text-center mt-4 links-container">
                             <a href="register.php">Non hai un account? Registrati</a>
+                            <a href="forgot-password.php">Password dimenticata?</a>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
