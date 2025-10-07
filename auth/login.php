@@ -27,8 +27,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
     
     try {
-        // Cerca utente nella tabella USERS (senza specificare user_type)
-        $stmt = $pdo->prepare("SELECT id, email, password, user_type FROM users WHERE email = ? AND is_active = 1");
+        // Cerca utente nella tabella USERS con tutti i controlli di sicurezza
+        $stmt = $pdo->prepare("SELECT id, email, password, user_type, is_suspended, is_blocked, suspension_end, deleted_at 
+                               FROM users 
+                               WHERE email = ? 
+                               AND is_active = 1 
+                               AND is_blocked = 0 
+                               AND deleted_at IS NULL 
+                               AND (is_suspended = 0 OR (is_suspended = 1 AND suspension_end < NOW()))");
         $stmt->execute([$email]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
         
@@ -66,7 +72,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
         } else {
-            $error = "Email o password non validi";
+            // Controllo più specifico per capire perché il login fallisce
+            $stmt_check = $pdo->prepare("SELECT id, is_active, is_blocked, is_suspended, suspension_end, deleted_at 
+                                        FROM users WHERE email = ?");
+            $stmt_check->execute([$email]);
+            $user_check = $stmt_check->fetch(PDO::FETCH_ASSOC);
+            
+            if ($user_check) {
+                if ($user_check['deleted_at']) {
+                    $error = "Account eliminato. Contatta l'assistenza.";
+                } elseif ($user_check['is_blocked']) {
+                    $error = "Account bloccato permanentemente. Contatta l'assistenza.";
+                } elseif ($user_check['is_suspended'] && $user_check['suspension_end'] && strtotime($user_check['suspension_end']) > time()) {
+                    $suspension_date = date('d/m/Y H:i', strtotime($user_check['suspension_end']));
+                    $error = "Account sospeso fino al $suspension_date.";
+                } elseif (!$user_check['is_active']) {
+                    $error = "Account non attivo. Contatta l'assistenza.";
+                } else {
+                    $error = "Email o password non validi";
+                }
+            } else {
+                $error = "Email o password non validi";
+            }
         }
         
     } catch (PDOException $e) {
