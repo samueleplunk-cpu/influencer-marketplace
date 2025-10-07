@@ -118,8 +118,8 @@ $count_stmt->execute($params);
 $total_results = $count_stmt->fetchColumn();
 $total_pages = ceil($total_results / $limit);
 
-// Query per i risultati
-$results_sql = "SELECT * FROM influencers $where_sql ORDER BY rating DESC, profile_views DESC LIMIT $limit OFFSET $offset";
+// MODIFICA: Query per i risultati con ordinamento casuale
+$results_sql = "SELECT * FROM influencers $where_sql ORDER BY RAND() LIMIT $limit OFFSET $offset";
 $stmt = $pdo->prepare($results_sql);
 $stmt->execute($params);
 $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
