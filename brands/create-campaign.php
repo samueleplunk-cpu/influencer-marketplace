@@ -77,6 +77,158 @@ $platforms = [
 ];
 
 // =============================================
+// FUNZIONE DI MATCHING INFLUENCER - VERSIONE CORRETTA
+// =============================================
+function perform_influencer_matching($pdo, $campaign_id, $campaign_niche, $campaign_platforms) {
+    // Costruisci dinamicamente le condizioni per le piattaforme
+    $platform_conditions = [];
+    $params = [$campaign_niche];
+    
+    // DEBUG: Log per verificare i parametri
+    error_log("=== INFLUENCER MATCHING DEBUG ===");
+    error_log("Campaign ID: $campaign_id");
+    error_log("Niche: $campaign_niche");
+    error_log("Platforms selected: " . implode(', ', $campaign_platforms));
+    
+    if (in_array('instagram', $campaign_platforms)) {
+        $platform_conditions[] = "(i.instagram_handle IS NOT NULL AND i.instagram_handle != '')";
+    }
+    
+    if (in_array('tiktok', $campaign_platforms)) {
+        $platform_conditions[] = "(i.tiktok_handle IS NOT NULL AND i.tiktok_handle != '')";
+    }
+    
+    if (in_array('youtube', $campaign_platforms)) {
+        $platform_conditions[] = "(i.youtube_handle IS NOT NULL AND i.youtube_handle != '')";
+    }
+    
+    if (in_array('facebook', $campaign_platforms)) {
+        $platform_conditions[] = "(i.facebook_handle IS NOT NULL AND i.facebook_handle != '')";
+    }
+    
+    if (in_array('twitter', $campaign_platforms)) {
+        $platform_conditions[] = "(i.twitter_handle IS NOT NULL AND i.twitter_handle != '')";
+    }
+    
+    // Se non ci sono condizioni piattaforma, non cercare influencer
+    if (empty($platform_conditions)) {
+        error_log("No platform conditions for campaign $campaign_id");
+        return;
+    }
+    
+    $platform_where = implode(' OR ', $platform_conditions);
+    
+    // Query corretta con logica OR per piattaforme e AND per niche
+    $query = "
+        SELECT i.*, u.email 
+        FROM influencers i 
+        JOIN users u ON i.user_id = u.id 
+        WHERE i.niche = ? 
+        AND ($platform_where)
+        AND i.rate <= (SELECT budget FROM campaigns WHERE id = ?) * 0.1
+        AND i.id NOT IN (
+            SELECT influencer_id FROM campaign_influencers WHERE campaign_id = ?
+        )
+        ORDER BY i.rating DESC, i.profile_views DESC
+        LIMIT 50
+    ";
+    
+    $params[] = $campaign_id; // Per il budget
+    $params[] = $campaign_id; // Per l'exclusion check
+    
+    error_log("Query: " . $query);
+    error_log("Params: " . implode(', ', $params));
+    
+    try {
+        $stmt = $pdo->prepare($query);
+        $stmt->execute($params);
+        $matching_influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        error_log("Found " . count($matching_influencers) . " matching influencers");
+        
+        // Inserisci i match nella tabella
+        foreach ($matching_influencers as $influencer) {
+            $match_score = calculate_match_score($influencer, $campaign_niche, $campaign_platforms);
+            
+            $insert_stmt = $pdo->prepare("
+                INSERT INTO campaign_influencers (campaign_id, influencer_id, match_score, status)
+                VALUES (?, ?, ?, 'pending')
+                ON DUPLICATE KEY UPDATE match_score = ?
+            ");
+            $insert_stmt->execute([$campaign_id, $influencer['id'], $match_score, $match_score]);
+            
+            error_log("Inserted match: influencer {$influencer['id']} with score $match_score");
+        }
+        
+    } catch (PDOException $e) {
+        error_log("Error in perform_influencer_matching: " . $e->getMessage());
+        throw $e;
+    }
+}
+
+function calculate_match_score($influencer, $campaign_niche, $campaign_platforms) {
+    $score = 0;
+    
+    // Match per niche (50 punti)
+    if ($influencer['niche'] === $campaign_niche) {
+        $score += 50;
+    } else {
+        // Match parziale per niche (25 punti)
+        $influencer_niche_lower = strtolower($influencer['niche']);
+        $campaign_niche_lower = strtolower($campaign_niche);
+        
+        if (strpos($influencer_niche_lower, $campaign_niche_lower) !== false || 
+            strpos($campaign_niche_lower, $influencer_niche_lower) !== false) {
+            $score += 25;
+        }
+    }
+    
+    // Match per piattaforme (30 punti)
+    $platform_matches = 0;
+    $total_platforms = count($campaign_platforms);
+    
+    foreach ($campaign_platforms as $platform) {
+        switch ($platform) {
+            case 'instagram':
+                if (!empty($influencer['instagram_handle'])) $platform_matches++;
+                break;
+            case 'tiktok':
+                if (!empty($influencer['tiktok_handle'])) $platform_matches++;
+                break;
+            case 'youtube':
+                if (!empty($influencer['youtube_handle'])) $platform_matches++;
+                break;
+            case 'facebook':
+                if (!empty($influencer['facebook_handle'])) $platform_matches++;
+                break;
+            case 'twitter':
+                if (!empty($influencer['twitter_handle'])) $platform_matches++;
+                break;
+        }
+    }
+    
+    if ($total_platforms > 0) {
+        $score += ($platform_matches / $total_platforms) * 30;
+    }
+    
+    // Rating influencer (20 punti)
+    $rating = floatval($influencer['rating']);
+    $score += ($rating / 5) * 20;
+    
+    // Bonus per profile views (fino a 10 punti extra)
+    $profile_views = intval($influencer['profile_views']);
+    if ($profile_views > 10000) {
+        $score += 10;
+    } elseif ($profile_views > 5000) {
+        $score += 5;
+    } elseif ($profile_views > 1000) {
+        $score += 2;
+    }
+    
+    return min(round($score, 2), 100); // Massimo 100 punti
+}
+
+// =============================================
 // GESTIONE INVIO FORM
 // =============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -141,10 +293,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $campaign_id = $pdo->lastInsertId();
         
-        // Esegui il matching con gli influencer
-        perform_influencer_matching($pdo, $campaign_id, $niche, $platforms_selected);
-
-        $success = "Campagna creata con successo!";
+        // Esegui il matching con gli influencer SOLO se la campagna è attiva
+        if ($status === 'active') {
+            perform_influencer_matching($pdo, $campaign_id, $niche, $platforms_selected);
+            $success = "Campagna creata con successo! Matching influencer completato.";
+        } else {
+            $success = "Campagna salvata come bozza. Il matching verrà eseguito quando la attiverai.";
+        }
         
         // Reindirizza alla dashboard campagne se salvata come attiva
         if ($status === 'active') {
@@ -155,69 +310,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } catch (Exception $e) {
         $error = $e->getMessage();
     }
-}
-
-// =============================================
-// FUNZIONE DI MATCHING INFLUENCER
-// =============================================
-function perform_influencer_matching($pdo, $campaign_id, $campaign_niche, $campaign_platforms) {
-    // Query per trovare influencer matching
-    $query = "
-        SELECT i.*, u.email 
-        FROM influencers i 
-        JOIN users u ON i.user_id = u.id 
-        WHERE i.niche = ? 
-        AND (
-            i.instagram_handle IS NOT NULL AND ? = 1 OR
-            i.tiktok_handle IS NOT NULL AND ? = 1 OR
-            i.youtube_handle IS NOT NULL AND ? = 1
-        )
-        AND i.rate <= (SELECT budget FROM campaigns WHERE id = ?) * 0.1
-        ORDER BY i.rating DESC, i.profile_views DESC
-        LIMIT 20
-    ";
-    
-    // Prepara i parametri per le piattaforme
-    $instagram = in_array('instagram', $campaign_platforms) ? 1 : 0;
-    $tiktok = in_array('tiktok', $campaign_platforms) ? 1 : 0;
-    $youtube = in_array('youtube', $campaign_platforms) ? 1 : 0;
-    
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([$campaign_niche, $instagram, $tiktok, $youtube, $campaign_id]);
-    $matching_influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Inserisci i match nella tabella
-    foreach ($matching_influencers as $influencer) {
-        $match_score = calculate_match_score($influencer, $campaign_niche, $campaign_platforms);
-        
-        $stmt = $pdo->prepare("
-            INSERT INTO campaign_influencers (campaign_id, influencer_id, match_score)
-            VALUES (?, ?, ?)
-        ");
-        $stmt->execute([$campaign_id, $influencer['id'], $match_score]);
-    }
-}
-
-function calculate_match_score($influencer, $campaign_niche, $campaign_platforms) {
-    $score = 0;
-    
-    // Match per niche (50 punti)
-    if ($influencer['niche'] === $campaign_niche) {
-        $score += 50;
-    }
-    
-    // Match per piattaforme (30 punti)
-    $platform_count = 0;
-    if (in_array('instagram', $campaign_platforms) && !empty($influencer['instagram_handle'])) $platform_count++;
-    if (in_array('tiktok', $campaign_platforms) && !empty($influencer['tiktok_handle'])) $platform_count++;
-    if (in_array('youtube', $campaign_platforms) && !empty($influencer['youtube_handle'])) $platform_count++;
-    
-    $score += ($platform_count / count($campaign_platforms)) * 30;
-    
-    // Rating influencer (20 punti)
-    $score += ($influencer['rating'] / 5) * 20;
-    
-    return round($score, 2);
 }
 
 // =============================================
@@ -437,6 +529,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // Validazione piattaforme
+    const platformCheckboxes = document.querySelectorAll('input[name="platforms[]"]');
+    form.addEventListener('submit', function(e) {
+        const checkedPlatforms = Array.from(platformCheckboxes).filter(cb => cb.checked);
+        if (checkedPlatforms.length === 0) {
+            e.preventDefault();
+            alert('Seleziona almeno una piattaforma social');
+            return false;
+        }
+    });
 });
 </script>
 
