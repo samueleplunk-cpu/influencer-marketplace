@@ -364,7 +364,7 @@ require_once $header_file;
                 <div class="card">
                     <div class="card-body text-center">
                         <p>Questa campagna è in bozza e non è visibile agli influencer.</p>
-                        <a href="create-campaign.php?edit=<?php echo $campaign['id']; ?>" 
+                        <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
                            class="btn btn-primary w-100">Modifica Campagna</a>
                     </div>
                 </div>

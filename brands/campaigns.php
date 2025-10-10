@@ -207,7 +207,7 @@ require_once $header_file;
                                                 <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
                                                    class="btn btn-outline-primary">Dettagli</a>
                                                 <?php if ($campaign['status'] === 'draft'): ?>
-                                                    <a href="create-campaign.php?edit=<?php echo $campaign['id']; ?>" 
+                                                    <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
                                                        class="btn btn-outline-secondary">Modifica</a>
                                                 <?php endif; ?>
                                             </div>
