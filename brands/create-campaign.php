@@ -221,21 +221,6 @@ require_once $header_file;
             </div>
         <?php endif; ?>
 
-        <!-- DEBUG MATCHING -->
-        <?php if (isset($_SESSION['matching_debug'])): ?>
-        <div class="card mt-4">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="mb-0">🔍 Debug Matching Influencer</h5>
-            </div>
-            <div class="card-body">
-                <pre style="font-size: 12px; max-height: 400px; overflow-y: auto;"><?php 
-                    echo implode("\n", $_SESSION['matching_debug']); 
-                    unset($_SESSION['matching_debug']);
-                ?></pre>
-            </div>
-        </div>
-        <?php endif; ?>
-
         <!-- Form Creazione Campagna -->
         <div class="card">
             <div class="card-body">
@@ -299,16 +284,6 @@ require_once $header_file;
                                     <?php endforeach; ?>
                                 </div>
                                 <div class="form-text">Seleziona tutte le piattaforme su cui vuoi promuovere la campagna</div>
-                            </div>
-
-                            <!-- Informazioni Sistema Matching -->
-                            <div class="alert alert-info">
-                                <h6>🎯 Sistema di Matching Avanzato</h6>
-                                <small>
-                                    <strong>Soft Filter Budget:</strong> Gli influencer fuori budget non vengono esclusi<br>
-                                    <strong>Doppia Fase:</strong> Prima niche esatto, poi simile per massimizzare risultati<br>
-                                    <strong>Scoring Intelligente:</strong> 100 punti basati su niche, piattaforme, affordability e qualità
-                                </small>
                             </div>
                         </div>
                     </div>
@@ -378,59 +353,13 @@ require_once $header_file;
                                   placeholder="Requisiti specifici per gli influencer..."><?php echo htmlspecialchars($_POST['requirements'] ?? ''); ?></textarea>
                     </div>
 
-                    <!-- Informazioni Scoring System -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-light">
-                            <h6 class="mb-0">📊 Sistema di Scoring Matching</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <h6>Breakdown Punteggio (100 punti totali)</h6>
-                                    <ul class="small">
-                                        <li><strong>50 punti - Niche Matching</strong>
-                                            <ul>
-                                                <li>35 punti: Niche esatto</li>
-                                                <li>15 punti: Niche simile</li>
-                                            </ul>
-                                        </li>
-                                        <li><strong>30 punti - Piattaforme</strong>
-                                            <ul>
-                                                <li>Proporzionale al numero di piattaforme in comune</li>
-                                            </ul>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <div class="col-md-6">
-                                    <h6>&nbsp;</h6>
-                                    <ul class="small">
-                                        <li><strong>20 punti - Affordability</strong>
-                                            <ul>
-                                                <li>20 punti: Nel budget</li>
-                                                <li>15 punti: Fino a 1.1x budget</li>
-                                                <li>10 punti: Fino a 1.5x budget</li>
-                                                <li>0 punti: Oltre 2x budget</li>
-                                            </ul>
-                                        </li>
-                                        <li><strong>20 punti - Qualità</strong>
-                                            <ul>
-                                                <li>15 punti: Rating (0-5 stelle)</li>
-                                                <li>5 punti: Bonus profile views</li>
-                                            </ul>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     <!-- Pulsanti -->
                     <div class="d-flex gap-2">
                         <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
                             💾 Salva come Bozza
                         </button>
                         <button type="submit" name="action" value="save_active" class="btn btn-primary">
-                            🚀 Crea Campagna Attiva & Esegui Matching
+                            🚀 Crea Campagna
                         </button>
                         <a href="campaigns.php" class="btn btn-secondary">Annulla</a>
                     </div>
@@ -493,35 +422,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             alert('Seleziona almeno una piattaforma social');
             return false;
-        }
-        
-        // Mostra conferma per campagna attiva
-        if (submitButton.name === 'action' && submitButton.value === 'save_active') {
-            const budget = parseFloat(budgetInput.value);
-            let budgetLimit = 0;
-            
-            if (budget <= 200) {
-                budgetLimit = budget * 0.5;
-            } else if (budget <= 1000) {
-                budgetLimit = budget * 0.3;
-            } else {
-                budgetLimit = budget * 0.2;
-            }
-            
-            const confirmMessage = `Stai per creare una campagna ATTIVA e eseguire il matching avanzato.\n\n` +
-                                 `Budget: €${budget.toFixed(2)}\n` +
-                                 `Budget Limit per matching: €${budgetLimit.toFixed(2)}\n\n` +
-                                 `Il sistema:\n` +
-                                 `• Cercherà influencer con niche ESATTO (fase 1)\n` +
-                                 `• Se necessario, cercherà influencer con niche SIMILE (fase 2)\n` +
-                                 `• NON escluderà influencer per budget (solo penalizzerà lo score)\n` +
-                                 `• Mostrerà fino a 200 risultati ordinati per rilevanza\n\n` +
-                                 `Vuoi procedere?`;
-            
-            if (!confirm(confirmMessage)) {
-                e.preventDefault();
-                return false;
-            }
         }
     });
     
