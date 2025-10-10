@@ -77,155 +77,25 @@ $platforms = [
 ];
 
 // =============================================
-// FUNZIONE DI MATCHING INFLUENCER - VERSIONE CORRETTA
+// FUNZIONE PER CALCOLARE E MOSTRARE BUDGET LIMIT
 // =============================================
-function perform_influencer_matching($pdo, $campaign_id, $campaign_niche, $campaign_platforms) {
-    // Costruisci dinamicamente le condizioni per le piattaforme
-    $platform_conditions = [];
-    $params = [$campaign_niche];
+function calculate_and_display_budget_limit($budget) {
+    if (empty($budget)) return '';
     
-    // DEBUG: Log per verificare i parametri
-    error_log("=== INFLUENCER MATCHING DEBUG ===");
-    error_log("Campaign ID: $campaign_id");
-    error_log("Niche: $campaign_niche");
-    error_log("Platforms selected: " . implode(', ', $campaign_platforms));
+    $budget_float = floatval($budget);
+    $budget_limit = calculate_budget_limit($budget_float);
+    $percentage = round(($budget_limit / $budget_float) * 100);
     
-    if (in_array('instagram', $campaign_platforms)) {
-        $platform_conditions[] = "(i.instagram_handle IS NOT NULL AND i.instagram_handle != '')";
-    }
-    
-    if (in_array('tiktok', $campaign_platforms)) {
-        $platform_conditions[] = "(i.tiktok_handle IS NOT NULL AND i.tiktok_handle != '')";
-    }
-    
-    if (in_array('youtube', $campaign_platforms)) {
-        $platform_conditions[] = "(i.youtube_handle IS NOT NULL AND i.youtube_handle != '')";
-    }
-    
-    if (in_array('facebook', $campaign_platforms)) {
-        $platform_conditions[] = "(i.facebook_handle IS NOT NULL AND i.facebook_handle != '')";
-    }
-    
-    if (in_array('twitter', $campaign_platforms)) {
-        $platform_conditions[] = "(i.twitter_handle IS NOT NULL AND i.twitter_handle != '')";
-    }
-    
-    // Se non ci sono condizioni piattaforma, non cercare influencer
-    if (empty($platform_conditions)) {
-        error_log("No platform conditions for campaign $campaign_id");
-        return;
-    }
-    
-    $platform_where = implode(' OR ', $platform_conditions);
-    
-    // Query corretta con logica OR per piattaforme e AND per niche
-    $query = "
-        SELECT i.*, u.email 
-        FROM influencers i 
-        JOIN users u ON i.user_id = u.id 
-        WHERE i.niche = ? 
-        AND ($platform_where)
-        AND i.rate <= (SELECT budget FROM campaigns WHERE id = ?) * 0.1
-        AND i.id NOT IN (
-            SELECT influencer_id FROM campaign_influencers WHERE campaign_id = ?
-        )
-        ORDER BY i.rating DESC, i.profile_views DESC
-        LIMIT 50
-    ";
-    
-    $params[] = $campaign_id; // Per il budget
-    $params[] = $campaign_id; // Per l'exclusion check
-    
-    error_log("Query: " . $query);
-    error_log("Params: " . implode(', ', $params));
-    
-    try {
-        $stmt = $pdo->prepare($query);
-        $stmt->execute($params);
-        $matching_influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
-        error_log("Found " . count($matching_influencers) . " matching influencers");
-        
-        // Inserisci i match nella tabella
-        foreach ($matching_influencers as $influencer) {
-            $match_score = calculate_match_score($influencer, $campaign_niche, $campaign_platforms);
-            
-            $insert_stmt = $pdo->prepare("
-                INSERT INTO campaign_influencers (campaign_id, influencer_id, match_score, status)
-                VALUES (?, ?, ?, 'pending')
-                ON DUPLICATE KEY UPDATE match_score = ?
-            ");
-            $insert_stmt->execute([$campaign_id, $influencer['id'], $match_score, $match_score]);
-            
-            error_log("Inserted match: influencer {$influencer['id']} with score $match_score");
-        }
-        
-    } catch (PDOException $e) {
-        error_log("Error in perform_influencer_matching: " . $e->getMessage());
-        throw $e;
-    }
-}
-
-function calculate_match_score($influencer, $campaign_niche, $campaign_platforms) {
-    $score = 0;
-    
-    // Match per niche (50 punti)
-    if ($influencer['niche'] === $campaign_niche) {
-        $score += 50;
+    $tier_info = "";
+    if ($budget_float <= BUDGET_TIER_LOW_MAX) {
+        $tier_info = " (Tier Basso - {$percentage}%)";
+    } elseif ($budget_float <= BUDGET_TIER_MEDIUM_MAX) {
+        $tier_info = " (Tier Medio - {$percentage}%)";
     } else {
-        // Match parziale per niche (25 punti)
-        $influencer_niche_lower = strtolower($influencer['niche']);
-        $campaign_niche_lower = strtolower($campaign_niche);
-        
-        if (strpos($influencer_niche_lower, $campaign_niche_lower) !== false || 
-            strpos($campaign_niche_lower, $influencer_niche_lower) !== false) {
-            $score += 25;
-        }
+        $tier_info = " (Tier Alto - {$percentage}%)";
     }
     
-    // Match per piattaforme (30 punti)
-    $platform_matches = 0;
-    $total_platforms = count($campaign_platforms);
-    
-    foreach ($campaign_platforms as $platform) {
-        switch ($platform) {
-            case 'instagram':
-                if (!empty($influencer['instagram_handle'])) $platform_matches++;
-                break;
-            case 'tiktok':
-                if (!empty($influencer['tiktok_handle'])) $platform_matches++;
-                break;
-            case 'youtube':
-                if (!empty($influencer['youtube_handle'])) $platform_matches++;
-                break;
-            case 'facebook':
-                if (!empty($influencer['facebook_handle'])) $platform_matches++;
-                break;
-            case 'twitter':
-                if (!empty($influencer['twitter_handle'])) $platform_matches++;
-                break;
-        }
-    }
-    
-    if ($total_platforms > 0) {
-        $score += ($platform_matches / $total_platforms) * 30;
-    }
-    
-    // Rating influencer (20 punti)
-    $rating = floatval($influencer['rating']);
-    $score += ($rating / 5) * 20;
-    
-    // Bonus per profile views (fino a 10 punti extra)
-    $profile_views = intval($influencer['profile_views']);
-    if ($profile_views > 10000) {
-        $score += 10;
-    } elseif ($profile_views > 5000) {
-        $score += 5;
-    } elseif ($profile_views > 1000) {
-        $score += 2;
-    }
-    
-    return min(round($score, 2), 100); // Massimo 100 punti
+    return number_format($budget_limit, 2) . $tier_info;
 }
 
 // =============================================
@@ -247,7 +117,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $requirements = trim($_POST['requirements']);
         $start_date = $_POST['start_date'] ?: null;
         $end_date = $_POST['end_date'] ?: null;
-        $status = $_POST['status'] ?? 'draft';
+        
+        // Determina lo stato in base al pulsante cliccato
+        $status = 'draft';
+        if (isset($_POST['action'])) {
+            if ($_POST['action'] === 'save_active') {
+                $status = 'active';
+            }
+        }
 
         // Validazione
         if (empty($name)) {
@@ -295,16 +172,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Esegui il matching con gli influencer SOLO se la campagna è attiva
         if ($status === 'active') {
-            perform_influencer_matching($pdo, $campaign_id, $niche, $platforms_selected);
-            $success = "Campagna creata con successo! Matching influencer completato.";
+            $matching_results = perform_advanced_influencer_matching($pdo, $campaign_id, $niche, $platforms_selected, $budget);
+            $success = "Campagna creata con successo! Trovati " . count($matching_results) . " influencer matching.";
+            
+            // Reindirizza alla dashboard campagne
+            header("Location: campaigns.php?success=campaign_created&matches=" . count($matching_results));
+            exit();
         } else {
             $success = "Campagna salvata come bozza. Il matching verrà eseguito quando la attiverai.";
-        }
-        
-        // Reindirizza alla dashboard campagne se salvata come attiva
-        if ($status === 'active') {
-            header("Location: campaigns.php?success=campaign_created");
-            exit();
         }
 
     } catch (Exception $e) {
@@ -346,6 +221,21 @@ require_once $header_file;
             </div>
         <?php endif; ?>
 
+        <!-- DEBUG MATCHING -->
+        <?php if (isset($_SESSION['matching_debug'])): ?>
+        <div class="card mt-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">🔍 Debug Matching Influencer</h5>
+            </div>
+            <div class="card-body">
+                <pre style="font-size: 12px; max-height: 400px; overflow-y: auto;"><?php 
+                    echo implode("\n", $_SESSION['matching_debug']); 
+                    unset($_SESSION['matching_debug']);
+                ?></pre>
+            </div>
+        </div>
+        <?php endif; ?>
+
         <!-- Form Creazione Campagna -->
         <div class="card">
             <div class="card-body">
@@ -362,8 +252,20 @@ require_once $header_file;
                             <div class="mb-3">
                                 <label for="budget" class="form-label">Budget (€) *</label>
                                 <input type="number" class="form-control" id="budget" name="budget" 
-                                       min="0" step="0.01" value="<?php echo htmlspecialchars($_POST['budget'] ?? ''); ?>" required>
-                                <div class="form-text">Il budget totale per questa campagna</div>
+                                       min="0" step="0.01" value="<?php echo htmlspecialchars($_POST['budget'] ?? ''); ?>" required
+                                       oninput="updateBudgetLimit()">
+                                <div class="form-text">
+                                    <div id="budgetLimitInfo" class="mt-1">
+                                        <?php if (!empty($_POST['budget'])): ?>
+                                            <strong>Budget Limit:</strong> €<?php echo calculate_and_display_budget_limit($_POST['budget']); ?>
+                                        <?php else: ?>
+                                            <strong>Budget Limit:</strong> <span class="text-muted">Inserisci il budget per calcolare il limite</span>
+                                        <?php endif; ?>
+                                    </div>
+                                    <small class="text-muted">
+                                        Il sistema calcola automaticamente un limite di budget ottimale per il matching degli influencer
+                                    </small>
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -396,6 +298,17 @@ require_once $header_file;
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
+                                <div class="form-text">Seleziona tutte le piattaforme su cui vuoi promuovere la campagna</div>
+                            </div>
+
+                            <!-- Informazioni Sistema Matching -->
+                            <div class="alert alert-info">
+                                <h6>🎯 Sistema di Matching Avanzato</h6>
+                                <small>
+                                    <strong>Soft Filter Budget:</strong> Gli influencer fuori budget non vengono esclusi<br>
+                                    <strong>Doppia Fase:</strong> Prima niche esatto, poi simile per massimizzare risultati<br>
+                                    <strong>Scoring Intelligente:</strong> 100 punti basati su niche, piattaforme, affordability e qualità
+                                </small>
                             </div>
                         </div>
                     </div>
@@ -465,28 +378,69 @@ require_once $header_file;
                                   placeholder="Requisiti specifici per gli influencer..."><?php echo htmlspecialchars($_POST['requirements'] ?? ''); ?></textarea>
                     </div>
 
-                    <!-- Stato -->
-                    <div class="mb-4">
-                        <label for="status" class="form-label">Stato Campagna</label>
-                        <select class="form-select" id="status" name="status">
-                            <option value="draft" <?php echo (($_POST['status'] ?? 'draft') === 'draft') ? 'selected' : ''; ?>>Bozza</option>
-                            <option value="active" <?php echo (($_POST['status'] ?? '') === 'active') ? 'selected' : ''; ?>>Attiva</option>
-                        </select>
-                        <div class="form-text">
-                            <strong>Bozza:</strong> La campagna non sarà visibile agli influencer<br>
-                            <strong>Attiva:</strong> La campagna sarà attiva e visibile per il matching
+                    <!-- Informazioni Scoring System -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-light">
+                            <h6 class="mb-0">📊 Sistema di Scoring Matching</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>Breakdown Punteggio (100 punti totali)</h6>
+                                    <ul class="small">
+                                        <li><strong>50 punti - Niche Matching</strong>
+                                            <ul>
+                                                <li>35 punti: Niche esatto</li>
+                                                <li>15 punti: Niche simile</li>
+                                            </ul>
+                                        </li>
+                                        <li><strong>30 punti - Piattaforme</strong>
+                                            <ul>
+                                                <li>Proporzionale al numero di piattaforme in comune</li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>&nbsp;</h6>
+                                    <ul class="small">
+                                        <li><strong>20 punti - Affordability</strong>
+                                            <ul>
+                                                <li>20 punti: Nel budget</li>
+                                                <li>15 punti: Fino a 1.1x budget</li>
+                                                <li>10 punti: Fino a 1.5x budget</li>
+                                                <li>0 punti: Oltre 2x budget</li>
+                                            </ul>
+                                        </li>
+                                        <li><strong>20 punti - Qualità</strong>
+                                            <ul>
+                                                <li>15 punti: Rating (0-5 stelle)</li>
+                                                <li>5 punti: Bonus profile views</li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Pulsanti -->
                     <div class="d-flex gap-2">
                         <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
-                            Salva come Bozza
+                            💾 Salva come Bozza
                         </button>
                         <button type="submit" name="action" value="save_active" class="btn btn-primary">
-                            Crea Campagna Attiva
+                            🚀 Crea Campagna Attiva & Esegui Matching
                         </button>
                         <a href="campaigns.php" class="btn btn-secondary">Annulla</a>
+                    </div>
+
+                    <!-- Informazioni aggiuntive -->
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <strong>Campagna Bozza:</strong> Salva senza eseguire il matching con gli influencer<br>
+                            <strong>Campagna Attiva:</strong> Salva ed esegue immediatamente il matching avanzato con il sistema a due fasi
+                        </small>
                     </div>
                 </form>
             </div>
@@ -497,16 +451,76 @@ require_once $header_file;
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('campaignForm');
-    const statusField = document.getElementById('status');
+    const budgetInput = document.getElementById('budget');
+    
+    // Funzione per aggiornare il budget limit in tempo reale
+    window.updateBudgetLimit = function() {
+        const budget = parseFloat(budgetInput.value);
+        const budgetLimitInfo = document.getElementById('budgetLimitInfo');
+        
+        if (budget > 0) {
+            // Calcola il budget limit lato client (approssimativo)
+            let budgetLimit, percentage, tierInfo;
+            
+            if (budget <= 200) {
+                budgetLimit = budget * 0.5;
+                percentage = 50;
+                tierInfo = " (Tier Basso - " + percentage + "%)";
+            } else if (budget <= 1000) {
+                budgetLimit = budget * 0.3;
+                percentage = 30;
+                tierInfo = " (Tier Medio - " + percentage + "%)";
+            } else {
+                budgetLimit = budget * 0.2;
+                percentage = 20;
+                tierInfo = " (Tier Alto - " + percentage + "%)";
+            }
+            
+            budgetLimitInfo.innerHTML = '<strong>Budget Limit:</strong> €' + budgetLimit.toFixed(2) + tierInfo;
+        } else {
+            budgetLimitInfo.innerHTML = '<strong>Budget Limit:</strong> <span class="text-muted">Inserisci il budget per calcolare il limite</span>';
+        }
+    };
     
     // Cambia stato in base al pulsante cliccato
-    form.addEventListener('submit', function() {
+    form.addEventListener('submit', function(e) {
         const submitButton = document.activeElement;
-        if (submitButton.name === 'action') {
-            if (submitButton.value === 'save_draft') {
-                statusField.value = 'draft';
-            } else if (submitButton.value === 'save_active') {
-                statusField.value = 'active';
+        const platformCheckboxes = document.querySelectorAll('input[name="platforms[]"]');
+        const checkedPlatforms = Array.from(platformCheckboxes).filter(cb => cb.checked);
+        
+        // Validazione piattaforme
+        if (checkedPlatforms.length === 0) {
+            e.preventDefault();
+            alert('Seleziona almeno una piattaforma social');
+            return false;
+        }
+        
+        // Mostra conferma per campagna attiva
+        if (submitButton.name === 'action' && submitButton.value === 'save_active') {
+            const budget = parseFloat(budgetInput.value);
+            let budgetLimit = 0;
+            
+            if (budget <= 200) {
+                budgetLimit = budget * 0.5;
+            } else if (budget <= 1000) {
+                budgetLimit = budget * 0.3;
+            } else {
+                budgetLimit = budget * 0.2;
+            }
+            
+            const confirmMessage = `Stai per creare una campagna ATTIVA e eseguire il matching avanzato.\n\n` +
+                                 `Budget: €${budget.toFixed(2)}\n` +
+                                 `Budget Limit per matching: €${budgetLimit.toFixed(2)}\n\n` +
+                                 `Il sistema:\n` +
+                                 `• Cercherà influencer con niche ESATTO (fase 1)\n` +
+                                 `• Se necessario, cercherà influencer con niche SIMILE (fase 2)\n` +
+                                 `• NON escluderà influencer per budget (solo penalizzerà lo score)\n` +
+                                 `• Mostrerà fino a 200 risultati ordinati per rilevanza\n\n` +
+                                 `Vuoi procedere?`;
+            
+            if (!confirm(confirmMessage)) {
+                e.preventDefault();
+                return false;
             }
         }
     });
@@ -530,18 +544,39 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Validazione piattaforme
-    const platformCheckboxes = document.querySelectorAll('input[name="platforms[]"]');
-    form.addEventListener('submit', function(e) {
-        const checkedPlatforms = Array.from(platformCheckboxes).filter(cb => cb.checked);
-        if (checkedPlatforms.length === 0) {
-            e.preventDefault();
-            alert('Seleziona almeno una piattaforma social');
-            return false;
-        }
+    // Aggiorna budget limit all'avvio se c'è un valore
+    if (budgetInput.value) {
+        updateBudgetLimit();
+    }
+});
+
+// Tooltip per informazioni aggiuntive
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 });
 </script>
+
+<style>
+.progress {
+    height: 20px;
+}
+.progress-bar {
+    font-weight: bold;
+}
+.alert-info {
+    border-left: 4px solid #0dcaf0;
+}
+.card-header.bg-light {
+    background-color: #f8f9fa !important;
+    border-bottom: 1px solid #dee2e6;
+}
+.form-text small {
+    font-size: 0.875em;
+}
+</style>
 
 <?php
 // =============================================

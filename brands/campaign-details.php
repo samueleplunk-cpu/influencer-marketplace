@@ -28,10 +28,19 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'brand') {
 }
 
 // =============================================
+// PAGINAZIONE
+// =============================================
+$current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
+$influencers_per_page = MATCHING_RESULTS_PER_PAGE;
+$offset = ($current_page - 1) * $influencers_per_page;
+
+// =============================================
 // RECUPERO DATI CAMPAGNA
 // =============================================
 $campaign = null;
 $influencers = [];
+$total_influencers = 0;
+$total_pages = 0;
 $error = '';
 
 if (!isset($_GET['id']) || empty($_GET['id'])) {
@@ -65,16 +74,34 @@ try {
         die("Campagna non trovata o accesso negato");
     }
     
-    // Recupera influencer matching
+    // Calcola budget limit per visualizzazione
+    $budget_limit = calculate_budget_limit($campaign['budget']);
+    
+    // Conta totale influencer
+    $count_stmt = $pdo->prepare("
+        SELECT COUNT(*) 
+        FROM campaign_influencers ci
+        JOIN influencers i ON ci.influencer_id = i.id
+        WHERE ci.campaign_id = ?
+    ");
+    $count_stmt->execute([$campaign_id]);
+    $total_influencers = $count_stmt->fetchColumn();
+    $total_pages = ceil($total_influencers / $influencers_per_page);
+    
+    // Recupera influencer con paginazione
     $stmt = $pdo->prepare("
         SELECT ci.*, i.full_name, i.niche, i.instagram_handle, i.tiktok_handle, 
                i.youtube_handle, i.rate, i.rating, i.profile_views
         FROM campaign_influencers ci
         JOIN influencers i ON ci.influencer_id = i.id
         WHERE ci.campaign_id = ?
-        ORDER BY ci.match_score DESC
+        ORDER BY ci.match_score DESC, i.rating DESC, i.profile_views DESC
+        LIMIT ? OFFSET ?
     ");
-    $stmt->execute([$campaign_id]);
+    $stmt->bindValue(1, $campaign_id, PDO::PARAM_INT);
+    $stmt->bindValue(2, $influencers_per_page, PDO::PARAM_INT);
+    $stmt->bindValue(3, $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
@@ -109,7 +136,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         }
         
         // Ricarica la pagina
-        header("Location: campaign-details.php?id=" . $campaign_id);
+        header("Location: campaign-details.php?id=" . $campaign_id . "&page=" . $current_page);
         exit();
         
     } catch (PDOException $e) {
@@ -163,6 +190,12 @@ require_once $header_file;
                                 </div>
                                 
                                 <div class="mb-3">
+                                    <strong>Budget Limit (Tier System):</strong>
+                                    <span class="badge bg-info">€<?php echo number_format($budget_limit, 2); ?></span>
+                                    <small class="text-muted d-block">Limite calcolato automaticamente per matching ottimale</small>
+                                </div>
+                                
+                                <div class="mb-3">
                                     <strong>Niche:</strong>
                                     <span class="badge bg-info"><?php echo htmlspecialchars($campaign['niche']); ?></span>
                                 </div>
@@ -200,7 +233,7 @@ require_once $header_file;
                                                 'twitter' => 'Twitter/X'
                                             ];
                                     ?>
-                                        <span class="badge bg-light text-dark me-1"><?php echo $platform_names[$platform] ?? $platform; ?></span>
+                                        <span class="badge bg-light text-dark me-1 mb-1"><?php echo $platform_names[$platform] ?? $platform; ?></span>
                                     <?php endforeach; endif; ?>
                                 </div>
                                 
@@ -223,6 +256,18 @@ require_once $header_file;
                                     <?php echo date('d/m/Y H:i', strtotime($campaign['created_at'])); ?>
                                 </div>
                             </div>
+                        </div>
+                        
+                        <!-- Informazioni Tier System -->
+                        <div class="alert alert-info mt-3">
+                            <h6>💡 Sistema di Matching Avanzato</h6>
+                            <small>
+                                <strong>Tier System Budget:</strong> Budget €<?php echo number_format($campaign['budget'], 2); ?> → 
+                                Limite €<?php echo number_format($budget_limit, 2); ?> 
+                                (<?php echo round(($budget_limit / $campaign['budget']) * 100); ?>% del budget)<br>
+                                <strong>Soft Filter Affordability:</strong> Gli influencer fuori budget non vengono esclusi, ma penalizzati nel punteggio<br>
+                                <strong>Doppia Fase:</strong> Prima niche esatto, poi niche simile per garantire risultati
+                            </small>
                         </div>
                         
                         <?php if ($campaign['requirements']): ?>
@@ -276,7 +321,7 @@ require_once $header_file;
                     </div>
                     <div class="card-body">
                         <div class="text-center">
-                            <h3><?php echo count($influencers); ?></h3>
+                            <h3><?php echo $total_influencers; ?></h3>
                             <p class="text-muted">Influencer Trovati</p>
                         </div>
                         
@@ -304,6 +349,14 @@ require_once $header_file;
                                 <?php endif; ?>
                             <?php endforeach; ?>
                         </div>
+                        
+                        <!-- Info Paginazione -->
+                        <div class="mt-3 pt-3 border-top">
+                            <small class="text-muted">
+                                Pagina <?php echo $current_page; ?> di <?php echo max(1, $total_pages); ?><br>
+                                <?php echo $influencers_per_page; ?> influencer per pagina
+                            </small>
+                        </div>
                     </div>
                 </div>
                 
@@ -321,8 +374,13 @@ require_once $header_file;
 
         <!-- Lista Influencer Matching -->
         <div class="card">
-            <div class="card-header">
+            <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Influencer Matching</h5>
+                <div>
+                    <small class="text-muted">
+                        <?php echo $total_influencers; ?> risultati totali
+                    </small>
+                </div>
             </div>
             <div class="card-body">
                 <?php if (empty($influencers)): ?>
@@ -333,14 +391,47 @@ require_once $header_file;
                         </p>
                     </div>
                 <?php else: ?>
+                    <!-- PAGINAZIONE TOP -->
+                    <?php if ($total_pages > 1): ?>
+                    <nav aria-label="Paginazione influencer">
+                        <ul class="pagination justify-content-center">
+                            <!-- Previous Page -->
+                            <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" 
+                                   href="campaign-details.php?id=<?php echo $campaign_id; ?>&page=<?php echo $current_page - 1; ?>">
+                                    ← Precedente
+                                </a>
+                            </li>
+                            
+                            <!-- Page Numbers -->
+                            <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                                <li class="page-item <?php echo $i == $current_page ? 'active' : ''; ?>">
+                                    <a class="page-link" 
+                                       href="campaign-details.php?id=<?php echo $campaign_id; ?>&page=<?php echo $i; ?>">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                            <?php endfor; ?>
+                            
+                            <!-- Next Page -->
+                            <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
+                                <a class="page-link" 
+                                   href="campaign-details.php?id=<?php echo $campaign_id; ?>&page=<?php echo $current_page + 1; ?>">
+                                    Successiva →
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <?php endif; ?>
+
                     <div class="table-responsive">
                         <table class="table table-striped">
                             <thead>
                                 <tr>
                                     <th>Influencer</th>
-                                    <th>Niche</th>
+                                    <th>Match Type</th>
                                     <th>Piattaforme</th>
-                                    <th>Rate</th>
+                                    <th>Rate & Affordability</th>
                                     <th>Match Score</th>
                                     <th>Stato</th>
                                     <th>Azioni</th>
@@ -352,27 +443,32 @@ require_once $header_file;
                                         <td>
                                             <strong><?php echo htmlspecialchars($influencer['full_name']); ?></strong><br>
                                             <small class="text-muted">
+                                                <?php echo htmlspecialchars($influencer['niche']); ?> • 
                                                 Rating: <?php echo number_format($influencer['rating'], 1); ?> ★
                                             </small>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info"><?php echo htmlspecialchars($influencer['niche']); ?></span>
+                                            <?php echo get_match_badge($influencer['match_score'], $influencer['match_details']); ?>
                                         </td>
                                         <td>
                                             <?php 
                                             $platforms = [];
-                                            if (!empty($influencer['instagram_handle'])) $platforms[] = 'IG';
-                                            if (!empty($influencer['tiktok_handle'])) $platforms[] = 'TT';
-                                            if (!empty($influencer['youtube_handle'])) $platforms[] = 'YT';
-                                            echo implode(' • ', $platforms);
+                                            if (!empty($influencer['instagram_handle'])) $platforms[] = '<span title="Instagram">📷</span>';
+                                            if (!empty($influencer['tiktok_handle'])) $platforms[] = '<span title="TikTok">🎵</span>';
+                                            if (!empty($influencer['youtube_handle'])) $platforms[] = '<span title="YouTube">📺</span>';
+                                            echo implode(' ', $platforms);
                                             ?>
                                         </td>
-                                        <td>€<?php echo number_format($influencer['rate'], 2); ?></td>
                                         <td>
-                                            <div class="progress" style="height: 20px;">
+                                            <strong>€<?php echo number_format($influencer['rate'], 2); ?></strong><br>
+                                            <?php echo get_affordability_indicator($influencer['rate'], $budget_limit); ?>
+                                        </td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;" 
+                                                 title="Match Score: <?php echo $influencer['match_score']; ?>%">
                                                 <div class="progress-bar 
-                                                    <?php echo $influencer['match_score'] >= 80 ? 'bg-success' : 
-                                                          ($influencer['match_score'] >= 60 ? 'bg-warning' : 'bg-danger'); ?>" 
+                                                    <?php echo $influencer['match_score'] >= 70 ? 'bg-success' : 
+                                                          ($influencer['match_score'] >= 40 ? 'bg-warning' : 'bg-danger'); ?>" 
                                                     role="progressbar" 
                                                     style="width: <?php echo $influencer['match_score']; ?>%">
                                                     <?php echo $influencer['match_score']; ?>%
@@ -418,28 +514,64 @@ require_once $header_file;
                                         <div class="modal-dialog modal-lg">
                                             <div class="modal-content">
                                                 <div class="modal-header">
-                                                    <h5 class="modal-title"><?php echo htmlspecialchars($influencer['full_name']); ?></h5>
+                                                    <h5 class="modal-title">
+                                                        <?php echo htmlspecialchars($influencer['full_name']); ?>
+                                                        <?php echo get_match_badge($influencer['match_score'], $influencer['match_details']); ?>
+                                                    </h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
                                                 <div class="modal-body">
                                                     <div class="row">
                                                         <div class="col-md-6">
+                                                            <h6>Informazioni Base</h6>
                                                             <p><strong>Niche:</strong> <?php echo htmlspecialchars($influencer['niche']); ?></p>
                                                             <p><strong>Rate:</strong> €<?php echo number_format($influencer['rate'], 2); ?></p>
                                                             <p><strong>Rating:</strong> <?php echo number_format($influencer['rating'], 1); ?> ★</p>
                                                             <p><strong>Profile Views:</strong> <?php echo number_format($influencer['profile_views']); ?></p>
                                                         </div>
                                                         <div class="col-md-6">
-                                                            <p><strong>Piattaforme:</strong></p>
-                                                            <?php if (!empty($influencer['instagram_handle'])): ?>
-                                                                <p>Instagram: @<?php echo htmlspecialchars($influencer['instagram_handle']); ?></p>
+                                                            <h6>Dettagli Match</h6>
+                                                            <?php 
+                                                            $details = json_decode($influencer['match_details'], true);
+                                                            if ($details): 
+                                                            ?>
+                                                                <p><strong>Score Totale:</strong> <?php echo $influencer['match_score']; ?>%</p>
+                                                                <?php if (isset($details['niche'])): ?>
+                                                                    <p><strong>Niche Match:</strong> 
+                                                                        <?php echo $details['niche'] === 'exact' ? '🎯 Esatto' : 
+                                                                              ($details['niche'] === 'similar' ? '📈 Simile' : '❌ Nessuno'); ?>
+                                                                    </p>
+                                                                <?php endif; ?>
+                                                                <?php if (isset($details['platforms'])): ?>
+                                                                    <p><strong>Piattaforme:</strong> 
+                                                                        <?php echo $details['platforms']['matches']; ?>/<?php echo $details['platforms']['total']; ?> 
+                                                                        (<?php echo $details['platforms']['score']; ?> punti)
+                                                                    </p>
+                                                                <?php endif; ?>
+                                                                <?php if (isset($details['affordability'])): ?>
+                                                                    <p><strong>Affordability:</strong> 
+                                                                        <?php echo $details['affordability_score']; ?> punti
+                                                                        (<?php echo get_affordability_indicator($influencer['rate'], $budget_limit); ?>)
+                                                                    </p>
+                                                                <?php endif; ?>
                                                             <?php endif; ?>
-                                                            <?php if (!empty($influencer['tiktok_handle'])): ?>
-                                                                <p>TikTok: @<?php echo htmlspecialchars($influencer['tiktok_handle']); ?></p>
-                                                            <?php endif; ?>
-                                                            <?php if (!empty($influencer['youtube_handle'])): ?>
-                                                                <p>YouTube: <?php echo htmlspecialchars($influencer['youtube_handle']); ?></p>
-                                                            <?php endif; ?>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div class="row mt-3">
+                                                        <div class="col-12">
+                                                            <h6>Piattaforme Social</h6>
+                                                            <div class="d-flex gap-2">
+                                                                <?php if (!empty($influencer['instagram_handle'])): ?>
+                                                                    <span class="badge bg-instagram">Instagram: @<?php echo htmlspecialchars($influencer['instagram_handle']); ?></span>
+                                                                <?php endif; ?>
+                                                                <?php if (!empty($influencer['tiktok_handle'])): ?>
+                                                                    <span class="badge bg-dark">TikTok: @<?php echo htmlspecialchars($influencer['tiktok_handle']); ?></span>
+                                                                <?php endif; ?>
+                                                                <?php if (!empty($influencer['youtube_handle'])): ?>
+                                                                    <span class="badge bg-danger">YouTube: <?php echo htmlspecialchars($influencer['youtube_handle']); ?></span>
+                                                                <?php endif; ?>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     
@@ -479,6 +611,8 @@ require_once $header_file;
                                                         
                                                         <div class="alert alert-info">
                                                             <small>
+                                                                <strong>Match Score:</strong> <?php echo $influencer['match_score']; ?>%<br>
+                                                                <strong>Rate:</strong> €<?php echo number_format($influencer['rate'], 2); ?><br>
                                                                 Invitando questo influencer, gli verrà notificata 
                                                                 la tua campagna e potrà accettare o rifiutare la collaborazione.
                                                             </small>
@@ -497,11 +631,56 @@ require_once $header_file;
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- PAGINAZIONE BOTTOM -->
+                    <?php if ($total_pages > 1): ?>
+                    <nav aria-label="Paginazione influencer">
+                        <ul class="pagination justify-content-center">
+                            <!-- Previous Page -->
+                            <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
+                                <a class="page-link" 
+                                   href="campaign-details.php?id=<?php echo $campaign_id; ?>&page=<?php echo $current_page - 1; ?>">
+                                    ← Precedente
+                                </a>
+                            </li>
+                            
+                            <!-- Page Numbers -->
+                            <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                                <li class="page-item <?php echo $i == $current_page ? 'active' : ''; ?>">
+                                    <a class="page-link" 
+                                       href="campaign-details.php?id=<?php echo $campaign_id; ?>&page=<?php echo $i; ?>">
+                                        <?php echo $i; ?>
+                                    </a>
+                                </li>
+                            <?php endfor; ?>
+                            
+                            <!-- Next Page -->
+                            <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
+                                <a class="page-link" 
+                                   href="campaign-details.php?id=<?php echo $campaign_id; ?>&page=<?php echo $current_page + 1; ?>">
+                                    Successiva →
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <?php endif; ?>
                 <?php endif; ?>
             </div>
         </div>
     </div>
 </div>
+
+<style>
+.bg-instagram {
+    background: linear-gradient(45deg, #405DE6, #5851DB, #833AB4, #C13584, #E1306C, #FD1D1D, #F56040, #F77737, #FCAF45, #FFDC80) !important;
+}
+.progress {
+    height: 20px;
+}
+.progress-bar {
+    font-weight: bold;
+}
+</style>
 
 <?php
 // =============================================
