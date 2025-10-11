@@ -258,18 +258,6 @@ require_once $header_file;
                             </div>
                         </div>
                         
-                        <!-- Informazioni Tier System -->
-                        <div class="alert alert-info mt-3">
-                            <h6>💡 Sistema di Matching Avanzato</h6>
-                            <small>
-                                <strong>Tier System Budget:</strong> Budget €<?php echo number_format($campaign['budget'], 2); ?> → 
-                                Limite €<?php echo number_format($budget_limit, 2); ?> 
-                                (<?php echo round(($budget_limit / $campaign['budget']) * 100); ?>% del budget)<br>
-                                <strong>Soft Filter Affordability:</strong> Gli influencer fuori budget non vengono esclusi, ma penalizzati nel punteggio<br>
-                                <strong>Doppia Fase:</strong> Prima niche esatto, poi niche simile per garantire risultati
-                            </small>
-                        </div>
-                        
                         <?php if ($campaign['requirements']): ?>
                         <div class="mt-3">
                             <strong>Requisiti Specifici:</strong>
@@ -327,7 +315,6 @@ require_once $header_file;
                         
                         <?php 
                         $status_counts = [
-                            'pending' => 0,
                             'invited' => 0,
                             'accepted' => 0,
                             'rejected' => 0,
@@ -335,7 +322,9 @@ require_once $header_file;
                         ];
                         
                         foreach ($influencers as $inf) {
-                            $status_counts[$inf['status']]++;
+                            if (isset($status_counts[$inf['status']])) {
+                                $status_counts[$inf['status']]++;
+                            }
                         }
                         ?>
                         
@@ -348,14 +337,6 @@ require_once $header_file;
                                 </div>
                                 <?php endif; ?>
                             <?php endforeach; ?>
-                        </div>
-                        
-                        <!-- Info Paginazione -->
-                        <div class="mt-3 pt-3 border-top">
-                            <small class="text-muted">
-                                Pagina <?php echo $current_page; ?> di <?php echo max(1, $total_pages); ?><br>
-                                <?php echo $influencers_per_page; ?> influencer per pagina
-                            </small>
                         </div>
                     </div>
                 </div>
