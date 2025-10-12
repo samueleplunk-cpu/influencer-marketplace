@@ -269,33 +269,62 @@ require_once $header_file;
                         <?php if ($logo_column_exists): ?>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="logo" class="form-label">Logo Aziendale</label>
+                                <label class="form-label">Logo Aziendale</label>
                                 
-                                <!-- Anteprima logo attuale -->
-                                <?php if (!empty($brand['logo'])): ?>
-                                    <div class="mb-3">
-                                        <p class="text-muted">Logo attuale:</p>
-                                        <img src="/infl/<?php echo htmlspecialchars($brand['logo']); ?>" 
-                                             alt="Logo attuale" 
-                                             class="img-thumbnail mb-2" 
-                                             style="max-height: 150px;">
+                                <!-- Area Upload Logo -->
+                                <div id="logoUploadArea">
+                                    <!-- Logo attuale -->
+                                    <?php if (!empty($brand['logo'])): ?>
+                                        <div id="currentLogoSection" class="mb-3">
+                                            <p class="text-muted">Logo attuale:</p>
+                                            <img src="/infl/<?php echo htmlspecialchars($brand['logo']); ?>" 
+                                                 alt="Logo attuale" 
+                                                 class="img-thumbnail mb-2" 
+                                                 style="max-height: 150px;">
+                                            <div class="d-flex gap-2">
+                                                <button type="button" class="btn btn-outline-primary btn-sm" id="changeLogoBtn">
+                                                    📝 Cambia Immagine
+                                                </button>
+                                                <button type="button" class="btn btn-outline-danger btn-sm" id="removeCurrentLogoBtn">
+                                                    🗑️ Rimuovi Immagine
+                                                </button>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <!-- Se non c'è logo, mostra pulsante per caricare -->
+                                        <div id="noLogoSection" class="mb-3">
+                                            <div class="alert alert-info">
+                                                <small>Nessun logo caricato. Gli influencer vedranno un'immagine predefinita.</small>
+                                            </div>
+                                            <button type="button" class="btn btn-outline-primary" id="uploadLogoBtn">
+                                                📁 Scegli Immagine
+                                            </button>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <!-- Input file nascosto -->
+                                    <input type="file" class="form-control d-none" id="logo" name="logo" 
+                                           accept="image/jpeg,image/jpg,image/png,image/gif">
+                                    
+                                    <!-- Anteprima nuovo logo con controlli -->
+                                    <div id="logoPreviewContainer" class="mt-2" style="display: none;">
+                                        <p class="text-muted">Anteprima nuovo logo:</p>
+                                        <div class="position-relative d-inline-block">
+                                            <img id="previewImage" class="img-thumbnail" style="max-height: 150px;">
+                                        </div>
+                                        <div class="d-flex gap-2 mt-2">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" id="changeImageBtn">
+                                                📝 Cambia Immagine
+                                            </button>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" id="removeImageBtn">
+                                                🗑️ Rimuovi Immagine
+                                            </button>
+                                        </div>
                                     </div>
-                                <?php else: ?>
-                                    <div class="alert alert-info">
-                                        <small>Nessun logo caricato. Gli influencer vedranno un'immagine predefinita.</small>
-                                    </div>
-                                <?php endif; ?>
-                                
-                                <input type="file" class="form-control" id="logo" name="logo" 
-                                       accept="image/jpeg,image/jpg,image/png,image/gif">
-                                <div class="form-text">
-                                    Formati supportati: JPG, PNG, GIF. Dimensione massima: 5MB.
                                 </div>
                                 
-                                <!-- Anteprima nuovo logo -->
-                                <div id="logoPreview" class="mt-2" style="display: none;">
-                                    <p class="text-muted">Anteprima nuovo logo:</p>
-                                    <img id="previewImage" class="img-thumbnail" style="max-height: 150px;">
+                                <div class="form-text">
+                                    Formati supportati: JPG, PNG, GIF. Dimensione massima: 5MB.
                                 </div>
                             </div>
                         </div>
@@ -318,11 +347,6 @@ require_once $header_file;
                             💾 Aggiorna Profilo
                         </button>
                         <a href="dashboard.php" class="btn btn-secondary">Annulla</a>
-                        <?php if ($logo_column_exists && !empty($brand['logo'])): ?>
-                            <button type="button" class="btn btn-outline-danger" id="removeLogoBtn">
-                                🗑️ Rimuovi Logo
-                            </button>
-                        <?php endif; ?>
                     </div>
                     
                     <!-- Campo hidden per rimozione logo -->
@@ -380,39 +404,150 @@ require_once $header_file;
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('profileForm');
     const logoInput = document.getElementById('logo');
-    const logoPreview = document.getElementById('logoPreview');
+    const logoPreviewContainer = document.getElementById('logoPreviewContainer');
     const previewImage = document.getElementById('previewImage');
-    const removeLogoBtn = document.getElementById('removeLogoBtn');
     const removeLogoField = document.getElementById('removeLogoField');
+    const currentLogoSection = document.getElementById('currentLogoSection');
+    const noLogoSection = document.getElementById('noLogoSection');
     
-    // Gestione anteprima logo
+    // Elementi dei pulsanti
+    const changeLogoBtn = document.getElementById('changeLogoBtn');
+    const removeCurrentLogoBtn = document.getElementById('removeCurrentLogoBtn');
+    const uploadLogoBtn = document.getElementById('uploadLogoBtn');
+    const changeImageBtn = document.getElementById('changeImageBtn');
+    const removeImageBtn = document.getElementById('removeImageBtn');
+    
+    // Gestione click su "Scegli Immagine" (quando non c'è logo)
+    if (uploadLogoBtn) {
+        uploadLogoBtn.addEventListener('click', function() {
+            logoInput.click();
+        });
+    }
+    
+    // Gestione click su "Cambia Immagine" (logo attuale)
+    if (changeLogoBtn) {
+        changeLogoBtn.addEventListener('click', function() {
+            logoInput.click();
+        });
+    }
+    
+    // Gestione click su "Rimuovi Immagine" (logo attuale)
+    if (removeCurrentLogoBtn) {
+        removeCurrentLogoBtn.addEventListener('click', function() {
+            if (confirm('Sei sicuro di voler rimuovere il logo attuale?')) {
+                removeLogoField.value = '1';
+                // Nascondi la sezione del logo attuale
+                if (currentLogoSection) {
+                    currentLogoSection.style.display = 'none';
+                }
+                // Mostra la sezione senza logo
+                showNoLogoSection();
+            }
+        });
+    }
+    
+    // Gestione click su "Cambia Immagine" (anteprima)
+    if (changeImageBtn) {
+        changeImageBtn.addEventListener('click', function() {
+            logoInput.click();
+        });
+    }
+    
+    // Gestione click su "Rimuovi Immagine" (anteprima)
+    if (removeImageBtn) {
+        removeImageBtn.addEventListener('click', function() {
+            resetLogoInput();
+            // Se c'era un logo attuale, ripristinalo
+            if (currentLogoSection && removeLogoField.value === '0') {
+                logoPreviewContainer.style.display = 'none';
+                currentLogoSection.style.display = 'block';
+            } else {
+                logoPreviewContainer.style.display = 'none';
+                showNoLogoSection();
+            }
+        });
+    }
+    
+    // Gestione cambio file
     if (logoInput) {
         logoInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
+                // Validazione client-side del file
+                const maxSize = 5 * 1024 * 1024; // 5MB
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+                
+                if (!allowedTypes.includes(file.type)) {
+                    alert('Formato file non supportato. Usa JPG, PNG o GIF.');
+                    resetLogoInput();
+                    return;
+                }
+                
+                if (file.size > maxSize) {
+                    alert('Il file è troppo grande. Dimensione massima: 5MB.');
+                    resetLogoInput();
+                    return;
+                }
+                
+                // Mostra anteprima
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     previewImage.src = e.target.result;
-                    logoPreview.style.display = 'block';
+                    logoPreviewContainer.style.display = 'block';
+                    
+                    // Nascondi le altre sezioni
+                    if (currentLogoSection) {
+                        currentLogoSection.style.display = 'none';
+                    }
+                    if (noLogoSection) {
+                        noLogoSection.style.display = 'none';
+                    }
+                    
+                    // Reset del campo remove_logo se stiamo caricando una nuova immagine
+                    removeLogoField.value = '0';
                 }
                 reader.readAsDataURL(file);
-            } else {
-                logoPreview.style.display = 'none';
             }
         });
     }
     
-    // Gestione rimozione logo
-    if (removeLogoBtn && removeLogoField) {
-        removeLogoBtn.addEventListener('click', function() {
-            if (confirm('Sei sicuro di voler rimuovere il logo attuale?')) {
-                removeLogoField.value = '1';
-                form.submit();
-            }
-        });
+    // Funzione per resettare l'input file
+    function resetLogoInput() {
+        if (logoInput) {
+            logoInput.value = '';
+        }
+        removeLogoField.value = '0';
     }
     
-    // Validazione client-side
+    // Funzione per mostrare la sezione senza logo
+    function showNoLogoSection() {
+        if (noLogoSection) {
+            noLogoSection.style.display = 'block';
+        } else {
+            // Se non esiste, creala dinamicamente
+            const logoUploadArea = document.getElementById('logoUploadArea');
+            const newNoLogoSection = document.createElement('div');
+            newNoLogoSection.id = 'noLogoSection';
+            newNoLogoSection.className = 'mb-3';
+            newNoLogoSection.innerHTML = `
+                <div class="alert alert-info">
+                    <small>Nessun logo caricato. Gli influencer vedranno un'immagine predefinita.</small>
+                </div>
+                <button type="button" class="btn btn-outline-primary" id="uploadLogoBtn">
+                    📁 Scegli Immagine
+                </button>
+            `;
+            logoUploadArea.appendChild(newNoLogoSection);
+            
+            // Re-attach event listener al nuovo pulsante
+            document.getElementById('uploadLogoBtn').addEventListener('click', function() {
+                logoInput.click();
+            });
+        }
+        logoPreviewContainer.style.display = 'none';
+    }
+    
+    // Validazione client-side del form
     form.addEventListener('submit', function(e) {
         const companyName = document.getElementById('company_name').value.trim();
         const industry = document.getElementById('industry').value;
@@ -508,6 +643,10 @@ document.addEventListener('DOMContentLoaded', function() {
     border: 1px solid #dee2e6;
     border-radius: 0.375rem;
     padding: 0.25rem;
+}
+.btn-sm {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
 }
 </style>
 
