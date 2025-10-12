@@ -74,9 +74,6 @@ try {
         die("Campagna non trovata o accesso negato");
     }
     
-    // Calcola budget limit per visualizzazione
-    $budget_limit = calculate_budget_limit($campaign['budget']);
-    
     // Conta totale influencer
     $count_stmt = $pdo->prepare("
         SELECT COUNT(*) 
@@ -187,12 +184,6 @@ require_once $header_file;
                                 <div class="mb-3">
                                     <strong>Budget:</strong> 
                                     <span class="badge bg-success fs-6">€<?php echo number_format($campaign['budget'], 2); ?></span>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <strong>Budget Limit (Tier System):</strong>
-                                    <span class="badge bg-info">€<?php echo number_format($budget_limit, 2); ?></span>
-                                    <small class="text-muted d-block">Limite calcolato automaticamente per matching ottimale</small>
                                 </div>
                                 
                                 <div class="mb-3">
@@ -442,7 +433,7 @@ require_once $header_file;
                                         </td>
                                         <td>
                                             <strong>€<?php echo number_format($influencer['rate'], 2); ?></strong><br>
-                                            <?php echo get_affordability_indicator($influencer['rate'], $budget_limit); ?>
+                                            <?php echo get_affordability_indicator($influencer['rate'], $campaign['budget']); ?>
                                         </td>
                                         <td>
                                             <div class="progress" style="height: 20px;" 
@@ -532,7 +523,7 @@ require_once $header_file;
                                                                 <?php if (isset($details['affordability'])): ?>
                                                                     <p><strong>Affordability:</strong> 
                                                                         <?php echo $details['affordability_score']; ?> punti
-                                                                        (<?php echo get_affordability_indicator($influencer['rate'], $budget_limit); ?>)
+                                                                        (<?php echo get_affordability_indicator($influencer['rate'], $campaign['budget']); ?>)
                                                                     </p>
                                                                 <?php endif; ?>
                                                             <?php endif; ?>

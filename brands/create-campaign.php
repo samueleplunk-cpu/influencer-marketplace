@@ -77,28 +77,6 @@ $platforms = [
 ];
 
 // =============================================
-// FUNZIONE PER CALCOLARE E MOSTRARE BUDGET LIMIT
-// =============================================
-function calculate_and_display_budget_limit($budget) {
-    if (empty($budget)) return '';
-    
-    $budget_float = floatval($budget);
-    $budget_limit = calculate_budget_limit($budget_float);
-    $percentage = round(($budget_limit / $budget_float) * 100);
-    
-    $tier_info = "";
-    if ($budget_float <= BUDGET_TIER_LOW_MAX) {
-        $tier_info = " (Tier Basso - {$percentage}%)";
-    } elseif ($budget_float <= BUDGET_TIER_MEDIUM_MAX) {
-        $tier_info = " (Tier Medio - {$percentage}%)";
-    } else {
-        $tier_info = " (Tier Alto - {$percentage}%)";
-    }
-    
-    return number_format($budget_limit, 2) . $tier_info;
-}
-
-// =============================================
 // GESTIONE INVIO FORM
 // =============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -237,18 +215,10 @@ require_once $header_file;
                             <div class="mb-3">
                                 <label for="budget" class="form-label">Budget (€) *</label>
                                 <input type="number" class="form-control" id="budget" name="budget" 
-                                       min="0" step="0.01" value="<?php echo htmlspecialchars($_POST['budget'] ?? ''); ?>" required
-                                       oninput="updateBudgetLimit()">
+                                       min="0" step="0.01" value="<?php echo htmlspecialchars($_POST['budget'] ?? ''); ?>" required>
                                 <div class="form-text">
-                                    <div id="budgetLimitInfo" class="mt-1">
-                                        <?php if (!empty($_POST['budget'])): ?>
-                                            <strong>Budget Limit:</strong> €<?php echo calculate_and_display_budget_limit($_POST['budget']); ?>
-                                        <?php else: ?>
-                                            <strong>Budget Limit:</strong> <span class="text-muted">Inserisci il budget per calcolare il limite</span>
-                                        <?php endif; ?>
-                                    </div>
                                     <small class="text-muted">
-                                        Il sistema calcola automaticamente un limite di budget ottimale per il matching degli influencer
+                                        Inserisci il budget totale della campagna
                                     </small>
                                 </div>
                             </div>
@@ -380,36 +350,6 @@ require_once $header_file;
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('campaignForm');
-    const budgetInput = document.getElementById('budget');
-    
-    // Funzione per aggiornare il budget limit in tempo reale
-    window.updateBudgetLimit = function() {
-        const budget = parseFloat(budgetInput.value);
-        const budgetLimitInfo = document.getElementById('budgetLimitInfo');
-        
-        if (budget > 0) {
-            // Calcola il budget limit lato client (approssimativo)
-            let budgetLimit, percentage, tierInfo;
-            
-            if (budget <= 200) {
-                budgetLimit = budget * 0.5;
-                percentage = 50;
-                tierInfo = " (Tier Basso - " + percentage + "%)";
-            } else if (budget <= 1000) {
-                budgetLimit = budget * 0.3;
-                percentage = 30;
-                tierInfo = " (Tier Medio - " + percentage + "%)";
-            } else {
-                budgetLimit = budget * 0.2;
-                percentage = 20;
-                tierInfo = " (Tier Alto - " + percentage + "%)";
-            }
-            
-            budgetLimitInfo.innerHTML = '<strong>Budget Limit:</strong> €' + budgetLimit.toFixed(2) + tierInfo;
-        } else {
-            budgetLimitInfo.innerHTML = '<strong>Budget Limit:</strong> <span class="text-muted">Inserisci il budget per calcolare il limite</span>';
-        }
-    };
     
     // Cambia stato in base al pulsante cliccato
     form.addEventListener('submit', function(e) {
@@ -442,11 +382,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 this.value = '';
             }
         });
-    }
-    
-    // Aggiorna budget limit all'avvio se c'è un valore
-    if (budgetInput.value) {
-        updateBudgetLimit();
     }
 });
 
