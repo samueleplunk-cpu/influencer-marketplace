@@ -128,4 +128,55 @@ function display_alert($type = 'info', $message = '') {
     }
     return '';
 }
+
+/**
+ * Crea o recupera una conversazione tra brand e influencer
+ */
+function startConversation($pdo, $brand_id, $influencer_id, $campaign_id = null, $initial_message = null) {
+    try {
+        // Verifica se esiste già una conversazione
+        if ($campaign_id) {
+            $stmt = $pdo->prepare("
+                SELECT id FROM conversations 
+                WHERE brand_id = ? AND influencer_id = ? AND campaign_id = ?
+            ");
+            $stmt->execute([$brand_id, $influencer_id, $campaign_id]);
+        } else {
+            $stmt = $pdo->prepare("
+                SELECT id FROM conversations 
+                WHERE brand_id = ? AND influencer_id = ? AND campaign_id IS NULL
+            ");
+            $stmt->execute([$brand_id, $influencer_id]);
+        }
+        
+        $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($existing) {
+            return $existing['id']; // Restituisce ID conversazione esistente
+        }
+        
+        // Crea nuova conversazione
+        $stmt = $pdo->prepare("
+            INSERT INTO conversations (brand_id, influencer_id, campaign_id) 
+            VALUES (?, ?, ?)
+        ");
+        $stmt->execute([$brand_id, $influencer_id, $campaign_id]);
+        $conversation_id = $pdo->lastInsertId();
+        
+        // Aggiungi messaggio iniziale se fornito
+        if ($initial_message) {
+            $stmt = $pdo->prepare("
+                INSERT INTO messages (conversation_id, sender_id, sender_type, message) 
+                VALUES (?, ?, 'brand', ?)
+            ");
+            $stmt->execute([$conversation_id, $brand_id, $initial_message]);
+        }
+        
+        return $conversation_id;
+        
+    } catch (PDOException $e) {
+        error_log("Errore creazione conversazione: " . $e->getMessage());
+        return false;
+    }
+}
 ?>

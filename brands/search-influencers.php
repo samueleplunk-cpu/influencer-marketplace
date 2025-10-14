@@ -38,6 +38,17 @@ if (!file_exists($header_file)) {
 require_once $header_file;
 
 // =============================================
+// RECUPERO BRAND_ID PER MESSAGGI
+// =============================================
+$brand_id = null;
+$stmt_brand = $pdo->prepare("SELECT id FROM brands WHERE user_id = ?");
+$stmt_brand->execute([$_SESSION['user_id']]);
+$brand_data = $stmt_brand->fetch(PDO::FETCH_ASSOC);
+if ($brand_data) {
+    $brand_id = $brand_data['id'];
+}
+
+// =============================================
 // PARAMETRI DI RICERCA E FILTRI
 // =============================================
 $search_query = $_GET['search'] ?? '';
@@ -317,11 +328,29 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
                                         </div>
                                     </div>
 
+                                    <!-- PULSANTI AZIONE -->
                                     <div class="card-footer bg-transparent">
-                                        <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
-                                           class="btn btn-outline-primary btn-sm w-100">
-                                            Vedi Profilo Completo
-                                        </a>
+                                        <div class="d-grid gap-2">
+                                            <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                <i class="fas fa-eye"></i> Vedi Profilo Completo
+                                            </a>
+                                            
+                                            <?php if ($brand_id): ?>
+                                                <!-- Form per avviare conversazione -->
+                                                <form method="POST" action="start-conversation.php" class="d-inline">
+                                                    <input type="hidden" name="influencer_id" value="<?php echo $influencer['id']; ?>">
+                                                    <input type="hidden" name="initial_message" value="Ciao <?php echo htmlspecialchars($influencer['full_name']); ?>, sono interessato a collaborare con te!">
+                                                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                        <i class="fas fa-envelope"></i> Invia Messaggio
+                                                    </button>
+                                                </form>
+                                            <?php else: ?>
+                                                <button class="btn btn-secondary btn-sm w-100" disabled title="Completa il profilo brand per inviare messaggi">
+                                                    <i class="fas fa-exclamation-circle"></i> Completa Profilo
+                                                </button>
+                                            <?php endif; ?>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -336,7 +365,7 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
                                 <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
                                     <a class="page-link" 
                                        href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page - 1])); ?>">
-                                        Precedente
+                                        <i class="fas fa-chevron-left"></i> Precedente
                                     </a>
                                 </li>
 
@@ -354,7 +383,7 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
                                 <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
                                     <a class="page-link" 
                                        href="?<?php echo http_build_query(array_merge($_GET, ['page' => $page + 1])); ?>">
-                                        Successiva
+                                        Successiva <i class="fas fa-chevron-right"></i>
                                     </a>
                                 </li>
                             </ul>
@@ -365,6 +394,26 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
         </div>
     </div>
 </div>
+
+<style>
+.influencer-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+
+.influencer-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.card-img-top {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.btn-sm {
+    font-size: 0.875rem;
+    padding: 0.375rem 0.75rem;
+}
+</style>
 
 <?php
 // =============================================
