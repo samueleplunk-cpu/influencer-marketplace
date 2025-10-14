@@ -19,26 +19,27 @@ function redirect($url) {
     exit();
 }
 
-/**
- * Verifica se l'utente è loggato
- */
-function is_logged_in() {
-    return isset($_SESSION['user_id']);
-}
-
-/**
- * Verifica se l'utente è un influencer
- */
-function is_influencer() {
-    return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer';
-}
-
-/**
- * Verifica se l'utente è un brand
- */
-function is_brand() {
-    return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand';
-}
+// RIMUOVI LE FUNZIONI DUPLICATE - SONO GIA' IN auth_functions.php
+// /**
+//  * Verifica se l'utente è loggato
+//  */
+// function is_logged_in() {
+//     return isset($_SESSION['user_id']);
+// }
+// 
+// /**
+//  * Verifica se l'utente è un influencer
+//  */
+// function is_influencer() {
+//     return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer';
+// }
+// 
+// /**
+//  * Verifica se l'utente è un brand
+//  */
+// function is_brand() {
+//     return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand';
+// }
 
 /**
  * Formatta i numeri in formato leggibile (1.5K, 2.3M)

@@ -16,6 +16,15 @@ if (!file_exists($config_file)) {
 require_once $config_file;
 
 // =============================================
+// INCLUSIONE FUNZIONI CON PERCORSO ASSOLUTO
+// =============================================
+$functions_file = dirname(__DIR__) . '/includes/functions.php';
+if (!file_exists($functions_file)) {
+    die("Errore: File funzioni non trovato in: " . $functions_file);
+}
+require_once $functions_file;
+
+// =============================================
 // VERIFICA AUTENTICAZIONE UTENTE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
