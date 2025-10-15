@@ -131,7 +131,7 @@ require_once $header_file;
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2>Conversazione con <?php echo htmlspecialchars($conversation['influencer_name']); ?></h2>
-            <a href="../messages.php" class="btn btn-outline-primary">
+            <a href="conversation-list.php" class="btn btn-outline-primary">
                 ← Torna ai Messaggi
             </a>
         </div>
