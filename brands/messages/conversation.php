@@ -246,12 +246,7 @@ require_once $header_file;
                                         <?php if (!empty($sender_image) && image_exists($sender_image)): ?>
                                             <img src="<?php echo get_image_path($sender_image, $sender_image_type); ?>" 
                                                  class="rounded-circle me-3" width="40" height="40" alt="Profile"
-                                                 style="object-fit: cover;"
-                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
-                                                 style="width: 40px; height: 40px; display: none;">
-                                                <i class="fas fa-user text-white"></i>
-                                            </div>
+                                                 style="object-fit: cover;">
                                         <?php else: ?>
                                             <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
                                                  style="width: 40px; height: 40px;">
@@ -294,12 +289,7 @@ require_once $header_file;
                                         <?php if (!empty($sender_image) && image_exists($sender_image)): ?>
                                             <img src="<?php echo get_image_path($sender_image, $sender_image_type); ?>" 
                                                  class="rounded-circle ms-3" width="40" height="40" alt="Brand Logo"
-                                                 style="object-fit: cover;"
-                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center ms-3" 
-                                                 style="width: 40px; height: 40px; display: none;">
-                                                <i class="fas fa-building text-white"></i>
-                                            </div>
+                                                 style="object-fit: cover;">
                                         <?php else: ?>
                                             <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center ms-3" 
                                                  style="width: 40px; height: 40px;">
