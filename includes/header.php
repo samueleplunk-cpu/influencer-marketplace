@@ -95,7 +95,7 @@ if (isset($_SESSION['user_id'])) {
                             <a class="nav-link position-relative" href="/infl/influencers/dashboard.php">
                                 <i class="fas fa-tachometer-alt"></i> Dashboard
                             </a>
-                            <a class="nav-link position-relative" href="/infl/influencers/messages/">
+                            <a class="nav-link position-relative" href="/infl/influencers/messages/conversation-list.php">
                                 <i class="fas fa-envelope"></i> Messaggi
                                 <?php if ($unread_count > 0): ?>
                                     <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
