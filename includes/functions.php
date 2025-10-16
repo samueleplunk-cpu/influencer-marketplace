@@ -434,21 +434,58 @@ function clean_input($data) {
 }
 
 /**
+ * Restituisce il percorso del placeholder in base al tipo
+ */
+function get_placeholder_path($type) {
+    switch ($type) {
+        case 'brand':
+            return '/infl/assets/img/brand-placeholder.png';
+        case 'influencer':
+            return '/infl/assets/img/influencer-placeholder.png';
+        default:
+            return '/infl/assets/img/user-placeholder.png';
+    }
+}
+
+/**
  * Ottiene il percorso corretto per un'immagine
  */
 function get_image_path($filename, $default_type = 'user') {
-    if (empty($filename) || !file_exists(dirname(__DIR__) . '/uploads/' . $filename)) {
-        // Restituisce un percorso placeholder in base al tipo
-        switch ($default_type) {
-            case 'brand':
-                return '/infl/assets/img/brand-placeholder.png';
-            case 'influencer':
-                return '/infl/assets/img/influencer-placeholder.png';
-            default:
-                return '/infl/assets/img/user-placeholder.png';
+    if (empty($filename)) {
+        return get_placeholder_path($default_type);
+    }
+    
+    $base_path = dirname(__DIR__) . '/';
+    
+    // Se il filename contiene già il percorso completo (come dai brand: "uploads/brands/filename.jpg")
+    if (strpos($filename, 'uploads/') === 0) {
+        if (file_exists($base_path . $filename)) {
+            return '/' . $filename;
         }
     }
-    return '/infl/uploads/' . $filename;
+    
+    // Prova diversi percorsi possibili
+    if (file_exists($base_path . $filename)) {
+        return '/' . $filename;
+    }
+    
+    // Percorso per immagini dei brand (uploads/brands/filename)
+    if (file_exists($base_path . 'uploads/brands/' . $filename)) {
+        return '/infl/uploads/brands/' . $filename;
+    }
+    
+    // Percorso per immagini degli influencer (uploads/influencers/filename)
+    if (file_exists($base_path . 'uploads/influencers/' . $filename)) {
+        return '/infl/uploads/influencers/' . $filename;
+    }
+    
+    // Percorso generico (uploads/filename)
+    if (file_exists($base_path . 'uploads/' . $filename)) {
+        return '/infl/uploads/' . $filename;
+    }
+    
+    // Se non trovato, restituisce placeholder
+    return get_placeholder_path($default_type);
 }
 
 /**
@@ -458,7 +495,66 @@ function image_exists($filename) {
     if (empty($filename)) {
         return false;
     }
-    $file_path = dirname(__DIR__) . '/uploads/' . $filename;
-    return file_exists($file_path);
+    
+    $base_path = dirname(__DIR__) . '/';
+    
+    // Se il filename contiene già il percorso completo
+    if (strpos($filename, 'uploads/') === 0) {
+        if (file_exists($base_path . $filename)) {
+            return true;
+        }
+    }
+    
+    // Prova diversi percorsi possibili
+    if (file_exists($base_path . $filename)) {
+        return true;
+    }
+    
+    // Percorso per immagini dei brand
+    if (file_exists($base_path . 'uploads/brands/' . $filename)) {
+        return true;
+    }
+    
+    // Percorso per immagini degli influencer
+    if (file_exists($base_path . 'uploads/influencers/' . $filename)) {
+        return true;
+    }
+    
+    // Percorso generico
+    if (file_exists($base_path . 'uploads/' . $filename)) {
+        return true;
+    }
+    
+    return false;
+}
+
+/**
+ * Ottiene l'ID del brand associato all'utente corrente
+ */
+function get_brand_id($pdo, $user_id) {
+    try {
+        $stmt = $pdo->prepare("SELECT id FROM brands WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        $brand = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $brand ? $brand['id'] : null;
+    } catch (Exception $e) {
+        error_log("Errore nel recupero brand ID: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Ottiene l'ID dell'influencer associato all'utente corrente
+ */
+function get_influencer_id($pdo, $user_id) {
+    try {
+        $stmt = $pdo->prepare("SELECT id FROM influencers WHERE user_id = ?");
+        $stmt->execute([$user_id]);
+        $influencer = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $influencer ? $influencer['id'] : null;
+    } catch (Exception $e) {
+        error_log("Errore nel recupero influencer ID: " . $e->getMessage());
+        return null;
+    }
 }
 ?>
