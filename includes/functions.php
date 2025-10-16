@@ -19,28 +19,6 @@ function redirect($url) {
     exit();
 }
 
-// RIMUOVI LE FUNZIONI DUPLICATE - SONO GIA' IN auth_functions.php
-// /**
-//  * Verifica se l'utente è loggato
-//  */
-// function is_logged_in() {
-//     return isset($_SESSION['user_id']);
-// }
-// 
-// /**
-//  * Verifica se l'utente è un influencer
-//  */
-// function is_influencer() {
-//     return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer';
-// }
-// 
-// /**
-//  * Verifica se l'utente è un brand
-//  */
-// function is_brand() {
-//     return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand';
-// }
-
 /**
  * Formatta i numeri in formato leggibile (1.5K, 2.3M)
  */
@@ -167,7 +145,7 @@ function startConversation($pdo, $brand_id, $influencer_id, $campaign_id = null,
         // Aggiungi messaggio iniziale se fornito
         if ($initial_message) {
             $stmt = $pdo->prepare("
-                INSERT INTO messages (conversation_id, sender_id, sender_type, message) 
+                INSERT INTO messages (conversazione_id, sender_id, sender_type, message) 
                 VALUES (?, ?, 'brand', ?)
             ");
             $stmt->execute([$conversation_id, $brand_id, $initial_message]);
@@ -453,5 +431,34 @@ function clean_input($data) {
         return array_map('clean_input', $data);
     }
     return trim(stripslashes(htmlspecialchars($data ?? '')));
+}
+
+/**
+ * Ottiene il percorso corretto per un'immagine
+ */
+function get_image_path($filename, $default_type = 'user') {
+    if (empty($filename) || !file_exists(dirname(__DIR__) . '/uploads/' . $filename)) {
+        // Restituisce un percorso placeholder in base al tipo
+        switch ($default_type) {
+            case 'brand':
+                return '/infl/assets/img/brand-placeholder.png';
+            case 'influencer':
+                return '/infl/assets/img/influencer-placeholder.png';
+            default:
+                return '/infl/assets/img/user-placeholder.png';
+        }
+    }
+    return '/infl/uploads/' . $filename;
+}
+
+/**
+ * Verifica se un file immagine esiste
+ */
+function image_exists($filename) {
+    if (empty($filename)) {
+        return false;
+    }
+    $file_path = dirname(__DIR__) . '/uploads/' . $filename;
+    return file_exists($file_path);
 }
 ?>

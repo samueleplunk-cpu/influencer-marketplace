@@ -43,16 +43,18 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $conversation_id = intval($_GET['id']);
 
 // =============================================
-// RECUPERO INFLUENCER_ID
+// RECUPERO INFLUENCER_ID E INFLUENCER_IMAGE
 // =============================================
 $influencer_id = null;
-$stmt = $pdo->prepare("SELECT id FROM influencers WHERE user_id = ?");
+$influencer_image = null;
+$stmt = $pdo->prepare("SELECT id, profile_image FROM influencers WHERE user_id = ?");
 $stmt->execute([$_SESSION['user_id']]);
 $influencer = $stmt->fetch(PDO::FETCH_ASSOC);
 if (!$influencer) {
     die("Profilo influencer non trovato. Completa prima il profilo influencer.");
 }
 $influencer_id = $influencer['id'];
+$influencer_image = $influencer['profile_image'];
 
 // =============================================
 // RECUPERA CONVERSAZIONE
@@ -85,15 +87,7 @@ $messages_stmt = $pdo->prepare("
            CASE 
                WHEN m.sender_type = 'brand' THEN b.company_name
                WHEN m.sender_type = 'influencer' THEN inf.full_name
-           END as sender_name,
-           CASE 
-               WHEN m.sender_type = 'brand' THEN b.logo
-               WHEN m.sender_type = 'influencer' THEN inf.profile_image
-           END as sender_image,
-           CASE 
-               WHEN m.sender_type = 'brand' THEN b.user_id
-               WHEN m.sender_type = 'influencer' THEN inf.user_id
-           END as sender_user_id
+           END as sender_name
     FROM messages m
     LEFT JOIN brands b ON m.sender_type = 'brand' AND m.sender_id = b.id
     LEFT JOIN influencers inf ON m.sender_type = 'influencer' AND m.sender_id = inf.id
@@ -181,8 +175,8 @@ require_once $header_file;
                             <i class="fas fa-building me-2"></i>Brand
                         </h5>
                         <div class="d-flex align-items-center">
-                            <?php if (!empty($conversation['brand_image'])): ?>
-                                <img src="/infl/uploads/<?php echo htmlspecialchars($conversation['brand_image']); ?>" 
+                            <?php if (!empty($conversation['brand_image']) && image_exists($conversation['brand_image'])): ?>
+                                <img src="<?php echo get_image_path($conversation['brand_image'], 'brand'); ?>" 
                                      class="rounded-circle me-3" width="60" height="60" alt="Brand Logo" 
                                      style="object-fit: cover;">
                             <?php else: ?>
@@ -275,16 +269,25 @@ require_once $header_file;
                             $message_class = $is_own_message ? 'text-end' : 'text-start';
                             $bubble_class = $is_own_message ? 'bg-primary text-white' : 'bg-light';
                             $time_class = $is_own_message ? 'text-white-50' : 'text-muted';
+                            
+                            // Usa l'immagine fissa del profilo invece di cercarla per ogni messaggio
+                            $sender_image = $is_own_message ? $influencer_image : $conversation['brand_image'];
+                            $sender_image_type = $is_own_message ? 'influencer' : 'brand';
                             ?>
                             
                             <div class="message mb-4 <?php echo $message_class; ?>" id="message-<?php echo $message['id']; ?>">
                                 <div class="d-flex <?php echo $is_own_message ? 'justify-content-end' : 'justify-content-start'; ?>">
                                     <?php if (!$is_own_message): ?>
-                                        <!-- Avatar brand -->
-                                        <?php if (!empty($message['sender_image'])): ?>
-                                            <img src="/infl/uploads/<?php echo htmlspecialchars($message['sender_image']); ?>" 
+                                        <!-- Avatar brand - usa sempre il logo del brand -->
+                                        <?php if (!empty($sender_image) && image_exists($sender_image)): ?>
+                                            <img src="<?php echo get_image_path($sender_image, $sender_image_type); ?>" 
                                                  class="rounded-circle me-3" width="40" height="40" alt="Brand Logo"
-                                                 style="object-fit: cover;">
+                                                 style="object-fit: cover;"
+                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
+                                                 style="width: 40px; height: 40px; display: none;">
+                                                <i class="fas fa-building text-white"></i>
+                                            </div>
                                         <?php else: ?>
                                             <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
                                                  style="width: 40px; height: 40px;">
@@ -323,11 +326,16 @@ require_once $header_file;
                                     </div>
                                     
                                     <?php if ($is_own_message): ?>
-                                        <!-- Avatar proprio (influencer) -->
-                                        <?php if (!empty($message['sender_image'])): ?>
-                                            <img src="/infl/uploads/<?php echo htmlspecialchars($message['sender_image']); ?>" 
+                                        <!-- Avatar proprio (influencer) - usa sempre l'immagine del profilo influencer -->
+                                        <?php if (!empty($sender_image) && image_exists($sender_image)): ?>
+                                            <img src="<?php echo get_image_path($sender_image, $sender_image_type); ?>" 
                                                  class="rounded-circle ms-3" width="40" height="40" alt="Profile"
-                                                 style="object-fit: cover;">
+                                                 style="object-fit: cover;"
+                                                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center ms-3" 
+                                                 style="width: 40px; height: 40px; display: none;">
+                                                <i class="fas fa-user text-white"></i>
+                                            </div>
                                         <?php else: ?>
                                             <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center ms-3" 
                                                  style="width: 40px; height: 40px;">
