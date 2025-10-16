@@ -61,7 +61,8 @@ $stmt = $pdo->prepare("
     SELECT c.*, 
            inf.full_name as influencer_name,
            inf.profile_image as influencer_image,
-           camp.name as campaign_title  -- CORRETTO: camp.name invece di camp.title
+           camp.name as campaign_title,
+           camp.id as campaign_id
     FROM conversations c
     LEFT JOIN influencers inf ON c.influencer_id = inf.id
     LEFT JOIN campaigns camp ON c.campaign_id = camp.id
@@ -86,7 +87,11 @@ $messages_stmt = $pdo->prepare("
            CASE 
                WHEN m.sender_type = 'brand' THEN b.logo
                WHEN m.sender_type = 'influencer' THEN inf.profile_image
-           END as sender_image
+           END as sender_image,
+           CASE 
+               WHEN m.sender_type = 'brand' THEN b.user_id
+               WHEN m.sender_type = 'influencer' THEN inf.user_id
+           END as sender_user_id
     FROM messages m
     LEFT JOIN brands b ON m.sender_type = 'brand' AND m.sender_id = b.id
     LEFT JOIN influencers inf ON m.sender_type = 'influencer' AND m.sender_id = inf.id
@@ -97,24 +102,41 @@ $messages_stmt->execute([$conversation_id]);
 $messages = $messages_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // =============================================
+// SEGNA I MESSAGGI COME LETTI
+// =============================================
+if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
+    mark_messages_as_read($pdo, $conversation_id, $_SESSION['user_type'], $_SESSION['user_id']);
+}
+
+// =============================================
 // GESTIONE INVIO NUOVO MESSAGGIO
 // =============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message']) && !empty(trim($_POST['message']))) {
     $new_message = trim($_POST['message']);
     
-    $insert_stmt = $pdo->prepare("
-        INSERT INTO messages (conversation_id, sender_id, sender_type, message, sent_at) 
-        VALUES (?, ?, 'brand', ?, NOW())
-    ");
-    $insert_stmt->execute([$conversation_id, $brand_id, $new_message]);
-    
-    // Aggiorna data ultimo aggiornamento conversazione
-    $update_stmt = $pdo->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?");
-    $update_stmt->execute([$conversation_id]);
-    
-    // Ricarica la pagina per mostrare il nuovo messaggio
-    header("Location: conversation.php?id=" . $conversation_id);
-    exit();
+    try {
+        $insert_stmt = $pdo->prepare("
+            INSERT INTO messages (conversation_id, sender_id, sender_type, message, sent_at) 
+            VALUES (?, ?, 'brand', ?, NOW())
+        ");
+        $insert_stmt->execute([$conversation_id, $brand_id, $new_message]);
+        
+        // Aggiorna data ultimo aggiornamento conversazione
+        $update_stmt = $pdo->prepare("UPDATE conversations SET updated_at = NOW() WHERE id = ?");
+        $update_stmt->execute([$conversation_id]);
+        
+        // Messaggio di successo
+        $_SESSION['success_message'] = "Messaggio inviato con successo!";
+        
+        // Ricarica la pagina per mostrare il nuovo messaggio
+        header("Location: conversation.php?id=" . $conversation_id);
+        exit();
+        
+    } catch (Exception $e) {
+        $_SESSION['error_message'] = "Errore nell'invio del messaggio: " . $e->getMessage();
+        header("Location: conversation.php?id=" . $conversation_id);
+        exit();
+    }
 }
 
 // =============================================
@@ -130,10 +152,20 @@ require_once $header_file;
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Conversazione con <?php echo htmlspecialchars($conversation['influencer_name']); ?></h2>
-            <a href="conversation-list.php" class="btn btn-outline-primary">
-                ← Torna ai Messaggi
-            </a>
+            <div>
+                <h2 class="mb-0">Conversazione con <?php echo htmlspecialchars($conversation['influencer_name']); ?></h2>
+                <small class="text-muted"><?php echo htmlspecialchars($conversation['influencer_name']); ?></small>
+            </div>
+            <div class="d-flex gap-2">
+                <?php if (!empty($conversation['campaign_id'])): ?>
+                    <a href="/infl/brands/campaigns/view.php?id=<?php echo $conversation['campaign_id']; ?>" class="btn btn-outline-secondary">
+                        <i class="fas fa-bullhorn me-1"></i> Vedi Campagna
+                    </a>
+                <?php endif; ?>
+                <a href="conversation-list.php" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i> Torna ai Messaggi
+                </a>
+            </div>
         </div>
 
         <!-- INFO CONVERSAZIONE -->
@@ -141,26 +173,40 @@ require_once $header_file;
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
-                        <h5 class="card-title">Influencer</h5>
+                        <h5 class="card-title">
+                            <i class="fas fa-user me-2"></i>Influencer
+                        </h5>
                         <div class="d-flex align-items-center">
                             <?php if (!empty($conversation['influencer_image'])): ?>
                                 <img src="/infl/uploads/<?php echo htmlspecialchars($conversation['influencer_image']); ?>" 
-                                     class="rounded-circle me-3" width="50" height="50" alt="Profile">
+                                     class="rounded-circle me-3" width="60" height="60" alt="Profile" 
+                                     style="object-fit: cover;">
                             <?php else: ?>
                                 <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 50px; height: 50px;">
-                                    <i class="fas fa-user text-muted"></i>
+                                     style="width: 60px; height: 60px;">
+                                    <i class="fas fa-user text-muted fa-lg"></i>
                                 </div>
                             <?php endif; ?>
                             <div>
-                                <strong><?php echo htmlspecialchars($conversation['influencer_name']); ?></strong>
+                                <strong class="h6"><?php echo htmlspecialchars($conversation['influencer_name']); ?></strong>
+                                <br>
+                                <small class="text-muted"><?php echo htmlspecialchars($conversation['influencer_name']); ?></small>
                             </div>
                         </div>
                     </div>
                     <?php if (!empty($conversation['campaign_title'])): ?>
                     <div class="col-md-6">
-                        <h5 class="card-title">Campagna</h5>
+                        <h5 class="card-title">
+                            <i class="fas fa-bullhorn me-2"></i>Campagna
+                        </h5>
                         <p class="mb-0"><?php echo htmlspecialchars($conversation['campaign_title']); ?></p>
+                        <?php if (!empty($conversation['campaign_id'])): ?>
+                            <small>
+                                <a href="/infl/brands/campaigns/view.php?id=<?php echo $conversation['campaign_id']; ?>" class="text-decoration-none">
+                                    Vedi dettagli campagna
+                                </a>
+                            </small>
+                        <?php endif; ?>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -169,65 +215,114 @@ require_once $header_file;
 
         <!-- MESSAGGI -->
         <div class="card mb-4">
-            <div class="card-header bg-light">
-                <h5 class="card-title mb-0">Messaggi</h5>
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-comments me-2"></i>Messaggi
+                    <span class="badge bg-primary ms-2"><?php echo count($messages); ?></span>
+                </h5>
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="scrollToBottom()">
+                    <i class="fas fa-arrow-down me-1"></i> Vai all'ultimo
+                </button>
             </div>
-            <div class="card-body" style="max-height: 500px; overflow-y: auto;">
-                <?php if (empty($messages)): ?>
-                    <div class="text-center py-4">
-                        <p class="text-muted">Nessun messaggio ancora. Inizia la conversazione!</p>
-                    </div>
-                <?php else: ?>
-                    <?php foreach ($messages as $message): ?>
-                        <div class="message mb-3 <?php echo $message['sender_type'] === 'brand' ? 'text-end' : 'text-start'; ?>">
-                            <div class="d-flex <?php echo $message['sender_type'] === 'brand' ? 'justify-content-end' : 'justify-content-start'; ?>">
-                                <?php if ($message['sender_type'] !== 'brand'): ?>
-                                    <?php if (!empty($message['sender_image'])): ?>
-                                        <img src="/infl/uploads/<?php echo htmlspecialchars($message['sender_image']); ?>" 
-                                             class="rounded-circle me-2" width="32" height="32" alt="Profile">
-                                    <?php else: ?>
-                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2" 
-                                             style="width: 32px; height: 32px;">
-                                            <i class="fas fa-user text-muted"></i>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                                
-                                <div class="message-bubble <?php echo $message['sender_type'] === 'brand' ? 'bg-primary text-white' : 'bg-light'; ?> rounded p-3">
-                                    <div class="message-text"><?php echo nl2br(htmlspecialchars($message['message'])); ?></div>
-                                    <small class="message-time <?php echo $message['sender_type'] === 'brand' ? 'text-white-50' : 'text-muted'; ?>">
-                                        <?php echo date('d/m/Y H:i', strtotime($message['sent_at'])); ?>
-                                    </small>
-                                </div>
-                                
-                                <?php if ($message['sender_type'] === 'brand'): ?>
-                                    <?php if (!empty($message['sender_image'])): ?>
-                                        <img src="/infl/uploads/<?php echo htmlspecialchars($message['sender_image']); ?>" 
-                                             class="rounded-circle ms-2" width="32" height="32" alt="Profile">
-                                    <?php else: ?>
-                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center ms-2" 
-                                             style="width: 32px; height: 32px;">
-                                            <i class="fas fa-user text-muted"></i>
-                                        </div>
-                                    <?php endif; ?>
-                                <?php endif; ?>
-                            </div>
+            <div class="card-body p-0">
+                <div id="messages-container" style="max-height: 500px; overflow-y: auto; padding: 1.25rem;">
+                    <?php if (empty($messages)): ?>
+                        <div class="text-center py-5">
+                            <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                            <h4 class="text-muted">Nessun messaggio ancora</h4>
+                            <p class="text-muted">Inizia la conversazione inviando il primo messaggio!</p>
                         </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                    <?php else: ?>
+                        <?php foreach ($messages as $message): ?>
+                            <?php 
+                            $is_own_message = $message['sender_type'] === 'brand';
+                            $message_class = $is_own_message ? 'text-end' : 'text-start';
+                            $bubble_class = $is_own_message ? 'bg-primary text-white' : 'bg-light';
+                            $time_class = $is_own_message ? 'text-white-50' : 'text-muted';
+                            ?>
+                            
+                            <div class="message mb-4 <?php echo $message_class; ?>" id="message-<?php echo $message['id']; ?>">
+                                <div class="d-flex <?php echo $is_own_message ? 'justify-content-end' : 'justify-content-start'; ?>">
+                                    <?php if (!$is_own_message): ?>
+                                        <!-- Avatar mittente (influencer) -->
+                                        <?php if (!empty($message['sender_image'])): ?>
+                                            <img src="/infl/uploads/<?php echo htmlspecialchars($message['sender_image']); ?>" 
+                                                 class="rounded-circle me-3" width="40" height="40" alt="Profile"
+                                                 style="object-fit: cover;">
+                                        <?php else: ?>
+                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="fas fa-user text-white"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                    
+                                    <div class="message-bubble <?php echo $bubble_class; ?> rounded-3 p-3 position-relative" 
+                                         style="max-width: 70%;">
+                                        <!-- Nome mittente per i messaggi altrui -->
+                                        <?php if (!$is_own_message): ?>
+                                            <div class="sender-name mb-1">
+                                                <strong><?php echo htmlspecialchars($message['sender_name']); ?></strong>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <!-- Contenuto messaggio -->
+                                        <div class="message-text">
+                                            <?php echo nl2br(htmlspecialchars($message['message'])); ?>
+                                        </div>
+                                        
+                                        <!-- Data e ora -->
+                                        <div class="message-time mt-2">
+                                            <small class="<?php echo $time_class; ?>">
+                                                <i class="fas fa-clock me-1"></i>
+                                                <?php echo date('d/m/Y H:i', strtotime($message['sent_at'])); ?>
+                                                
+                                                <?php if ($is_own_message && $message['is_read']): ?>
+                                                    <i class="fas fa-check-double ms-2 text-success" title="Messaggio letto"></i>
+                                                <?php elseif ($is_own_message): ?>
+                                                    <i class="fas fa-check ms-2" title="Messaggio inviato"></i>
+                                                <?php endif; ?>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    
+                                    <?php if ($is_own_message): ?>
+                                        <!-- Avatar proprio (brand) -->
+                                        <?php if (!empty($message['sender_image'])): ?>
+                                            <img src="/infl/uploads/<?php echo htmlspecialchars($message['sender_image']); ?>" 
+                                                 class="rounded-circle ms-3" width="40" height="40" alt="Brand Logo"
+                                                 style="object-fit: cover;">
+                                        <?php else: ?>
+                                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center ms-3" 
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="fas fa-building text-white"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
 
         <!-- FORM INVIO MESSAGGIO -->
         <div class="card">
             <div class="card-body">
-                <form method="POST" action="">
+                <form method="POST" action="" id="message-form">
                     <div class="input-group">
                         <textarea name="message" class="form-control" placeholder="Scrivi il tuo messaggio..." 
-                                  rows="2" required></textarea>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-paper-plane"></i> Invia
+                                  rows="3" required id="message-input"></textarea>
+                        <button type="submit" class="btn btn-primary" id="send-button">
+                            <i class="fas fa-paper-plane me-1"></i> Invia
                         </button>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Premi Invio + Maiusc per andare a capo
+                        </small>
                     </div>
                 </form>
             </div>
@@ -237,14 +332,112 @@ require_once $header_file;
 
 <style>
 .message-bubble {
-    max-width: 70%;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    border: 1px solid rgba(0,0,0,0.1);
+}
+
+.bg-primary.message-bubble {
+    border: none;
+}
+
+.message-text {
+    line-height: 1.5;
     word-wrap: break-word;
 }
+
 .message-time {
     font-size: 0.75rem;
     opacity: 0.8;
 }
+
+.sender-name {
+    font-size: 0.85rem;
+    opacity: 0.9;
+}
+
+#messages-container {
+    scroll-behavior: smooth;
+}
+
+/* Scrollbar personalizzata */
+#messages-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+#messages-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+#messages-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 10px;
+}
+
+#messages-container::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
 </style>
+
+<script>
+// Scroll automatico all'ultimo messaggio
+function scrollToBottom() {
+    const container = document.getElementById('messages-container');
+    container.scrollTop = container.scrollHeight;
+}
+
+// Scroll al caricamento della pagina
+document.addEventListener('DOMContentLoaded', function() {
+    scrollToBottom();
+    
+    // Gestione invio messaggio con Enter (senza Shift)
+    const messageInput = document.getElementById('message-input');
+    const messageForm = document.getElementById('message-form');
+    
+    if (messageInput && messageForm) {
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                messageForm.dispatchEvent(new Event('submit'));
+            }
+        });
+        
+        // Focus automatico sul campo messaggio
+        messageInput.focus();
+    }
+    
+    // Aggiorna il contatore messaggi dopo che la conversazione è stata visualizzata
+    setTimeout(() => {
+        if (typeof updateMessageCount === 'function') {
+            updateMessageCount();
+        }
+    }, 1000);
+});
+
+// Conferma invio messaggio lungo
+document.getElementById('message-form')?.addEventListener('submit', function(e) {
+    const messageInput = document.getElementById('message-input');
+    if (messageInput && messageInput.value.trim().length > 500) {
+        if (!confirm('Il messaggio è piuttosto lungo. Vuoi inviarlo comunque?')) {
+            e.preventDefault();
+            return false;
+        }
+    }
+    
+    // Disabilita il pulsante durante l'invio
+    const sendButton = document.getElementById('send-button');
+    if (sendButton) {
+        sendButton.disabled = true;
+        sendButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Invio...';
+    }
+});
+
+// Auto-resize del textarea
+document.getElementById('message-input')?.addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = (this.scrollHeight) + 'px';
+});
+</script>
 
 <?php
 // =============================================

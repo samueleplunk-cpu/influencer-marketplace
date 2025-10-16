@@ -180,4 +180,278 @@ function startConversation($pdo, $brand_id, $influencer_id, $campaign_id = null,
         return false;
     }
 }
+
+/**
+ * Segna i messaggi come letti quando un utente visualizza una conversazione
+ */
+function mark_messages_as_read($pdo, $conversation_id, $user_type, $user_id) {
+    try {
+        if ($user_type === 'brand') {
+            // Per i brand: segna come letti i messaggi degli influencer
+            $stmt = $pdo->prepare("
+                UPDATE messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                JOIN brands b ON c.brand_id = b.id
+                SET m.is_read = TRUE
+                WHERE c.id = ? AND b.user_id = ? AND m.sender_type = 'influencer' AND m.is_read = FALSE
+            ");
+            $stmt->execute([$conversation_id, $user_id]);
+        } else if ($user_type === 'influencer') {
+            // Per gli influencer: segna come letti i messaggi dei brand
+            $stmt = $pdo->prepare("
+                UPDATE messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                JOIN influencers i ON c.influencer_id = i.id
+                SET m.is_read = TRUE
+                WHERE c.id = ? AND i.user_id = ? AND m.sender_type = 'brand' AND m.is_read = FALSE
+            ");
+            $stmt->execute([$conversation_id, $user_id]);
+        }
+        return true;
+    } catch (Exception $e) {
+        error_log("Errore nel segnare i messaggi come letti: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Conta i messaggi non letti per l'utente corrente
+ */
+function count_unread_messages($pdo, $user_id, $user_type) {
+    try {
+        if ($user_type === 'brand') {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as unread 
+                FROM messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                JOIN brands b ON c.brand_id = b.id
+                WHERE b.user_id = ? AND m.sender_type = 'influencer' AND m.is_read = FALSE
+            ");
+            $stmt->execute([$user_id]);
+        } else if ($user_type === 'influencer') {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as unread 
+                FROM messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                JOIN influencers i ON c.influencer_id = i.id
+                WHERE i.user_id = ? AND m.sender_type = 'brand' AND m.is_read = FALSE
+            ");
+            $stmt->execute([$user_id]);
+        } else {
+            return 0;
+        }
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['unread'] ?? 0;
+    } catch (Exception $e) {
+        error_log("Errore nel conteggio messaggi non letti: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Ottiene il numero di messaggi non letti per una conversazione specifica
+ */
+function count_unread_messages_in_conversation($pdo, $conversation_id, $user_type, $user_id) {
+    try {
+        if ($user_type === 'brand') {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as unread 
+                FROM messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                JOIN brands b ON c.brand_id = b.id
+                WHERE c.id = ? AND b.user_id = ? AND m.sender_type = 'influencer' AND m.is_read = FALSE
+            ");
+            $stmt->execute([$conversation_id, $user_id]);
+        } else if ($user_type === 'influencer') {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) as unread 
+                FROM messages m
+                JOIN conversations c ON m.conversation_id = c.id
+                JOIN influencers i ON c.influencer_id = i.id
+                WHERE c.id = ? AND i.user_id = ? AND m.sender_type = 'brand' AND m.is_read = FALSE
+            ");
+            $stmt->execute([$conversation_id, $user_id]);
+        } else {
+            return 0;
+        }
+        
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['unread'] ?? 0;
+    } catch (Exception $e) {
+        error_log("Errore nel conteggio messaggi non letti per conversazione: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Verifica se l'utente ha accesso alla conversazione
+ */
+function can_access_conversation($pdo, $conversation_id, $user_type, $user_id) {
+    try {
+        if ($user_type === 'brand') {
+            $stmt = $pdo->prepare("
+                SELECT c.id 
+                FROM conversations c
+                JOIN brands b ON c.brand_id = b.id
+                WHERE c.id = ? AND b.user_id = ?
+            ");
+        } else if ($user_type === 'influencer') {
+            $stmt = $pdo->prepare("
+                SELECT c.id 
+                FROM conversations c
+                JOIN influencers i ON c.influencer_id = i.id
+                WHERE c.id = ? AND i.user_id = ?
+            ");
+        } else {
+            return false;
+        }
+        
+        $stmt->execute([$conversation_id, $user_id]);
+        return $stmt->fetch() !== false;
+    } catch (Exception $e) {
+        error_log("Errore nella verifica accesso conversazione: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Invia una notifica email (funzione base - da implementare con servizio email)
+ */
+function send_notification_email($to, $subject, $message) {
+    // Implementazione base - da personalizzare con il servizio email preferito
+    $headers = "From: noreply@influencer-marketplace.com\r\n";
+    $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+    
+    return mail($to, $subject, $message, $headers);
+}
+
+/**
+ * Formatta la data in formato italiano
+ */
+function format_italian_date($date_string) {
+    $timestamp = strtotime($date_string);
+    $months = [
+        'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
+        'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'
+    ];
+    
+    $day = date('j', $timestamp);
+    $month = $months[date('n', $timestamp) - 1];
+    $year = date('Y', $timestamp);
+    $time = date('H:i', $timestamp);
+    
+    return "$day $month $year alle $time";
+}
+
+/**
+ * Valida i dati di input
+ */
+function validate_input($data, $rules) {
+    $errors = [];
+    
+    foreach ($rules as $field => $rule) {
+        $value = $data[$field] ?? '';
+        $rules_array = explode('|', $rule);
+        
+        foreach ($rules_array as $single_rule) {
+            if ($single_rule === 'required' && empty(trim($value))) {
+                $errors[$field] = "Il campo $field è obbligatorio";
+                break;
+            }
+            
+            if ($single_rule === 'email' && !filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                $errors[$field] = "Il campo $field deve contenere un'email valida";
+                break;
+            }
+            
+            if (strpos($single_rule, 'min:') === 0) {
+                $min_length = (int) str_replace('min:', '', $single_rule);
+                if (strlen(trim($value)) < $min_length) {
+                    $errors[$field] = "Il campo $field deve essere lungo almeno $min_length caratteri";
+                    break;
+                }
+            }
+            
+            if (strpos($single_rule, 'max:') === 0) {
+                $max_length = (int) str_replace('max:', '', $single_rule);
+                if (strlen(trim($value)) > $max_length) {
+                    $errors[$field] = "Il campo $field non può superare $max_length caratteri";
+                    break;
+                }
+            }
+        }
+    }
+    
+    return $errors;
+}
+
+/**
+ * Carica un file con controlli di sicurezza
+ */
+function upload_file($file, $allowed_types, $max_size, $upload_path) {
+    $errors = [];
+    
+    // Verifica se non ci sono errori di upload
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        $errors[] = "Errore nel caricamento del file: " . $file['error'];
+        return ['success' => false, 'errors' => $errors];
+    }
+    
+    // Verifica dimensione file
+    if ($file['size'] > $max_size) {
+        $errors[] = "Il file è troppo grande. Dimensione massima: " . ($max_size / 1024 / 1024) . "MB";
+        return ['success' => false, 'errors' => $errors];
+    }
+    
+    // Verifica tipo file
+    $file_type = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($file_type, $allowed_types)) {
+        $errors[] = "Tipo file non consentito. Tipi consentiti: " . implode(', ', $allowed_types);
+        return ['success' => false, 'errors' => $errors];
+    }
+    
+    // Genera nome file univoco
+    $filename = uniqid() . '_' . time() . '.' . $file_type;
+    $filepath = $upload_path . $filename;
+    
+    // Sposta il file
+    if (move_uploaded_file($file['tmp_name'], $filepath)) {
+        return [
+            'success' => true,
+            'filename' => $filename,
+            'filepath' => $filepath
+        ];
+    } else {
+        $errors[] = "Errore nel salvataggio del file";
+        return ['success' => false, 'errors' => $errors];
+    }
+}
+
+/**
+ * Genera un token CSRF
+ */
+function generate_csrf_token() {
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+/**
+ * Verifica un token CSRF
+ */
+function verify_csrf_token($token) {
+    return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
+}
+
+/**
+ * Pulizia input per prevenire SQL injection
+ */
+function clean_input($data) {
+    if (is_array($data)) {
+        return array_map('clean_input', $data);
+    }
+    return trim(stripslashes(htmlspecialchars($data ?? '')));
+}
 ?>
