@@ -437,13 +437,15 @@ function clean_input($data) {
  * Restituisce il percorso del placeholder in base al tipo
  */
 function get_placeholder_path($type) {
+    $base_url = '/infl/assets/img/';
+    
     switch ($type) {
         case 'brand':
-            return '/infl/assets/img/brand-placeholder.png';
+            return $base_url . 'brand-placeholder.png';
         case 'influencer':
-            return '/infl/assets/img/influencer-placeholder.png';
+            return $base_url . 'influencer-placeholder.png';
         default:
-            return '/infl/assets/img/user-placeholder.png';
+            return $base_url . 'user-placeholder.png';
     }
 }
 
@@ -451,40 +453,50 @@ function get_placeholder_path($type) {
  * Ottiene il percorso corretto per un'immagine
  */
 function get_image_path($filename, $default_type = 'user') {
+    // Se il filename è vuoto, restituisci subito il placeholder
     if (empty($filename)) {
         return get_placeholder_path($default_type);
     }
     
     $base_path = dirname(__DIR__) . '/';
     
-    // Se il filename contiene già il percorso completo (come dai brand: "uploads/brands/filename.jpg")
+    // DEBUG: Log per tracciare il percorso (rimuovere in produzione)
+    // error_log("DEBUG get_image_path: filename='$filename', default_type='$default_type'");
+    
+    // Lista dei percorsi possibili da verificare
+    $possible_paths = [];
+    
+    // 1. Percorso completo (se il filename include già il percorso)
     if (strpos($filename, 'uploads/') === 0) {
-        if (file_exists($base_path . $filename)) {
-            return '/' . $filename;
+        $possible_paths[] = $base_path . $filename;
+    }
+    
+    // 2. Percorsi specifici per tipo
+    if ($default_type === 'brand') {
+        $possible_paths[] = $base_path . 'uploads/brands/' . $filename;
+        $possible_paths[] = $base_path . 'brands/uploads/' . $filename;
+    } elseif ($default_type === 'influencer') {
+        $possible_paths[] = $base_path . 'uploads/influencers/' . $filename;
+        $possible_paths[] = $base_path . 'uploads/profiles/' . $filename;
+        $possible_paths[] = $base_path . 'influencers/uploads/' . $filename;
+    }
+    
+    // 3. Percorsi generici
+    $possible_paths[] = $base_path . 'uploads/' . $filename;
+    $possible_paths[] = $base_path . $filename;
+    
+    // Verifica ogni percorso possibile
+    foreach ($possible_paths as $full_path) {
+        if (file_exists($full_path) && is_file($full_path)) {
+            // Converti il percorso assoluto in percorso web
+            $web_path = str_replace($base_path, '/infl/', $full_path);
+            // error_log("DEBUG: Immagine trovata: $web_path");
+            return $web_path;
         }
     }
     
-    // Prova diversi percorsi possibili
-    if (file_exists($base_path . $filename)) {
-        return '/' . $filename;
-    }
-    
-    // Percorso per immagini dei brand (uploads/brands/filename)
-    if (file_exists($base_path . 'uploads/brands/' . $filename)) {
-        return '/infl/uploads/brands/' . $filename;
-    }
-    
-    // Percorso per immagini degli influencer (uploads/influencers/filename)
-    if (file_exists($base_path . 'uploads/influencers/' . $filename)) {
-        return '/infl/uploads/influencers/' . $filename;
-    }
-    
-    // Percorso generico (uploads/filename)
-    if (file_exists($base_path . 'uploads/' . $filename)) {
-        return '/infl/uploads/' . $filename;
-    }
-    
-    // Se non trovato, restituisce placeholder
+    // Se nessun percorso funziona, restituisci il placeholder
+    // error_log("DEBUG: Immagine NON trovata, usando placeholder per: $filename");
     return get_placeholder_path($default_type);
 }
 
@@ -498,31 +510,31 @@ function image_exists($filename) {
     
     $base_path = dirname(__DIR__) . '/';
     
-    // Se il filename contiene già il percorso completo
+    // Lista dei percorsi possibili da verificare
+    $possible_paths = [];
+    
+    // 1. Percorso completo
     if (strpos($filename, 'uploads/') === 0) {
-        if (file_exists($base_path . $filename)) {
+        $possible_paths[] = $base_path . $filename;
+    }
+    
+    // 2. Percorsi per brand (priorità alta per brand)
+    $possible_paths[] = $base_path . 'uploads/brands/' . $filename;
+    $possible_paths[] = $base_path . 'brands/uploads/' . $filename;
+    
+    // 3. Percorsi per influencer
+    $possible_paths[] = $base_path . 'uploads/influencers/' . $filename;
+    $possible_paths[] = $base_path . 'uploads/profiles/' . $filename;
+    
+    // 4. Percorsi generici
+    $possible_paths[] = $base_path . 'uploads/' . $filename;
+    $possible_paths[] = $base_path . $filename;
+    
+    // Verifica ogni percorso
+    foreach ($possible_paths as $full_path) {
+        if (file_exists($full_path) && is_file($full_path)) {
             return true;
         }
-    }
-    
-    // Prova diversi percorsi possibili
-    if (file_exists($base_path . $filename)) {
-        return true;
-    }
-    
-    // Percorso per immagini dei brand
-    if (file_exists($base_path . 'uploads/brands/' . $filename)) {
-        return true;
-    }
-    
-    // Percorso per immagini degli influencer
-    if (file_exists($base_path . 'uploads/influencers/' . $filename)) {
-        return true;
-    }
-    
-    // Percorso generico
-    if (file_exists($base_path . 'uploads/' . $filename)) {
-        return true;
     }
     
     return false;
