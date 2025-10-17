@@ -104,16 +104,13 @@ require_once $header_file;
                                class="list-group-item list-group-item-action">
                                 <div class="d-flex w-100 justify-content-between">
                                     <div class="d-flex align-items-center">
-                                        <!-- Immagine profilo brand -->
-                                        <?php if (!empty($conversation['brand_image'])): ?>
-                                            <img src="/infl/uploads/<?php echo htmlspecialchars($conversation['brand_image']); ?>" 
-                                                 class="rounded-circle me-3" width="50" height="50" alt="Brand Logo">
-                                        <?php else: ?>
-                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3" 
-                                                 style="width: 50px; height: 50px;">
-                                                <i class="fas fa-building text-muted"></i>
-                                            </div>
-                                        <?php endif; ?>
+                                        <!-- Immagine profilo brand - CORRETTA -->
+                                        <?php 
+                                        $brand_image_path = get_image_path($conversation['brand_image'] ?? '', 'brand');
+                                        ?>
+                                        <img src="<?php echo htmlspecialchars($brand_image_path); ?>" 
+                                             class="rounded-circle me-3" width="50" height="50" alt="Brand Logo"
+                                             onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('brand'); ?>';">
                                         
                                         <div>
                                             <h5 class="mb-1"><?php echo htmlspecialchars($conversation['brand_name']); ?></h5>
@@ -159,7 +156,43 @@ require_once $header_file;
     transform: translateX(2px);
     transition: all 0.2s ease;
 }
+
+/* Miglioramenti per le immagini */
+.rounded-circle {
+    object-fit: cover;
+    border: 2px solid #e9ecef;
+}
+
+.list-group-item {
+    border: 1px solid rgba(0,0,0,0.125);
+    margin-bottom: 5px;
+    border-radius: 8px !important;
+}
+
+.list-group-item:hover {
+    border-color: #007bff;
+}
 </style>
+
+<script>
+// Script aggiuntivo per gestire eventuali errori di caricamento immagini
+document.addEventListener('DOMContentLoaded', function() {
+    // Controlla tutte le immagini e sostituisci con placeholder se danno errore
+    const images = document.querySelectorAll('.list-group-item img');
+    images.forEach(img => {
+        // Verifica se l'immagine è già caricata correttamente
+        if (img.complete && img.naturalHeight === 0) {
+            // Immagine non valida, sostituisci con placeholder
+            img.src = '<?php echo get_placeholder_path("brand"); ?>';
+        }
+        
+        // Gestione errori aggiuntiva
+        img.addEventListener('error', function() {
+            this.src = '<?php echo get_placeholder_path("brand"); ?>';
+        });
+    });
+});
+</script>
 
 <?php
 // =============================================
