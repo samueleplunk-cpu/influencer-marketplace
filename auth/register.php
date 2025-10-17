@@ -1,23 +1,11 @@
 <?php
+// Includi direttamente functions.php per essere sicuri
+require_once '../includes/functions.php';
 require_once '../includes/config.php';
 
 // Aggiungi session start
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
-}
-
-// TEMP FIX - Funzioni mancanti
-if (!function_exists('redirect')) {
-    function redirect($url) {
-        header("Location: $url");
-        exit;
-    }
-}
-
-if (!function_exists('sanitize_input')) {
-    function sanitize_input($data) {
-        return htmlspecialchars(trim($data));
-    }
 }
 
 // DEFINISCI BASE_URL SE NON ESISTE
@@ -26,8 +14,8 @@ if (!defined('BASE_URL')) {
 }
 
 // Se l'utente è già loggato, reindirizza
-if (is_logged_in()) {
-    redirect('/');
+if (isset($_SESSION['user_id'])) {
+    header("Location: /");
     exit;
 }
 
@@ -38,6 +26,14 @@ $user_type = $_GET['type'] ?? 'influencer';
 $valid_types = ['influencer', 'brand', 'admin'];
 if (!in_array($user_type, $valid_types)) {
     $user_type = 'influencer';
+}
+
+// Funzione di sanitizzazione semplificata
+function sanitize_input($data) {
+    if (is_array($data)) {
+        return array_map('sanitize_input', $data);
+    }
+    return htmlspecialchars(trim($data ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 // Gestione del form di registrazione

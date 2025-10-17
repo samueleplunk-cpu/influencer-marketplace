@@ -136,17 +136,17 @@ function startConversation($pdo, $brand_id, $influencer_id, $campaign_id = null,
         
         // Crea nuova conversazione
         $stmt = $pdo->prepare("
-            INSERT INTO conversations (brand_id, influencer_id, campaign_id) 
-            VALUES (?, ?, ?)
+            INSERT INTO conversations (brand_id, influencer_id, campaign_id, created_at, updated_at) 
+            VALUES (?, ?, ?, NOW(), NOW())
         ");
         $stmt->execute([$brand_id, $influencer_id, $campaign_id]);
         $conversation_id = $pdo->lastInsertId();
         
         // Aggiungi messaggio iniziale se fornito
-        if ($initial_message) {
+        if ($initial_message && $conversation_id) {
             $stmt = $pdo->prepare("
-                INSERT INTO messages (conversazione_id, sender_id, sender_type, message) 
-                VALUES (?, ?, 'brand', ?)
+                INSERT INTO messages (conversation_id, sender_id, sender_type, message, sent_at) 
+                VALUES (?, ?, 'brand', ?, NOW())
             ");
             $stmt->execute([$conversation_id, $brand_id, $initial_message]);
         }
