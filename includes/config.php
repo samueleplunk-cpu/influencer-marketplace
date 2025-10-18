@@ -52,10 +52,20 @@ try {
     }
 }
 
-// Path constants
+// Path constants - SPOSTATE DOPO LA CONNESSIONE AL DATABASE
 define('ROOT_PATH', BASE_DIR);
 define('INCLUDES_PATH', BASE_DIR . '/includes');
-define('BASE_URL', '/infl');
+
+// === BASE_URL CALCOLATO DINAMICAMENTE ===
+// Calcola BASE_URL dinamicamente basandosi sulla directory del progetto
+$script_path = dirname($_SERVER['SCRIPT_NAME']);
+if ($script_path === '/infl' || strpos($script_path, '/infl') !== false) {
+    define('BASE_URL', '/infl');
+} else {
+    // Fallback: calcola basandosi sulla directory
+    $project_folder = basename(BASE_DIR);
+    define('BASE_URL', '/' . $project_folder);
+}
 
 // === COSTANTI PER MATCHING AVANZATO ===
 define('MATCHING_MAX_RESULTS', 200);

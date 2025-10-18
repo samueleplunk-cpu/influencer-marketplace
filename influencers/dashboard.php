@@ -62,6 +62,63 @@ try {
 }
 
 // =============================================
+// RECUPERO CANDIDATURE PER LA SEZIONE AGGIUNTA
+// =============================================
+$applications = [];
+$application_stats = [
+    'total_applications' => 0,
+    'accepted_applications' => 0,
+    'pending_applications' => 0
+];
+
+if ($influencer) {
+    try {
+        // Recupera candidature recenti
+        $stmt = $pdo->prepare("
+            SELECT ca.*, c.name as campaign_name, c.budget, b.company_name,
+                   ca.status, ca.created_at as application_date
+            FROM campaign_applications ca
+            JOIN campaigns c ON ca.campaign_id = c.id
+            JOIN brands b ON c.brand_id = b.id
+            WHERE ca.influencer_id = ?
+            ORDER BY ca.created_at DESC
+            LIMIT 5
+        ");
+        $stmt->execute([$influencer['id']]);
+        $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Statistiche candidature
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) as total_applications,
+                   COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_applications,
+                   COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_applications
+            FROM campaign_applications 
+            WHERE influencer_id = ?
+        ");
+        $stmt->execute([$influencer['id']]);
+        $application_stats = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        // Se non ci sono candidature, imposta valori di default
+        if (!$application_stats) {
+            $application_stats = [
+                'total_applications' => 0,
+                'accepted_applications' => 0,
+                'pending_applications' => 0
+            ];
+        }
+        
+    } catch (PDOException $e) {
+        // Se la tabella non esiste ancora, continua senza errori
+        $applications = [];
+        $application_stats = [
+            'total_applications' => 0,
+            'accepted_applications' => 0,
+            'pending_applications' => 0
+        ];
+    }
+}
+
+// =============================================
 // CONTENUTO PRINCIPALE DELLA DASHBOARD
 // =============================================
 ?>
@@ -150,11 +207,11 @@ try {
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <strong>Instagram:</strong>
-                                        <span class="float-end"><?php echo !empty($influencer['instagram_handle']) ? htmlspecialchars($influencer['instagram_handle']) : 'Non specificato'; ?></span>
+                                        <span class="float-end"><?php echo !empty($influencer['instagram_handle']) ? '@' . htmlspecialchars($influencer['instagram_handle']) : 'Non specificato'; ?></span>
                                     </div>
                                     <div class="mb-3">
                                         <strong>TikTok:</strong>
-                                        <span class="float-end"><?php echo !empty($influencer['tiktok_handle']) ? htmlspecialchars($influencer['tiktok_handle']) : 'Non specificato'; ?></span>
+                                        <span class="float-end"><?php echo !empty($influencer['tiktok_handle']) ? '@' . htmlspecialchars($influencer['tiktok_handle']) : 'Non specificato'; ?></span>
                                     </div>
                                     <div class="mb-3">
                                         <strong>YouTube:</strong>
@@ -251,7 +308,7 @@ try {
             </div>
 
             <!-- Azioni Rapide -->
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="card-title mb-0">Azioni Rapide</h5>
                 </div>
@@ -263,13 +320,13 @@ try {
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="campaigns.php" class="btn btn-outline-success w-100 mb-2">
-                                📊 Campagne Attive
+                            <a href="campaigns/list.php" class="btn btn-outline-success w-100 mb-2">
+                                🔍 Scopri Campagne
                             </a>
                         </div>
                         <div class="col-md-3">
-                            <a href="analytics.php" class="btn btn-outline-info w-100 mb-2">
-                                📈 Analytics
+                            <a href="applications/list.php" class="btn btn-outline-info w-100 mb-2">
+                                📋 Le Mie Candidature
                             </a>
                         </div>
                         <div class="col-md-3">
@@ -278,6 +335,111 @@ try {
                             </a>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Sezione Candidature -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Le Mie Candidature</h5>
+                    <a href="campaigns/list.php" class="btn btn-sm btn-outline-primary">
+                        Scopri Nuove Campagne
+                    </a>
+                </div>
+                <div class="card-body">
+                    <!-- Statistiche Candidature -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card text-white bg-primary">
+                                <div class="card-body text-center py-3">
+                                    <h5 class="card-title"><?php echo $application_stats['total_applications']; ?></h5>
+                                    <p class="card-text small">Candidature Totali</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-white bg-success">
+                                <div class="card-body text-center py-3">
+                                    <h5 class="card-title"><?php echo $application_stats['accepted_applications']; ?></h5>
+                                    <p class="card-text small">Accettate</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card text-white bg-warning">
+                                <div class="card-body text-center py-3">
+                                    <h5 class="card-title"><?php echo $application_stats['pending_applications']; ?></h5>
+                                    <p class="card-text small">In Attesa</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Lista Candidature Recenti -->
+                    <?php if (empty($applications)): ?>
+                        <div class="text-center py-4">
+                            <h6>Nessuna candidatura inviata</h6>
+                            <p class="text-muted small">
+                                Inizia a candidarti alle campagne pubbliche per trovare collaborazioni
+                            </p>
+                            <a href="campaigns/list.php" class="btn btn-primary btn-sm">
+                                Scopri Campagne
+                            </a>
+                        </div>
+                    <?php else: ?>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Campagna</th>
+                                        <th>Brand</th>
+                                        <th>Budget</th>
+                                        <th>Stato</th>
+                                        <th>Data</th>
+                                        <th>Azioni</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($applications as $app): ?>
+                                        <tr>
+                                            <td>
+                                                <strong><?php echo htmlspecialchars($app['campaign_name']); ?></strong>
+                                            </td>
+                                            <td><?php echo htmlspecialchars($app['company_name']); ?></td>
+                                            <td>€<?php echo number_format($app['budget'], 2); ?></td>
+                                            <td>
+                                                <?php
+                                                $status_badges = [
+                                                    'pending' => 'warning',
+                                                    'accepted' => 'success',
+                                                    'rejected' => 'danger'
+                                                ];
+                                                $badge_class = $status_badges[$app['status']] ?? 'secondary';
+                                                ?>
+                                                <span class="badge bg-<?php echo $badge_class; ?>">
+                                                    <?php echo ucfirst($app['status']); ?>
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <small><?php echo date('d/m/Y', strtotime($app['application_date'])); ?></small>
+                                            </td>
+                                            <td>
+                                                <a href="campaigns/view.php?id=<?php echo $app['campaign_id']; ?>" 
+                                                   class="btn btn-outline-primary btn-sm">
+                                                    Dettagli
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="text-center mt-3">
+                            <a href="applications/list.php" class="btn btn-outline-secondary btn-sm">
+                                Vedi Tutte le Candidature
+                            </a>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php endif; ?>
