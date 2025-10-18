@@ -319,7 +319,7 @@ require_once $header_file;
                     <div class="mt-2">
                         <small class="text-muted">
                             <i class="fas fa-info-circle me-1"></i>
-                            Premi Invio + Maiusc per andare a capo
+                            Premi Invio per inviare, Shift+Invio per andare a capo
                         </small>
                     </div>
                 </form>
@@ -381,27 +381,45 @@ require_once $header_file;
 // Scroll automatico all'ultimo messaggio
 function scrollToBottom() {
     const container = document.getElementById('messages-container');
-    container.scrollTop = container.scrollHeight;
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
 // Scroll al caricamento della pagina
 document.addEventListener('DOMContentLoaded', function() {
     scrollToBottom();
     
-    // Gestione invio messaggio con Enter (senza Shift)
+    // Gestione Enter per inviare
     const messageInput = document.getElementById('message-input');
-    const messageForm = document.getElementById('message-form');
-    
-    if (messageInput && messageForm) {
+    if (messageInput) {
         messageInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                messageForm.dispatchEvent(new Event('submit'));
+                document.getElementById('send-button').click();
             }
         });
         
-        // Focus automatico sul campo messaggio
+        // Auto-resize del textarea
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 150) + 'px';
+        });
+        
         messageInput.focus();
+    }
+    
+    // Mostra loading durante l'invio
+    const sendButton = document.getElementById('send-button');
+    const messageForm = document.getElementById('message-form');
+    
+    if (messageForm) {
+        messageForm.addEventListener('submit', function() {
+            if (sendButton) {
+                sendButton.disabled = true;
+                sendButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Invio...';
+            }
+        });
     }
     
     // Aggiorna il contatore messaggi dopo che la conversazione è stata visualizzata
@@ -410,30 +428,6 @@ document.addEventListener('DOMContentLoaded', function() {
             updateMessageCount();
         }
     }, 1000);
-});
-
-// Conferma invio messaggio lungo
-document.getElementById('message-form')?.addEventListener('submit', function(e) {
-    const messageInput = document.getElementById('message-input');
-    if (messageInput && messageInput.value.trim().length > 500) {
-        if (!confirm('Il messaggio è piuttosto lungo. Vuoi inviarlo comunque?')) {
-            e.preventDefault();
-            return false;
-        }
-    }
-    
-    // Disabilita il pulsante durante l'invio
-    const sendButton = document.getElementById('send-button');
-    if (sendButton) {
-        sendButton.disabled = true;
-        sendButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Invio...';
-    }
-});
-
-// Auto-resize del textarea
-document.getElementById('message-input')?.addEventListener('input', function() {
-    this.style.height = 'auto';
-    this.style.height = (this.scrollHeight) + 'px';
 });
 </script>
 

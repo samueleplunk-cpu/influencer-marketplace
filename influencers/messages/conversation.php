@@ -445,13 +445,17 @@ require_once $header_file;
 // Scroll automatico all'ultimo messaggio
 function scrollToBottom() {
     const container = document.getElementById('messages-container');
-    container.scrollTop = container.scrollHeight;
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
 }
 
 // Scroll al primo messaggio
 function scrollToTop() {
     const container = document.getElementById('messages-container');
-    container.scrollTop = 0;
+    if (container) {
+        container.scrollTop = 0;
+    }
 }
 
 // Contatore caratteri
@@ -476,15 +480,13 @@ function updateCharCount() {
 document.addEventListener('DOMContentLoaded', function() {
     scrollToBottom();
     
+    // Gestione Enter per inviare
     const messageInput = document.getElementById('message-input');
-    const messageForm = document.getElementById('message-form');
-    
-    // Gestione invio messaggio con Enter (senza Shift)
-    if (messageInput && messageForm) {
+    if (messageInput) {
         messageInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                messageForm.dispatchEvent(new Event('submit'));
+                document.getElementById('send-button').click();
             }
         });
         
@@ -497,11 +499,23 @@ document.addEventListener('DOMContentLoaded', function() {
             this.style.height = Math.min(this.scrollHeight, 150) + 'px';
         });
         
-        // Focus automatico sul campo messaggio
         messageInput.focus();
         
         // Inizializza contatore caratteri
         updateCharCount();
+    }
+    
+    // Mostra loading durante l'invio
+    const sendButton = document.getElementById('send-button');
+    const messageForm = document.getElementById('message-form');
+    
+    if (messageForm) {
+        messageForm.addEventListener('submit', function() {
+            if (sendButton) {
+                sendButton.disabled = true;
+                sendButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Invio...';
+            }
+        });
     }
     
     // Aggiorna il contatore messaggi dopo che la conversazione è stata visualizzata
@@ -523,45 +537,6 @@ function highlightUnreadMessages() {
     }
 }
 
-// Conferma invio messaggio lungo
-document.getElementById('message-form')?.addEventListener('submit', function(e) {
-    const messageInput = document.getElementById('message-input');
-    const maxChars = 1000;
-    
-    if (messageInput) {
-        const message = messageInput.value.trim();
-        
-        // Validazione lunghezza
-        if (message.length > maxChars) {
-            e.preventDefault();
-            alert(`Il messaggio è troppo lungo. Massimo ${maxChars} caratteri consentiti.`);
-            return false;
-        }
-        
-        // Validazione contenuto vuoto
-        if (message.length === 0) {
-            e.preventDefault();
-            alert('Il messaggio non può essere vuoto.');
-            return false;
-        }
-        
-        // Conferma per messaggi molto lunghi
-        if (message.length > 500) {
-            if (!confirm('Il messaggio è piuttosto lungo. Vuoi inviarlo comunque?')) {
-                e.preventDefault();
-                return false;
-            }
-        }
-    }
-    
-    // Disabilita il pulsante durante l'invio
-    const sendButton = document.getElementById('send-button');
-    if (sendButton) {
-        sendButton.disabled = true;
-        sendButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Invio...';
-    }
-});
-
 // Gestione visibilità pagina - aggiorna contatore quando ritorna visibile
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) {
@@ -573,26 +548,6 @@ document.addEventListener('visibilitychange', function() {
         }, 500);
     }
 });
-
-// Auto-scroll quando nuovi messaggi vengono aggiunti (per future implementazioni real-time)
-function observeNewMessages() {
-    const messagesContainer = document.getElementById('messages-container');
-    if (messagesContainer) {
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList') {
-                    // Nuovi messaggi aggiunti, scrolla in basso
-                    scrollToBottom();
-                }
-            });
-        });
-        
-        observer.observe(messagesContainer, { childList: true, subtree: true });
-    }
-}
-
-// Inizia l'osservazione dopo il caricamento
-setTimeout(observeNewMessages, 1000);
 </script>
 
 <?php
