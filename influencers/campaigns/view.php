@@ -85,7 +85,7 @@ try {
 }
 
 // =============================================
-// GESTIONE CANDIDATURA
+// GESTIONE CANDIDATURA (VERSIONE SEMPLIFICATA)
 // =============================================
 $success_msg = '';
 $error_msg = '';
@@ -105,54 +105,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply'])) {
             ");
             $stmt->execute([$campaign_id, $influencer['id'], $application_message]);
             
-            // 2. Crea conversazione automatica
-            $conversation_title = "Candidatura: " . $campaign['name'];
-            
+            // 2. Crea conversazione automatica (SOLO conversazione - niente participants separati)
             $stmt = $pdo->prepare("
-                INSERT INTO conversations (title, campaign_id, created_at)
-                VALUES (?, ?, NOW())
+                INSERT INTO conversations (brand_id, influencer_id, campaign_id, created_at)
+                VALUES (?, ?, ?, NOW())
             ");
-            $stmt->execute([$conversation_title, $campaign_id]);
+            $stmt->execute([$campaign['brand_id'], $influencer['id'], $campaign_id]);
             $conversation_id = $pdo->lastInsertId();
             
-            // 3. Aggiungi partecipanti (influencer e brand)
-            $stmt = $pdo->prepare("
-                INSERT INTO conversation_participants (conversation_id, user_id, user_type)
-                VALUES (?, ?, 'influencer')
-            ");
-            $stmt->execute([$conversation_id, $_SESSION['user_id']]);
+            // 3. Messaggio automatico di presentazione
+            $auto_message = "Ciao! Mi chiamo " . htmlspecialchars($influencer['full_name']) . 
+                          " e mi sono appena candidato alla tua campagna \"" . htmlspecialchars($campaign['name']) . "\".\n\n";
             
-            // Trova user_id del brand
-            $stmt = $pdo->prepare("
-                SELECT user_id FROM brands WHERE id = ?
-            ");
-            $stmt->execute([$campaign['brand_id']]);
-            $brand_user_id = $stmt->fetchColumn();
-            
-            if ($brand_user_id) {
-                $stmt = $pdo->prepare("
-                    INSERT INTO conversation_participants (conversation_id, user_id, user_type)
-                    VALUES (?, ?, 'brand')
-                ");
-                $stmt->execute([$conversation_id, $brand_user_id]);
-                
-                // 4. Messaggio automatico di presentazione
-                $auto_message = "Ciao! Mi chiamo " . htmlspecialchars($influencer['full_name']) . 
-                              " e mi sono appena candidato alla tua campagna \"" . htmlspecialchars($campaign['name']) . "\".\n\n";
-                
-                if (!empty($application_message)) {
-                    $auto_message .= "Il mio messaggio di presentazione:\n" . $application_message . "\n\n";
-                }
-                
-                $auto_message .= "Sono specializzato in " . htmlspecialchars($influencer['niche']) . 
-                              " e spero di poter collaborare con te!";
-                
-                $stmt = $pdo->prepare("
-                    INSERT INTO messages (conversation_id, sender_id, sender_type, message, sent_at)
-                    VALUES (?, ?, 'influencer', ?, NOW())
-                ");
-                $stmt->execute([$conversation_id, $_SESSION['user_id'], $auto_message]);
+            if (!empty($application_message)) {
+                $auto_message .= "Il mio messaggio di presentazione:\n" . $application_message . "\n\n";
             }
+            
+            $auto_message .= "Sono specializzato in " . htmlspecialchars($influencer['niche']) . 
+                          " e spero di poter collaborare con te!";
+            
+            $stmt = $pdo->prepare("
+                INSERT INTO messages (conversation_id, sender_id, sender_type, message, sent_at)
+                VALUES (?, ?, 'influencer', ?, NOW())
+            ");
+            $stmt->execute([$conversation_id, $_SESSION['user_id'], $auto_message]);
             
             $pdo->commit();
             $success_msg = "Candidatura inviata con successo! Il brand è stato notificato.";
