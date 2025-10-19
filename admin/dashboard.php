@@ -2,6 +2,9 @@
 require_once '../includes/admin_header.php';
 // require_admin_login(); // Già incluso in admin_header.php
 
+// Includi functions.php per avere accesso a cleanup_soft_deleted_users()
+require_once '../includes/functions.php';
+
 // Usa la funzione corretta da admin_functions.php
 $stats = get_admin_platform_stats();
 

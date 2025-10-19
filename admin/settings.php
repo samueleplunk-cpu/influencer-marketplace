@@ -1,5 +1,5 @@
 <?php
-// /infl/admin/settings.php - VERSIONE COMPLETA E CORRETTA
+// /infl/admin/settings.php - VERSIONE SENZA CALCOLO SPAZIO DISCO
 
 // INIZIO: Processing dei form PRIMA di qualsiasi output
 require_once '../includes/config.php';
@@ -224,20 +224,7 @@ $is_maintenance_mode = is_maintenance_mode($pdo);
                         </div>
                         <span class="badge bg-primary"><?php echo count_sessions($pdo); ?></span>
                     </div>
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <i class="fas fa-hdd me-2 text-secondary"></i>
-                            Spazio Disco
-                        </div>
-                        <span class="badge bg-secondary">
-                            <?php
-                            $free_space = disk_free_space("/");
-                            $total_space = disk_total_space("/");
-                            $used_percent = round(100 - ($free_space / $total_space * 100), 1);
-                            echo $used_percent . '%';
-                            ?>
-                        </span>
-                    </div>
+                    <!-- Rimossa la voce Spazio Disco -->
                 </div>
             </div>
         </div>
