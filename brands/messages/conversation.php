@@ -152,7 +152,7 @@ require_once $header_file;
             </div>
             <div class="d-flex gap-2">
                 <?php if (!empty($conversation['campaign_id'])): ?>
-                    <a href="/infl/brands/campaigns/view.php?id=<?php echo $conversation['campaign_id']; ?>" class="btn btn-outline-secondary">
+                    <a href="/infl/brands/campaign-details.php?id=<?php echo $conversation['campaign_id']; ?>" class="btn btn-outline-secondary">
                         <i class="fas fa-bullhorn me-1"></i> Vedi Campagna
                     </a>
                 <?php endif; ?>
@@ -196,7 +196,7 @@ require_once $header_file;
                         <p class="mb-0"><?php echo htmlspecialchars($conversation['campaign_title']); ?></p>
                         <?php if (!empty($conversation['campaign_id'])): ?>
                             <small>
-                                <a href="/infl/brands/campaigns/view.php?id=<?php echo $conversation['campaign_id']; ?>" class="text-decoration-none">
+                                <a href="/infl/brands/campaign-details.php?id=<?php echo $conversation['campaign_id']; ?>" class="text-decoration-none">
                                     Vedi dettagli campagna
                                 </a>
                             </small>

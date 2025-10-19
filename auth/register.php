@@ -233,9 +233,12 @@ include '../includes/header.php';
                     
                     <div class="mt-3">
                         <p>Oppure registrati come:</p>
-                        <div class="d-flex gap-2 justify-content-center">
-                            <a href="?type=influencer" class="btn btn-outline-primary">Influencer</a>
-                            <a href="?type=brand" class="btn btn-outline-success">Brand</a>
+                        <div class="d-flex gap-2 justify-content-center" id="switcher-buttons">
+                            <?php if ($user_type === 'influencer'): ?>
+                                <a href="?type=brand" class="btn btn-outline-success">Brand</a>
+                            <?php else: ?>
+                                <a href="?type=influencer" class="btn btn-outline-primary">Influencer</a>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -245,3 +248,30 @@ include '../includes/header.php';
 </div>
 
 <?php include '../includes/footer.php'; ?>
+
+<script>
+$(document).ready(function() {
+    // Funzione per aggiornare i pulsanti dello switcher
+    function updateSwitcherButtons(currentType) {
+        const switcherContainer = $('#switcher-buttons');
+        
+        if (currentType === 'influencer') {
+            // Se siamo su influencer, mostra solo brand
+            switcherContainer.html('<a href="?type=brand" class="btn btn-outline-success">Brand</a>');
+        } else {
+            // Se siamo su brand, mostra solo influencer
+            switcherContainer.html('<a href="?type=influencer" class="btn btn-outline-primary">Influencer</a>');
+        }
+    }
+    
+    // Inizializza con il tipo corrente
+    updateSwitcherButtons('<?php echo $user_type; ?>');
+    
+    // Gestisce il click sui pulsanti (per mantenere la funzionalità)
+    $(document).on('click', '#switcher-buttons a', function(e) {
+        e.preventDefault();
+        const url = $(this).attr('href');
+        window.location.href = url;
+    });
+});
+</script>
