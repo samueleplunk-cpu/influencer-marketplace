@@ -1,8 +1,9 @@
 <?php
 require_once '../includes/admin_header.php';
-require_admin_login();
+// require_admin_login(); // Già incluso in admin_header.php
 
-$stats = get_platform_stats();
+// Usa la funzione corretta da admin_functions.php
+$stats = get_admin_platform_stats();
 
 // Esegui pulizia automatica soft delete
 cleanup_soft_deleted_users();

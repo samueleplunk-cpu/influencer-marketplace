@@ -1,7 +1,5 @@
 <?php
-// Debug
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// includes/header.php - VERSIONE COMPLETA CON MANUTENZIONE
 
 // Percorso assoluto per config
 $config_file = dirname(__DIR__) . '/includes/config.php';
@@ -21,6 +19,21 @@ if (session_status() === PHP_SESSION_NONE) {
 $functions_file = dirname(__DIR__) . '/includes/functions.php';
 if (file_exists($functions_file)) {
     require_once $functions_file;
+}
+
+// INCLUSIONE SISTEMA MANUTENZIONE - AGGIUNTA IMPORTANTE
+$maintenance_file = dirname(__DIR__) . '/includes/maintenance.php';
+if (file_exists($maintenance_file)) {
+    require_once $maintenance_file;
+    
+    // Controlla se siamo in una pagina pubblica (non admin)
+    $current_script = $_SERVER['SCRIPT_NAME'] ?? '';
+    $is_admin_page = strpos($current_script, '/infl/admin/') !== false;
+    
+    // Applica controllo manutenzione solo su pagine pubbliche
+    if (!$is_admin_page) {
+        check_maintenance_mode($pdo);
+    }
 }
 
 // Conta messaggi non letti usando la funzione (se disponibile)
@@ -205,72 +218,3 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
     <?php endif; ?>
 
     <main class="container mt-4">
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-// Aggiorna il contatore messaggi ogni 30 secondi
-function updateMessageCount() {
-    fetch('/infl/includes/update_message_count.php')
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-            return response.json();
-        })
-        .then(data => {
-            const messageLinks = document.querySelectorAll('a[href*="messages"]');
-            messageLinks.forEach(messageLink => {
-                const existingBadge = messageLink.querySelector('.badge');
-                
-                if (data.unread_count > 0) {
-                    if (existingBadge) {
-                        existingBadge.textContent = data.unread_count;
-                        existingBadge.classList.add('message-badge');
-                    } else {
-                        const newBadge = document.createElement('span');
-                        newBadge.className = 'position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger message-badge';
-                        newBadge.textContent = data.unread_count;
-                        newBadge.innerHTML += '<span class="visually-hidden">messaggi non letti</span>';
-                        messageLink.appendChild(newBadge);
-                    }
-                } else {
-                    if (existingBadge) {
-                        existingBadge.remove();
-                    }
-                }
-            });
-        })
-        .catch(error => {
-            console.error('Errore aggiornamento contatore:', error);
-        });
-}
-
-// Aggiorna il contatore quando la pagina viene caricata
-document.addEventListener('DOMContentLoaded', function() {
-    updateMessageCount();
-});
-
-// Aggiorna ogni 30 secondi
-setInterval(updateMessageCount, 30000);
-
-// Aggiorna anche quando la pagina diventa visibile
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) {
-        updateMessageCount();
-    }
-});
-
-// Aggiorna quando l'utente ritorna alla pagina (usando Page Visibility API)
-document.addEventListener('focus', function() {
-    updateMessageCount();
-});
-
-// Gestione click sui messaggi - aggiorna immediatamente il contatore
-document.addEventListener('click', function(e) {
-    const messageLink = e.target.closest('a[href*="messages"]');
-    if (messageLink) {
-        // Piccolo delay per permettere la navigazione prima dell'aggiornamento
-        setTimeout(updateMessageCount, 1000);
-    }
-});
-</script>

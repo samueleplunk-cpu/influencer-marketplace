@@ -569,4 +569,236 @@ function get_influencer_id($pdo, $user_id) {
         return null;
     }
 }
+
+/**
+ * Verifica se l'utente corrente è un amministratore
+ */
+function is_admin() {
+    return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin';
+}
+
+/**
+ * Ottiene le impostazioni del sito
+ */
+function get_site_settings($pdo) {
+    try {
+        $stmt = $pdo->prepare("SELECT setting_key, setting_value FROM site_settings");
+        $stmt->execute();
+        $settings = $stmt->fetchAll(PDO::FETCH_KEY_PAIR);
+        return $settings;
+    } catch (PDOException $e) {
+        error_log("Errore recupero impostazioni sito: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Verifica se il sito è in manutenzione
+ */
+function is_site_in_maintenance($pdo) {
+    $settings = get_site_settings($pdo);
+    return isset($settings['maintenance_mode']) && $settings['maintenance_mode'] === '1';
+}
+
+/**
+ * Ottiene statistiche della piattaforma per la dashboard admin
+ */
+function get_platform_stats($pdo) {
+    try {
+        $stats = [];
+        
+        // Utenti totali
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE deleted_at IS NULL");
+        $stats['total_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        
+        // Influencer totali
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM influencers i JOIN users u ON i.user_id = u.id WHERE u.deleted_at IS NULL");
+        $stats['total_influencers'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        
+        // Brand totali
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM brands b JOIN users u ON b.user_id = u.id WHERE u.deleted_at IS NULL");
+        $stats['total_brands'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        
+        // Nuovi utenti oggi
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE DATE(created_at) = CURDATE() AND deleted_at IS NULL");
+        $stats['new_today'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        
+        // Utenti sospesi
+        $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE suspended = 1 AND deleted_at IS NULL");
+        $stats['suspended_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
+        
+        return $stats;
+    } catch (PDOException $e) {
+        error_log("Errore recupero statistiche piattaforma: " . $e->getMessage());
+        return [
+            'total_users' => 0,
+            'total_influencers' => 0,
+            'total_brands' => 0,
+            'new_today' => 0,
+            'suspended_users' => 0
+        ];
+    }
+}
+
+/**
+ * Esegue pulizia automatica degli utenti soft deleted
+ */
+function cleanup_soft_deleted_users() {
+    global $pdo;
+    try {
+        // Elimina utenti soft deleted dopo 30 giorni
+        $stmt = $pdo->prepare("
+            DELETE FROM users 
+            WHERE deleted_at IS NOT NULL 
+            AND deleted_at < DATE_SUB(NOW(), INTERVAL 30 DAY)
+        ");
+        $stmt->execute();
+        $deleted_count = $stmt->rowCount();
+        
+        if ($deleted_count > 0) {
+            error_log("Pulizia automatica: eliminati $deleted_count utenti soft deleted");
+        }
+        
+        return $deleted_count;
+    } catch (PDOException $e) {
+        error_log("Errore pulizia utenti soft deleted: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Verifica se l'utente ha i permessi per accedere alla risorsa
+ */
+function has_permission($required_type, $user_id = null) {
+    if ($user_id === null) {
+        $user_id = $_SESSION['user_id'] ?? null;
+    }
+    
+    if (!isset($_SESSION['user_type']) || $_SESSION['user_id'] !== $user_id) {
+        return false;
+    }
+    
+    // Admin ha accesso a tutto
+    if ($_SESSION['user_type'] === 'admin') {
+        return true;
+    }
+    
+    // Verifica il tipo richiesto
+    return $_SESSION['user_type'] === $required_type;
+}
+
+/**
+ * Logga le attività importanti
+ */
+function log_activity($pdo, $user_id, $action, $details = null) {
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO activity_logs (user_id, action, details, ip_address, user_agent, created_at)
+            VALUES (?, ?, ?, ?, ?, NOW())
+        ");
+        
+        $ip_address = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+        
+        $stmt->execute([
+            $user_id,
+            $action,
+            $details ? json_encode($details) : null,
+            $ip_address,
+            $user_agent
+        ]);
+        
+        return true;
+    } catch (PDOException $e) {
+        error_log("Errore logging attività: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Formatta i byte in formato leggibile
+ */
+function format_bytes($bytes, $precision = 2) {
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    
+    $bytes = max($bytes, 0);
+    $pow = floor(($bytes ? log($bytes) : 0) / log(1024));
+    $pow = min($pow, count($units) - 1);
+    
+    $bytes /= pow(1024, $pow);
+    
+    return round($bytes, $precision) . ' ' . $units[$pow];
+}
+
+/**
+ * Genera un codice casuale
+ */
+function generate_random_code($length = 8) {
+    $characters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $code = '';
+    
+    for ($i = 0; $i < $length; $i++) {
+        $code .= $characters[rand(0, strlen($characters) - 1)];
+    }
+    
+    return $code;
+}
+
+/**
+ * Valida un URL
+ */
+function validate_url($url) {
+    return filter_var($url, FILTER_VALIDATE_URL) !== false;
+}
+
+/**
+ * Estrae il dominio da un URL
+ */
+function extract_domain($url) {
+    $parsed = parse_url($url);
+    return $parsed['host'] ?? null;
+}
+
+/**
+ * Verifica se l'email è disposable/temporanea
+ */
+function is_disposable_email($email) {
+    $disposable_domains = [
+        'tempmail.com', 'guerrillamail.com', 'mailinator.com', '10minutemail.com',
+        'yopmail.com', 'throwawaymail.com', 'fakeinbox.com', 'temp-mail.org'
+    ];
+    
+    $domain = strtolower(substr(strrchr($email, "@"), 1));
+    return in_array($domain, $disposable_domains);
+}
+
+/**
+ * Ottiene l'età da una data di nascita
+ */
+function get_age_from_birthdate($birthdate) {
+    $birthday = new DateTime($birthdate);
+    $today = new DateTime();
+    $age = $today->diff($birthday);
+    return $age->y;
+}
+
+/**
+ * Calcola la percentuale
+ */
+function calculate_percentage($part, $total) {
+    if ($total == 0) {
+        return 0;
+    }
+    return round(($part / $total) * 100, 2);
+}
+
+/**
+ * Invia notifica push (placeholder per implementazione futura)
+ */
+function send_push_notification($user_id, $title, $message, $data = []) {
+    // Implementazione placeholder per notifiche push
+    // Da integrare con servizi come Firebase Cloud Messaging, OneSignal, ecc.
+    error_log("Push notification for user $user_id: $title - $message");
+    return true;
+}
 ?>

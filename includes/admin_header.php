@@ -1,7 +1,5 @@
 <?php
-// Debug
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
+// includes/admin_header.php - VERSIONE COMPLETA CON SISTEMA MANUTENZIONE
 
 // Percorso assoluto per config
 $config_file = dirname(__DIR__) . '/includes/config.php';
@@ -17,6 +15,15 @@ if (file_exists($config_file)) {
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// INCLUSIONE SISTEMA MANUTENZIONE - AGGIUNTA IMPORTANTE
+$maintenance_file = dirname(__DIR__) . '/includes/maintenance.php';
+if (file_exists($maintenance_file)) {
+    require_once $maintenance_file;
+}
+
+// Controllo accesso admin
+require_admin_login();
 
 // Controllo timeout sessione admin
 check_admin_session_timeout();
@@ -54,6 +61,16 @@ check_admin_session_timeout();
         .stat-card:hover {
             transform: translateY(-5px);
         }
+        .maintenance-badge {
+            animation: blink 2s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+        .navbar-brand {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -61,15 +78,29 @@ check_admin_session_timeout();
     <nav class="navbar navbar-dark bg-dark">
         <div class="container-fluid">
             <a class="navbar-brand" href="/infl/admin/dashboard.php">
-                <i class="fas fa-crown"></i> Admin Panel
+                <i class="fas fa-crown me-2"></i>Admin Panel
+                <?php
+                // Mostra badge manutenzione se attiva
+                if (is_maintenance_mode($pdo)): 
+                ?>
+                <span class="badge bg-warning maintenance-badge ms-2">
+                    <i class="fas fa-tools me-1"></i>MANUTENZIONE
+                </span>
+                <?php endif; ?>
             </a>
             <div class="d-flex">
                 <span class="navbar-text me-3">
-                    Benvenuto, <strong><?php echo $_SESSION['admin_username'] ?? 'Admin'; ?></strong>
+                    <i class="fas fa-user-shield me-1"></i>
+                    <strong><?php echo $_SESSION['user_name'] ?? 'Admin'; ?></strong>
                 </span>
-                <a href="/infl/admin/logout.php" class="btn btn-outline-light btn-sm">
-                    <i class="fas fa-sign-out-alt"></i> Logout
-                </a>
+                <div class="btn-group">
+                    <a href="/infl/" class="btn btn-outline-info btn-sm me-2" target="_blank">
+                        <i class="fas fa-external-link-alt me-1"></i>Vedi Sito
+                    </a>
+                    <a href="/infl/admin/logout.php" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-sign-out-alt me-1"></i> Logout
+                    </a>
+                </div>
             </div>
         </div>
     </nav>
@@ -103,11 +134,74 @@ check_admin_session_timeout();
                         <li class="nav-item">
                             <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : ''; ?>" href="/infl/admin/settings.php">
                                 <i class="fas fa-cog me-2"></i> Impostazioni
+                                <?php if (is_maintenance_mode($pdo)): ?>
+                                <span class="badge bg-warning float-end">
+                                    <i class="fas fa-wrench"></i>
+                                </span>
+                                <?php endif; ?>
                             </a>
                         </li>
                     </ul>
+                    
+                    <!-- Sezione Stato Sistema -->
+                    <div class="mt-4 px-3">
+                        <h6 class="text-white-50 small">STATO SISTEMA</h6>
+                        <div class="mt-2">
+                            <?php if (is_maintenance_mode($pdo)): ?>
+                                <div class="alert alert-warning py-1 mb-2 small">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <strong>Manutenzione Attiva</strong>
+                                </div>
+                            <?php else: ?>
+                                <div class="alert alert-success py-1 mb-2 small">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    <strong>Sistema Attivo</strong>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <div class="text-white-50 small">
+                                <i class="fas fa-database me-1"></i>
+                                DB: <?php echo $pdo->getAttribute(PDO::ATTR_DRIVER_NAME); ?>
+                            </div>
+                            <div class="text-white-50 small">
+                                <i class="fas fa-clock me-1"></i>
+                                <?php echo date('H:i'); ?>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
             <!-- Main Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 main-content">
+                
+                <!-- Messaggi di notifica -->
+                <?php if (isset($_SESSION['success_message'])): ?>
+                    <div class="alert alert-success alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <?php echo htmlspecialchars($_SESSION['success_message']); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    <?php unset($_SESSION['success_message']); ?>
+                <?php endif; ?>
+
+                <?php if (isset($_SESSION['error_message'])): ?>
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <?php echo htmlspecialchars($_SESSION['error_message']); ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                    <?php unset($_SESSION['error_message']); ?>
+                <?php endif; ?>
+
+                <!-- Banner Manutenzione (solo se attiva) -->
+                <?php if (is_maintenance_mode($pdo)): ?>
+                <div class="alert alert-warning d-flex align-items-center mb-4">
+                    <i class="fas fa-tools fa-2x me-3"></i>
+                    <div>
+                        <h5 class="alert-heading mb-1">Modalità Manutenzione Attiva</h5>
+                        <p class="mb-0">Il frontend del sito è temporaneamente non disponibile per gli utenti regolari. 
+                        <a href="/infl/admin/settings.php" class="alert-link">Gestisci impostazioni</a></p>
+                    </div>
+                </div>
+                <?php endif; ?>

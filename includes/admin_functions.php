@@ -66,8 +66,9 @@ function check_admin_session_timeout() {
 
 /**
  * Ottiene statistiche piattaforma
+ * MODIFICA: Rinomina la funzione per evitare conflitto
  */
-function get_platform_stats() {
+function get_admin_platform_stats() {
     global $pdo;
     
     $stats = [];
@@ -149,14 +150,15 @@ function unblock_user($user_id) {
     return $stmt->execute([$user_id]);
 }
 
-/**
- * Pulizia automatica soft delete dopo 90 giorni
- */
-function cleanup_soft_deleted_users() {
-    global $pdo;
-    $stmt = $pdo->prepare("DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
-    return $stmt->execute();
-}
+// RIMUOVI QUESTA FUNZIONE - È GIÀ IN functions.php
+// /**
+//  * Pulizia automatica soft delete dopo 90 giorni
+//  */
+// function cleanup_soft_deleted_users() {
+//     global $pdo;
+//     $stmt = $pdo->prepare("DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
+//     return $stmt->execute();
+// }
 
 // =============================================================================
 // FUNZIONI PER GESTIONE INFLUENCER E BRANDS
@@ -531,6 +533,134 @@ function getUserStatus($user) {
 function formatDate($date, $format = 'd/m/Y H:i') {
     if (empty($date)) return '-';
     return date($format, strtotime($date));
+}
+
+// =============================================================================
+// NUOVE FUNZIONI PER IL SISTEMA DI MANUTENZIONE
+// =============================================================================
+
+/**
+ * Verifica se l'utente corrente è un amministratore (compatibilità con nuovo sistema)
+ */
+function is_admin_user() {
+    return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin';
+}
+
+/**
+ * Verifica se la pagina corrente è nel backend admin
+ */
+function is_admin_page() {
+    $current_script = $_SERVER['SCRIPT_NAME'] ?? '';
+    return strpos($current_script, '/infl/admin/') !== false;
+}
+
+/**
+ * Ottiene statistiche specifiche per l'admin dashboard
+ */
+function get_admin_dashboard_stats($pdo) {
+    try {
+        $stats = [];
+        
+        // Utenti sospesi
+        $stmt = $pdo->query("SELECT COUNT(*) as suspended FROM users WHERE is_suspended = 1 AND deleted_at IS NULL");
+        $stats['suspended_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['suspended'] ?? 0;
+        
+        // Utenti eliminati (soft delete)
+        $stmt = $pdo->query("SELECT COUNT(*) as deleted FROM users WHERE deleted_at IS NOT NULL");
+        $stats['deleted_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['deleted'] ?? 0;
+        
+        // Campagne attive
+        $stmt = $pdo->query("SELECT COUNT(*) as active_campaigns FROM campaigns WHERE status = 'active' AND deleted_at IS NULL");
+        $stats['active_campaigns'] = $stmt->fetch(PDO::FETCH_ASSOC)['active_campaigns'] ?? 0;
+        
+        // Campagne in attesa di moderazione
+        $stmt = $pdo->query("SELECT COUNT(*) as pending_campaigns FROM campaigns WHERE status = 'pending' AND deleted_at IS NULL");
+        $stats['pending_campaigns'] = $stmt->fetch(PDO::FETCH_ASSOC)['pending_campaigns'] ?? 0;
+        
+        return $stats;
+    } catch (PDOException $e) {
+        error_log("Errore recupero statistiche admin: " . $e->getMessage());
+        return [
+            'suspended_users' => 0,
+            'deleted_users' => 0,
+            'active_campaigns' => 0,
+            'pending_campaigns' => 0
+        ];
+    }
+}
+
+/**
+ * Esegue operazioni di pulizia del database
+ */
+function run_admin_cleanup($pdo) {
+    try {
+        $cleaned = 0;
+        
+        // Pulizia password reset scaduti
+        $stmt = $pdo->prepare("DELETE FROM password_resets WHERE expires_at < NOW()");
+        $stmt->execute();
+        $cleaned += $stmt->rowCount();
+        
+        return $cleaned;
+    } catch (PDOException $e) {
+        error_log("Errore pulizia admin: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Verifica se l'utente è un super admin
+ */
+function is_super_admin($user_id) {
+    // Implementa la logica per verificare i permessi super admin
+    // Potresti avere una colonna 'is_super_admin' nella tabella users
+    return true; // Temporaneamente sempre true
+}
+
+/**
+ * Ottiene il log delle attività recenti
+ */
+function get_recent_activity($pdo, $limit = 10) {
+    try {
+        // Se hai una tabella activity_logs, usa questa query
+        if (table_exists($pdo, 'activity_logs')) {
+            $stmt = $pdo->prepare("
+                SELECT al.*, u.username, u.user_type 
+                FROM activity_logs al 
+                LEFT JOIN users u ON al.user_id = u.id 
+                ORDER BY al.created_at DESC 
+                LIMIT ?
+            ");
+            $stmt->execute([$limit]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            // Fallback: log basico dagli utenti
+            $stmt = $pdo->prepare("
+                SELECT id, name as username, user_type, created_at, 'user_registered' as action 
+                FROM users 
+                ORDER BY created_at DESC 
+                LIMIT ?
+            ");
+            $stmt->execute([$limit]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    } catch (PDOException $e) {
+        error_log("Errore recupero attività recenti: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Verifica se una tabella esiste nel database
+ */
+function table_exists($pdo, $table_name) {
+    try {
+        $stmt = $pdo->prepare("SHOW TABLES LIKE ?");
+        $stmt->execute([$table_name]);
+        return $stmt->rowCount() > 0;
+    } catch (PDOException $e) {
+        return false;
+    }
 }
 
 ?>
