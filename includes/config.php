@@ -1,5 +1,5 @@
 <?php
-// includes/config.php - VERSIONE COMPLETA CON MATCHING AVANZATO
+// includes/config.php - VERSIONE SICURA PER PRODUZIONE
 
 // === PERCORSO BASE ASSOLUTO === 
 $base_dir = dirname(__DIR__); 
@@ -11,12 +11,13 @@ define('DB_NAME', 'influencer_marketplace');
 define('DB_USER', 'sam');
 define('DB_PASS', 'A6Hd&Q%plvx4lxp7');
 
-// Error reporting - ESSENZIALE
+// Error reporting - PRODUZIONE: disabilita display errors
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
+ini_set('display_errors', 0);
+ini_set('display_startup_errors', 0);
+ini_set('log_errors', 1);
 
-// === SESSION CONFIGURATION - DEVE ESSERE PRIMA DI session_start() ===
+// === SESSION CONFIGURATION ===
 session_set_cookie_params([
     'lifetime' => 86400,
     'path' => '/',
@@ -26,12 +27,11 @@ session_set_cookie_params([
     'samesite' => 'Lax'
 ]);
 
-// Start session - SOLO SE NON È GIÀ ATTIVA
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Database connection - PDO
+// Database connection
 try {
     $pdo = new PDO(
         "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4",
@@ -44,25 +44,19 @@ try {
         ]
     );
 } catch (PDOException $e) {
-    if (ini_get('display_errors')) {
-        die("Database connection failed: " . $e->getMessage());
-    } else {
-        error_log("Database connection failed: " . $e->getMessage());
-        die("Database connection error. Please try again later.");
-    }
+    error_log("Database connection failed: " . $e->getMessage());
+    die("Database connection error. Please try again later.");
 }
 
-// Path constants - SPOSTATE DOPO LA CONNESSIONE AL DATABASE
+// Path constants
 define('ROOT_PATH', BASE_DIR);
 define('INCLUDES_PATH', BASE_DIR . '/includes');
 
 // === BASE_URL CALCOLATO DINAMICAMENTE ===
-// Calcola BASE_URL dinamicamente basandosi sulla directory del progetto
 $script_path = dirname($_SERVER['SCRIPT_NAME']);
 if ($script_path === '/infl' || strpos($script_path, '/infl') !== false) {
     define('BASE_URL', '/infl');
 } else {
-    // Fallback: calcola basandosi sulla directory
     $project_folder = basename(BASE_DIR);
     define('BASE_URL', '/' . $project_folder);
 }
@@ -74,9 +68,9 @@ define('MATCHING_RESULTS_PER_PAGE', 25);
 // Tier system per calcolo budget limit
 define('BUDGET_TIER_LOW_MAX', 200);
 define('BUDGET_TIER_MEDIUM_MAX', 1000);
-define('BUDGET_TIER_LOW_PERCENT', 0.5);    // 50% per budget bassi
-define('BUDGET_TIER_MEDIUM_PERCENT', 0.3); // 30% per budget medi
-define('BUDGET_TIER_HIGH_PERCENT', 0.2);   // 20% per budget alti
+define('BUDGET_TIER_LOW_PERCENT', 0.5);
+define('BUDGET_TIER_MEDIUM_PERCENT', 0.3);
+define('BUDGET_TIER_HIGH_PERCENT', 0.2);
 
 // Punteggi matching
 define('SCORE_NICHE_EXACT', 35);
@@ -87,9 +81,9 @@ define('SCORE_RATING_MAX', 15);
 define('SCORE_VIEWS_BONUS', 5);
 
 // Soglie affordability
-define('AFFORDABILITY_PENALTY_1_1X', 5);   // Penalità per rate 1.1x budget
-define('AFFORDABILITY_PENALTY_1_5X', 10);  // Penalità per rate 1.5x budget
-define('AFFORDABILITY_PENALTY_2X', 20);    // Penalità per rate 2x+ budget
+define('AFFORDABILITY_PENALTY_1_1X', 5);
+define('AFFORDABILITY_PENALTY_1_5X', 10);
+define('AFFORDABILITY_PENALTY_2X', 20);
 
 // Soglie match score per badge
 define('SCORE_PERFECT_MATCH_MIN', 70);
@@ -97,6 +91,128 @@ define('SCORE_RECOMMENDED_MATCH_MIN', 40);
 
 // Flag per evitare inclusioni multiple
 $config_loaded = true;
+
+// === SISTEMA MANUTENZIONE INTEGRATO ===
+define('SKIP_MAINTENANCE_CHECK', false);
+
+/**
+ * Controllo manutenzione automatico per tutte le pagine pubbliche
+ */
+function initialize_maintenance_system($pdo) {
+    $maintenance_file = __DIR__ . '/maintenance.php';
+    
+    if (!file_exists($maintenance_file)) {
+        return false;
+    }
+    
+    require_once $maintenance_file;
+    
+    if (should_check_maintenance()) {
+        check_maintenance_mode($pdo);
+    }
+    
+    return true;
+}
+
+/**
+ * Determina se eseguire il controllo manutenzione per la richiesta corrente
+ */
+function should_check_maintenance() {
+    if (defined('SKIP_MAINTENANCE_CHECK') && SKIP_MAINTENANCE_CHECK === true) {
+        return false;
+    }
+    
+    $current_script = $_SERVER['SCRIPT_NAME'] ?? '';
+    $current_uri = $_SERVER['REQUEST_URI'] ?? '';
+    
+    // File di configurazione e inclusi
+    $excluded_scripts = [
+        'config.php',
+        'maintenance.php',
+        'auth_functions.php',
+        'admin_functions.php',
+        'email_functions.php',
+        'functions.php'
+    ];
+    
+    foreach ($excluded_scripts as $script) {
+        if (strpos($current_script, $script) !== false || 
+            basename($current_script) === $script) {
+            return false;
+        }
+    }
+    
+    // Percorsi admin
+    $admin_paths = ['/infl/admin/', '/admin/', '/backend/'];
+    foreach ($admin_paths as $admin_path) {
+        if (strpos($current_script, $admin_path) !== false || 
+            strpos($current_uri, $admin_path) !== false) {
+            return false;
+        }
+    }
+    
+    // API, AJAX, webhooks
+    $api_paths = ['/api/', '/ajax/', '/webhook/', '/callback/', '/payment/'];
+    foreach ($api_paths as $api_path) {
+        if (strpos($current_uri, $api_path) !== false) {
+            return false;
+        }
+    }
+    
+    // File statici e assets
+    $static_paths = ['/infl/assets/', '/assets/', '/css/', '/js/', '/img/', '/images/'];
+    foreach ($static_paths as $static_path) {
+        if (strpos($current_uri, $static_path) !== false) {
+            return false;
+        }
+    }
+    
+    // File di sistema
+    $system_files = [
+        'robots.txt',
+        'sitemap.xml',
+        '.well-known/',
+        'favicon.ico',
+        'health-check.php',
+        'server-status'
+    ];
+    
+    foreach ($system_files as $file) {
+        if (strpos($current_uri, $file) !== false) {
+            return false;
+        }
+    }
+    
+    // Richieste specifiche per manutenzione
+    if (strpos($current_uri, 'maintenance-check') !== false || 
+        strpos($current_uri, 'test-maintenance') !== false) {
+        return false;
+    }
+    
+    // Controlla se è una richiesta AJAX
+    if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && 
+        strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        return false;
+    }
+    
+    // Controlla se è una richiesta per bot/SEO
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    $bots = ['googlebot', 'bingbot', 'slurp', 'duckduckbot'];
+    foreach ($bots as $bot) {
+        if (stripos($user_agent, $bot) !== false) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// Inizializzazione sistema manutenzione
+try {
+    initialize_maintenance_system($pdo);
+} catch (Exception $e) {
+    // Silenzioso in produzione
+}
 
 // === FUNZIONI PER MATCHING AVANZATO ===
 
@@ -126,7 +242,6 @@ function calculate_advanced_match_score($influencer, $campaign_niche, $campaign_
         $match_details['niche'] = 'exact';
         $match_details['niche_score'] = SCORE_NICHE_EXACT;
     } else {
-        // Match parziale per niche simile
         $influencer_niche_lower = strtolower($influencer['niche']);
         $campaign_niche_lower = strtolower($campaign_niche);
         
@@ -181,7 +296,7 @@ function calculate_advanced_match_score($influencer, $campaign_niche, $campaign_
         ];
     }
     
-    // 3. AFFORDABILITY SCORING (20 punti) - SOFT FILTER
+    // 3. AFFORDABILITY SCORING (20 punti)
     $influencer_rate = floatval($influencer['rate']);
     $budget_limit = floatval($budget_limit);
     
@@ -292,16 +407,14 @@ function get_affordability_indicator($influencer_rate, $budget_limit) {
  */
 function perform_advanced_influencer_matching($pdo, $campaign_id, $campaign_niche, $campaign_platforms, $campaign_budget) {
     $debug_info = [];
-    $debug_info[] = "=== 🎯 ADVANCED INFLUENCER MATCHING DEBUG ===";
+    $debug_info[] = "=== ADVANCED INFLUENCER MATCHING ===";
     $debug_info[] = "Campaign ID: $campaign_id";
     $debug_info[] = "Campaign Niche: $campaign_niche";
     $debug_info[] = "Campaign Budget: €$campaign_budget";
     
-    // Calcola budget limit con tier system
     $budget_limit = calculate_budget_limit($campaign_budget);
     $debug_info[] = "Budget Limit (Tier System): €$budget_limit";
     
-    // Costruisci condizioni piattaforme
     $platform_conditions = [];
     $platform_params = [];
     
@@ -323,7 +436,7 @@ function perform_advanced_influencer_matching($pdo, $campaign_id, $campaign_nich
     
     $platform_where = implode(' OR ', $platform_conditions);
     if (empty($platform_where)) {
-        $platform_where = "1=1"; // Se nessuna piattaforma selezionata, mostra tutti
+        $platform_where = "1=1";
     }
     
     $debug_info[] = "Platform Conditions: $platform_where";
@@ -403,17 +516,6 @@ function perform_advanced_influencer_matching($pdo, $campaign_id, $campaign_nich
         $scored_influencer['match_details'] = json_encode($match_result['details']);
         
         $scored_influencers[] = $scored_influencer;
-        
-        // Debug dettagliato per i primi 5 influencer
-        if (count($scored_influencers) <= 5) {
-            $details = $match_result['details'];
-            $debug_info[] = "🎯 {$influencer['full_name']} - Score: {$match_result['score']}% - Rate: €{$influencer['rate']}";
-            $debug_info[] = "   → Niche: {$details['niche']} ({$details['niche_score']}p) | " .
-                           "Platforms: {$details['platforms']['matches']}/{$details['platforms']['total']} ({$details['platforms']['score']}p) | " .
-                           "Affordability: {$details['affordability']} ({$details['affordability_score']}p) | " .
-                           "Rating: {$details['rating']} ({$details['rating_score']}p) | " .
-                           "Views: {$details['profile_views']} (+{$details['views_bonus']}p)";
-        }
     }
     
     // Ordina per score
@@ -441,7 +543,7 @@ function perform_advanced_influencer_matching($pdo, $campaign_id, $campaign_nich
             ]);
             $inserted_count++;
         } catch (PDOException $e) {
-            $debug_info[] = "ERROR inserting influencer {$influencer['id']}: " . $e->getMessage();
+            // Silenzioso in produzione
         }
     }
     
@@ -458,8 +560,6 @@ $auth_functions_file = __DIR__ . '/auth_functions.php';
 if (file_exists($auth_functions_file)) {
     require_once $auth_functions_file;
 } else {
-    error_log("Auth functions file not found: " . $auth_functions_file);
-    // Definisci funzioni base se il file non esiste
     if (!function_exists('is_logged_in')) {
         function is_logged_in() {
             return isset($_SESSION['user_id']);
@@ -485,25 +585,18 @@ $email_functions_file = __DIR__ . '/email_functions.php';
 if (file_exists($email_functions_file)) {
     require_once $email_functions_file;
 } else {
-    error_log("Email functions file not found: " . $email_functions_file);
-    // Definisci funzioni base se il file non esiste
     if (!function_exists('send_password_reset_email')) {
         function send_password_reset_email($email, $reset_link) {
-            // Implementazione base per sviluppo
             $subject = "Recupero Password - Influencer Marketplace";
             $message = "Clicca qui per reimpostare la password: $reset_link";
             $headers = "From: no-reply@influencer-marketplace.com";
             
-            // Per sviluppo, logghiamo il link invece di inviare email
-            error_log("Password reset link for $email: $reset_link");
-            return true; // Simula invio riuscito
+            return mail($email, $subject, $message, $headers);
         }
     }
     if (!function_exists('send_password_changed_email')) {
         function send_password_changed_email($email) {
-            // Implementazione base per sviluppo
-            error_log("Password changed notification for: $email");
-            return true; // Simula invio riuscito
+            return true;
         }
     }
 }
@@ -541,7 +634,7 @@ if (!function_exists('validate_token')) {
             ];
             
         } catch (PDOException $e) {
-            return ['valid' => false, 'error' => 'Errore di sistema: ' . $e->getMessage()];
+            return ['valid' => false, 'error' => 'Errore di sistema'];
         }
     }
 }
@@ -553,43 +646,18 @@ if (!function_exists('cleanup_expired_tokens')) {
             $stmt->execute();
             return $stmt->rowCount();
         } catch (PDOException $e) {
-            error_log("Error cleaning up expired tokens: " . $e->getMessage());
             return 0;
         }
     }
 }
 
-// Pulizia automatica dei token scaduti (1 volta su 100 per performance)
+// Pulizia automatica dei token scaduti
 if (mt_rand(1, 100) === 1) {
     cleanup_expired_tokens($pdo);
 }
 
-// === FUNZIONE PER LOGGING DEBUG ===
-if (!function_exists('log_debug')) {
-    function log_debug($message, $data = null) {
-        $log_file = __DIR__ . '/debug.log';
-        $timestamp = date('Y-m-d H:i:s');
-        $log_message = "[$timestamp] $message";
-        
-        if ($data !== null) {
-            $log_message .= " - " . (is_array($data) ? json_encode($data) : $data);
-        }
-        
-        $log_message .= "\n";
-        
-        // Scrivi nel file di log (solo in sviluppo)
-        if (file_exists($log_file) && is_writable($log_file)) {
-            file_put_contents($log_file, $log_message, FILE_APPEND | LOCK_EX);
-        }
-        
-        // Logga anche nell'error log di PHP
-        error_log($message);
-    }
-}
-
 // === VERIFICA CONFIGURAZIONE MATCHING ===
 if (!defined('MATCHING_MAX_RESULTS')) {
-    error_log("WARNING: Matching constants not defined properly");
+    // Silenzioso in produzione
 }
-
 ?>

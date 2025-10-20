@@ -3,6 +3,10 @@ session_start();
 require_once __DIR__ . '/includes/config.php';
 require_once __DIR__ . '/includes/auth_functions.php';
 
+// === CONTROLLO MANUTENZIONE - AGGIUNTA IMPORTANTE ===
+require_once __DIR__ . '/includes/maintenance.php';
+check_maintenance_mode($pdo);
+
 $is_logged_in = is_logged_in();
 $user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
 
@@ -17,6 +21,9 @@ if (isset($_SESSION['user_type'])) {
     } elseif ($_SESSION['user_type'] === 'influencer') {
         $dashboard_url = "/infl/influencers/dashboard.php";
         $create_profile_url = "/infl/influencers/create-profile.php";
+    } elseif ($_SESSION['user_type'] === 'admin') {
+        $dashboard_url = "/infl/admin/dashboard.php";
+        $create_profile_url = "#";
     }
 }
 ?>
@@ -348,11 +355,32 @@ if (isset($_SESSION['user_type'])) {
                 align-items: center;
             }
         }
+
+        /* Banner Manutenzione (solo per admin) */
+        .maintenance-banner {
+            background: #ffc107;
+            color: #856404;
+            padding: 10px 0;
+            text-align: center;
+            font-weight: bold;
+            border-bottom: 2px solid #ffab00;
+            position: fixed;
+            top: 0;
+            width: 100%;
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
+    <?php
+    // Mostra banner manutenzione solo per gli admin
+    if (is_user_admin() && is_maintenance_mode($pdo)) {
+        echo '<div class="maintenance-banner">⚠️ MODALITÀ MANUTENZIONE ATTIVA - Gli utenti normali vedranno la pagina di manutenzione</div>';
+    }
+    ?>
+
     <!-- Navigation -->
-    <nav class="navbar">
+    <nav class="navbar" style="<?php echo (is_user_admin() && is_maintenance_mode($pdo)) ? 'margin-top: 40px;' : ''; ?>">
         <div class="nav-container">
             <a href="/infl/" class="logo">InfluencerMarket</a>
             <div class="nav-links">
@@ -491,5 +519,50 @@ if (isset($_SESSION['user_type'])) {
             </div>
         </div>
     </footer>
+
+    <script>
+        // Smooth scroll per i link interni
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+
+        // Aggiungi classe active alla navigazione durante lo scroll
+        window.addEventListener('scroll', function() {
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-links a[href^="#"]');
+            
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                const sectionHeight = section.clientHeight;
+                if (pageYOffset >= sectionTop - 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+
+        // Debug info per admin (solo in sviluppo)
+        <?php if (is_user_admin()): ?>
+        console.log('🔧 Info Admin:');
+        console.log('- Manutenzione attiva:', <?php echo is_maintenance_mode($pdo) ? 'true' : 'false'; ?>);
+        console.log('- Tipo utente:', '<?php echo $_SESSION['user_type'] ?? 'guest'; ?>');
+        <?php endif; ?>
+    </script>
 </body>
 </html>
