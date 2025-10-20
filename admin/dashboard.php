@@ -138,7 +138,7 @@ cleanup_soft_deleted_users();
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Stato Piattaforma</h5>
+                <h5 class="card-title mb-0">Stato Utenti</h5>
             </div>
             <div class="card-body">
                 <div class="alert alert-<?php echo $stats['suspended_users'] > 0 ? 'warning' : 'success'; ?>">

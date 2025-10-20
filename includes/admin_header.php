@@ -142,33 +142,6 @@ check_admin_session_timeout();
                             </a>
                         </li>
                     </ul>
-                    
-                    <!-- Sezione Stato Sistema -->
-                    <div class="mt-4 px-3">
-                        <h6 class="text-white-50 small">STATO SISTEMA</h6>
-                        <div class="mt-2">
-                            <?php if (is_maintenance_mode($pdo)): ?>
-                                <div class="alert alert-warning py-1 mb-2 small">
-                                    <i class="fas fa-exclamation-triangle me-1"></i>
-                                    <strong>Manutenzione Attiva</strong>
-                                </div>
-                            <?php else: ?>
-                                <div class="alert alert-success py-1 mb-2 small">
-                                    <i class="fas fa-check-circle me-1"></i>
-                                    <strong>Sistema Attivo</strong>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <div class="text-white-50 small">
-                                <i class="fas fa-database me-1"></i>
-                                DB: <?php echo $pdo->getAttribute(PDO::ATTR_DRIVER_NAME); ?>
-                            </div>
-                            <div class="text-white-50 small">
-                                <i class="fas fa-clock me-1"></i>
-                                <?php echo date('H:i'); ?>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
