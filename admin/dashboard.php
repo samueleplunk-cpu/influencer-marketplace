@@ -133,41 +133,4 @@ cleanup_soft_deleted_users();
     </div>
 </div>
 
-<!-- Ultime Attività -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Stato Utenti</h5>
-            </div>
-            <div class="card-body">
-                <div class="alert alert-<?php echo $stats['suspended_users'] > 0 ? 'warning' : 'success'; ?>">
-                    <i class="fas fa-<?php echo $stats['suspended_users'] > 0 ? 'exclamation-triangle' : 'check-circle'; ?> me-2"></i>
-                    <?php if ($stats['suspended_users'] > 0): ?>
-                        Ci sono <?php echo $stats['suspended_users']; ?> utenti sospesi.
-                    <?php else: ?>
-                        Tutti gli utenti sono attivi.
-                    <?php endif; ?>
-                </div>
-                
-                <!-- Informazioni sistema -->
-                <div class="row">
-                    <div class="col-md-6">
-                        <small class="text-muted">
-                            <i class="fas fa-database me-1"></i>
-                            Database: <?php echo $pdo->getAttribute(PDO::ATTR_DRIVER_NAME); ?>
-                        </small>
-                    </div>
-                    <div class="col-md-6 text-end">
-                        <small class="text-muted">
-                            <i class="fas fa-server me-1"></i>
-                            PHP: <?php echo phpversion(); ?>
-                        </small>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 <?php require_once '../includes/admin_footer.php'; ?>
