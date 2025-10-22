@@ -88,16 +88,7 @@ $is_maintenance_mode = is_maintenance_mode($pdo);
                 
                 <hr>
                 
-                <div class="alert alert-info">
-                    <h6><i class="fas fa-info-circle me-2"></i>Informazioni Modalità Manutenzione</h6>
-                    <ul class="mb-0">
-                        <li><strong>Quando attiva:</strong> Tutte le pagine pubbliche mostreranno una schermata di manutenzione</li>
-                        <li><strong>Accesso Admin:</strong> Il pannello di amministrazione rimarrà sempre accessibile</li>
-                        <li><strong>Utenti Admin:</strong> Potranno comunque navigare il sito normalmente</li>
-                        <li><strong>Utenti Normali:</strong> Verranno reindirizzati alla pagina di manutenzione</li>
-                        <li><strong>API/Service:</strong> I servizi di backend continuano a funzionare normalmente</li>
-                    </ul>
-                </div>
+                <!-- RIMOSSO: Box informativo "Informazioni Modalità Manutenzione" -->
             </div>
         </div>
         
@@ -247,58 +238,13 @@ $is_maintenance_mode = is_maintenance_mode($pdo);
                         <button type="button" class="btn btn-outline-warning" onclick="testMaintenance()">
                             <i class="fas fa-eye me-2"></i>Test Modalità Manutenzione
                         </button>
-                    <?php else: ?>
-                        <button type="button" class="btn btn-outline-success" onclick="testNormalMode()">
-                            <i class="fas fa-check me-2"></i>Test Modalità Normale
-                        </button>
                     <?php endif; ?>
-                    <button type="button" class="btn btn-outline-secondary" onclick="refreshStatus()">
-                        <i class="fas fa-sync-alt me-2"></i>Aggiorna Stato
-                    </button>
+                    <!-- RIMOSSI: Pulsanti "Test Modalità Normale" e "Aggiorna Stato" -->
                 </div>
             </div>
         </div>
         
-        <div class="card mt-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-question-circle me-2"></i>Aiuto
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="accordion" id="helpAccordion">
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help1">
-                                Quando usare la manutenzione?
-                            </button>
-                        </h2>
-                        <div id="help1" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                            <div class="accordion-body">
-                                <ul class="small mb-0">
-                                    <li>Aggiornamenti del sistema</li>
-                                    <li>Manutenzione del database</li>
-                                    <li>Deploy di nuove funzionalità</li>
-                                    <li>Risoluzione problemi critici</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="accordion-item">
-                        <h2 class="accordion-header">
-                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#help2">
-                                Cosa vedono gli utenti?
-                            </button>
-                        </h2>
-                        <div id="help2" class="accordion-collapse collapse" data-bs-parent="#helpAccordion">
-                            <div class="accordion-body">
-                                Gli utenti normali vedranno una pagina di manutenzione con l'immagine specificata. Gli admin continuano ad avere accesso completo.
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- RIMOSSA COMPLETAMENTE: Sezione "Aiuto" -->
     </div>
 </div>
 
@@ -311,11 +257,6 @@ function testMaintenance() {
     setTimeout(() => {
         alert('Il sito è stato aperto in una nuova finestra. Verifica che la pagina di manutenzione venga visualizzata correttamente.');
     }, 1000);
-}
-
-function testNormalMode() {
-    // Apri il sito in una nuova finestra
-    window.open('/infl/', '_blank');
 }
 
 function testMaintenanceView() {
@@ -371,11 +312,6 @@ function testMaintenanceView() {
     const previewWindow = window.open('', '_blank', 'width=800,height=600');
     previewWindow.document.write(previewHtml);
     previewWindow.document.close();
-}
-
-function refreshStatus() {
-    // Ricarica la pagina per aggiornare lo stato
-    window.location.reload();
 }
 
 // Conferma per attivazione manutenzione
