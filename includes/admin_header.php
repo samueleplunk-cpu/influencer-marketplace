@@ -61,13 +61,7 @@ check_admin_session_timeout();
         .stat-card:hover {
             transform: translateY(-5px);
         }
-        .maintenance-badge {
-            animation: blink 2s infinite;
-        }
-        @keyframes blink {
-            0%, 50% { opacity: 1; }
-            51%, 100% { opacity: 0.3; }
-        }
+        /* RIMOSSO: .maintenance-badge e animazione blink */
         .navbar-brand {
             font-weight: 600;
         }
@@ -79,14 +73,7 @@ check_admin_session_timeout();
         <div class="container-fluid">
             <a class="navbar-brand" href="/infl/admin/dashboard.php">
                 <i class="fas fa-crown me-2"></i>Admin Panel
-                <?php
-                // Mostra badge manutenzione se attiva
-                if (is_maintenance_mode($pdo)): 
-                ?>
-                <span class="badge bg-warning maintenance-badge ms-2">
-                    <i class="fas fa-tools me-1"></i>MANUTENZIONE
-                </span>
-                <?php endif; ?>
+                <!-- RIMOSSO: Badge manutenzione lampeggiante accanto al logo -->
             </a>
             <div class="d-flex">
                 <span class="navbar-text me-3">
@@ -134,11 +121,7 @@ check_admin_session_timeout();
                         <li class="nav-item">
                             <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : ''; ?>" href="/infl/admin/settings.php">
                                 <i class="fas fa-cog me-2"></i> Impostazioni
-                                <?php if (is_maintenance_mode($pdo)): ?>
-                                <span class="badge bg-warning float-end">
-                                    <i class="fas fa-wrench"></i>
-                                </span>
-                                <?php endif; ?>
+                                <!-- RIMOSSO: Badge manutenzione nella sidebar -->
                             </a>
                         </li>
                     </ul>

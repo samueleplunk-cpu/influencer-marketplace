@@ -212,7 +212,7 @@ function check_maintenance_mode($pdo) {
 
 /**
  * Mostra la pagina di manutenzione
- * MODIFICA: Gestione più robusta dell'immagine e headers
+ * MODIFICA: Rimossi badge lampeggiante e aggiornamento automatico
  */
 function show_maintenance_page() {
     // Percorsi per l'immagine di manutenzione
@@ -368,12 +368,7 @@ function show_maintenance_page() {
                 color: #667eea;
             }
             
-            .refresh-notice {
-                margin-top: 1rem;
-                font-size: 0.9rem;
-                color: #888;
-                font-style: italic;
-            }
+            /* RIMOSSO: .refresh-notice - sezione aggiornamento automatico */
             
             @keyframes fadeIn {
                 from {
@@ -450,37 +445,15 @@ function show_maintenance_page() {
                 </ul>
             </div>
             
-            <div class="refresh-notice">
-                La pagina si aggiornerà automaticamente ogni 5 minuti
-            </div>
+            <!-- RIMOSSO: Sezione refresh-notice e countdown -->
         </div>
         
         <script>
-            // Aggiornamento automatico ogni 5 minuti
-            setTimeout(function() {
-                window.location.reload();
-            }, 300000); // 5 minuti
+            // RIMOSSO: Aggiornamento automatico ogni 5 minuti
+            // RIMOSSO: Countdown e timer di aggiornamento
+            // RIMOSSO: Badge lampeggiante "MANUTENZIONE"
             
-            // Mostra il tempo rimanente per il prossimo aggiornamento
-            let countdown = 300; // 5 minuti in secondi
-            const countdownElement = document.createElement("div");
-            countdownElement.style.cssText = "position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px;";
-            document.body.appendChild(countdownElement);
-            
-            function updateCountdown() {
-                const minutes = Math.floor(countdown / 60);
-                const seconds = countdown % 60;
-                countdownElement.textContent = `Aggiornamento in ${minutes}:${seconds.toString().padStart(2, "0")}`;
-                countdown--;
-                
-                if (countdown >= 0) {
-                    setTimeout(updateCountdown, 1000);
-                }
-            }
-            
-            updateCountdown();
-            
-            // Tenta di ricaricare ogni 30 secondi se la manutenzione è finita
+            // Mantenuto solo il controllo periodico dello stato ogni 30 secondi
             setInterval(function() {
                 fetch(window.location.href, { 
                     method: "HEAD",

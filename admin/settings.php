@@ -234,12 +234,7 @@ $is_maintenance_mode = is_maintenance_mode($pdo);
                     <a href="/infl/" class="btn btn-outline-info" target="_blank">
                         <i class="fas fa-external-link-alt me-2"></i>Visita Sito Pubblico
                     </a>
-                    <?php if ($is_maintenance_mode): ?>
-                        <button type="button" class="btn btn-outline-warning" onclick="testMaintenance()">
-                            <i class="fas fa-eye me-2"></i>Test Modalità Manutenzione
-                        </button>
-                    <?php endif; ?>
-                    <!-- RIMOSSI: Pulsanti "Test Modalità Normale" e "Aggiorna Stato" -->
+                    <!-- RIMOSSO: Pulsante "Test Modalità Manutenzione" -->
                 </div>
             </div>
         </div>
@@ -249,16 +244,6 @@ $is_maintenance_mode = is_maintenance_mode($pdo);
 </div>
 
 <script>
-function testMaintenance() {
-    // Apri il sito in una nuova finestra
-    const testWindow = window.open('/infl/', '_blank');
-    
-    // Mostra messaggio informativo
-    setTimeout(() => {
-        alert('Il sito è stato aperto in una nuova finestra. Verifica che la pagina di manutenzione venga visualizzata correttamente.');
-    }, 1000);
-}
-
 function testMaintenanceView() {
     // Mostra anteprima completa della pagina di manutenzione
     const previewHtml = `
