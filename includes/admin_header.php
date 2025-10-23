@@ -27,6 +27,9 @@ require_admin_login();
 
 // Controllo timeout sessione admin
 check_admin_session_timeout();
+
+// Determina se siamo nella pagina settings per mantenere il menu aperto
+$is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -64,6 +67,16 @@ check_admin_session_timeout();
         /* RIMOSSO: .maintenance-badge e animazione blink */
         .navbar-brand {
             font-weight: 600;
+        }
+        /* Stili per il sottomenu */
+        .sidebar .nav-link.collapsed .fa-chevron-down {
+            transition: transform 0.2s;
+        }
+        .sidebar .nav-link:not(.collapsed) .fa-chevron-down {
+            transform: rotate(180deg);
+        }
+        .sidebar .nav .nav-link {
+            padding-left: 2rem;
         }
     </style>
 </head>
@@ -119,10 +132,27 @@ check_admin_session_timeout();
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'settings.php' ? 'active' : ''; ?>" href="/infl/admin/settings.php">
-                                <i class="fas fa-cog me-2"></i> Impostazioni
-                                <!-- RIMOSSO: Badge manutenzione nella sidebar -->
+                            <a class="nav-link <?php echo $is_settings_page ? '' : 'collapsed'; ?> d-flex justify-content-between align-items-center" 
+                               data-bs-toggle="collapse" 
+                               href="#settingsSubmenu" 
+                               role="button" 
+                               aria-expanded="<?php echo $is_settings_page ? 'true' : 'false'; ?>" 
+                               aria-controls="settingsSubmenu">
+                                <div>
+                                    <i class="fas fa-cog me-2"></i> Impostazioni
+                                </div>
+                                <i class="fas fa-chevron-down"></i>
                             </a>
+                            <div class="collapse <?php echo $is_settings_page ? 'show' : ''; ?>" id="settingsSubmenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo $is_settings_page ? 'active' : ''; ?>" 
+                                           href="/infl/admin/settings.php">
+                                            <i class="fas fa-wrench me-2"></i> Modalità Manutenzione
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </li>
                     </ul>
                 </div>
