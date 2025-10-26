@@ -150,16 +150,6 @@ function unblock_user($user_id) {
     return $stmt->execute([$user_id]);
 }
 
-// RIMUOVI QUESTA FUNZIONE - È GIÀ IN functions.php
-// /**
-//  * Pulizia automatica soft delete dopo 90 giorni
-//  */
-// function cleanup_soft_deleted_users() {
-//     global $pdo;
-//     $stmt = $pdo->prepare("DELETE FROM users WHERE deleted_at IS NOT NULL AND deleted_at < DATE_SUB(NOW(), INTERVAL 90 DAY)");
-//     return $stmt->execute();
-// }
-
 // =============================================================================
 // FUNZIONI PER GESTIONE INFLUENCER E BRANDS
 // =============================================================================
@@ -659,6 +649,345 @@ function table_exists($pdo, $table_name) {
         $stmt->execute([$table_name]);
         return $stmt->rowCount() > 0;
     } catch (PDOException $e) {
+        return false;
+    }
+}
+
+// =============================================================================
+// FUNZIONI PER LA GESTIONE DELLE CAMPAGNE BRAND
+// =============================================================================
+
+/**
+ * Recupera la lista delle campagne con filtri e paginazione
+ */
+function getCampaigns($page = 1, $per_page = 15, $filters = []) {
+    global $pdo;
+    
+    $offset = ($page - 1) * $per_page;
+    $where_conditions = ["c.deleted_at IS NULL"];
+    $params = [];
+    
+    // Costruzione condizioni WHERE
+    if (!empty($filters['search'])) {
+        $where_conditions[] = "c.name LIKE :search";
+        $params[':search'] = '%' . $filters['search'] . '%';
+    }
+    
+    if (!empty($filters['status'])) {
+        $where_conditions[] = "c.status = :status";
+        $params[':status'] = $filters['status'];
+    }
+    
+    if (!empty($filters['brand_id'])) {
+        $where_conditions[] = "c.brand_id = :brand_id";
+        $params[':brand_id'] = $filters['brand_id'];
+    }
+    
+    if (!empty($filters['date_from'])) {
+        $where_conditions[] = "c.start_date >= :date_from";
+        $params[':date_from'] = $filters['date_from'];
+    }
+    
+    if (!empty($filters['date_to'])) {
+        $where_conditions[] = "c.end_date <= :date_to";
+        $params[':date_to'] = $filters['date_to'];
+    }
+    
+    // Query per il conteggio totale
+    $count_sql = "SELECT COUNT(*) as total 
+                  FROM campaigns c 
+                  LEFT JOIN users b ON c.brand_id = b.id
+                  WHERE " . implode(" AND ", $where_conditions);
+    
+    $stmt = $pdo->prepare($count_sql);
+    $stmt->execute($params);
+    $total = $stmt->fetchColumn();
+    
+    // Query per i dati
+    $sql = "SELECT c.*, 
+                   b.name as brand_name, 
+                   b.company_name,
+                   (SELECT COUNT(*) FROM campaign_views WHERE campaign_id = c.id) as views_count,
+                   (SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = c.id) as invited_count
+            FROM campaigns c 
+            LEFT JOIN users b ON c.brand_id = b.id
+            WHERE " . implode(" AND ", $where_conditions) . " 
+            ORDER BY c.created_at DESC LIMIT :limit OFFSET :offset";
+    
+    $params[':limit'] = $per_page;
+    $params[':offset'] = $offset;
+    
+    $stmt = $pdo->prepare($sql);
+    
+    foreach ($params as $key => $value) {
+        if ($key === ':limit' || $key === ':offset') {
+            $stmt->bindValue($key, (int)$value, PDO::PARAM_INT);
+        } else {
+            $stmt->bindValue($key, $value);
+        }
+    }
+    
+    $stmt->execute();
+    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $total_pages = ceil($total / $per_page);
+    
+    return [
+        'data' => $data,
+        'total' => $total,
+        'total_pages' => $total_pages,
+        'current_page' => $page
+    ];
+}
+
+/**
+ * Recupera una campagna specifica per ID
+ */
+function getCampaignById($id) {
+    global $pdo;
+    
+    $sql = "SELECT c.*, 
+                   b.name as brand_name, 
+                   b.company_name,
+                   (SELECT COUNT(*) FROM campaign_views WHERE campaign_id = c.id) as views_count,
+                   (SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = c.id) as invited_count
+            FROM campaigns c 
+            LEFT JOIN users b ON c.brand_id = b.id 
+            WHERE c.id = ? AND c.deleted_at IS NULL";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Salva/aggiorna una campagna
+ */
+function saveCampaign($data, $id = null) {
+    global $pdo;
+    
+    try {
+        if ($id) {
+            // Update
+            $sql = "UPDATE campaigns SET 
+                    name = ?, description = ?, budget = ?, currency = ?, niche = ?, 
+                    platforms = ?, target_audience = ?, status = ?, start_date = ?, 
+                    end_date = ?, requirements = ?, is_public = ?, allow_applications = ?, 
+                    updated_at = NOW() 
+                    WHERE id = ?";
+            
+            $stmt = $pdo->prepare($sql);
+            $result = $stmt->execute([
+                $data['name'], $data['description'], $data['budget'], $data['currency'],
+                $data['niche'], $data['platforms'], $data['target_audience'], $data['status'],
+                $data['start_date'], $data['end_date'], $data['requirements'], 
+                $data['is_public'], $data['allow_applications'], $id
+            ]);
+        } else {
+            // Insert
+            $sql = "INSERT INTO campaigns 
+                    (brand_id, name, description, budget, currency, niche, platforms, 
+                     target_audience, status, start_date, end_date, requirements, 
+                     is_public, allow_applications, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+            
+            $stmt = $pdo->prepare($sql);
+            $result = $stmt->execute([
+                $data['brand_id'], $data['name'], $data['description'], $data['budget'],
+                $data['currency'], $data['niche'], $data['platforms'], $data['target_audience'],
+                $data['status'], $data['start_date'], $data['end_date'], $data['requirements'],
+                $data['is_public'], $data['allow_applications']
+            ]);
+        }
+        
+        return $result;
+    } catch (PDOException $e) {
+        error_log("Errore salvataggio campagna: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Aggiorna lo stato di una campagna
+ */
+function updateCampaignStatus($campaign_id, $status) {
+    global $pdo;
+    
+    $sql = "UPDATE campaigns SET status = ?, updated_at = NOW() WHERE id = ?";
+    $stmt = $pdo->prepare($sql);
+    return $stmt->execute([$status, $campaign_id]);
+}
+
+/**
+ * Conta le campagne per stato
+ */
+function getCampaignsCount($status = null) {
+    global $pdo;
+    
+    $sql = "SELECT COUNT(*) FROM campaigns WHERE deleted_at IS NULL";
+    
+    if ($status) {
+        $sql .= " AND status = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$status]);
+    } else {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+    }
+    
+    return $stmt->fetchColumn();
+}
+
+/**
+ * Recupera tutti i brand per i dropdown
+ */
+function getAllBrands() {
+    global $pdo;
+    
+    $sql = "SELECT id, name, company_name FROM users WHERE user_type = 'brand' AND deleted_at IS NULL ORDER BY company_name, name";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute();
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Verifica se una campagna esiste
+ */
+function campaignExists($campaign_id) {
+    global $pdo;
+    
+    $sql = "SELECT COUNT(*) FROM campaigns WHERE id = ? AND deleted_at IS NULL";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$campaign_id]);
+    
+    return $stmt->fetchColumn() > 0;
+}
+
+/**
+ * Ottiene statistiche dettagliate per una campagna
+ */
+function getCampaignStats($campaign_id) {
+    global $pdo;
+    
+    $stats = [
+        'views' => 0,
+        'invitations' => 0,
+        'applications' => 0,
+        'accepted_invitations' => 0
+    ];
+    
+    try {
+        // Visualizzazioni
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM campaign_views WHERE campaign_id = ?");
+        $stmt->execute([$campaign_id]);
+        $stats['views'] = $stmt->fetchColumn();
+        
+        // Inviti totali
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = ?");
+        $stmt->execute([$campaign_id]);
+        $stats['invitations'] = $stmt->fetchColumn();
+        
+        // Inviti accettati
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = ? AND status = 'accepted'");
+        $stmt->execute([$campaign_id]);
+        $stats['accepted_invitations'] = $stmt->fetchColumn();
+        
+        // Applicazioni (se supportate)
+        if (table_exists($pdo, 'campaign_applications')) {
+            $stmt = $pdo->prepare("SELECT COUNT(*) FROM campaign_applications WHERE campaign_id = ?");
+            $stmt->execute([$campaign_id]);
+            $stats['applications'] = $stmt->fetchColumn();
+        }
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero statistiche campagna: " . $e->getMessage());
+    }
+    
+    return $stats;
+}
+
+/**
+ * Elimina definitivamente una campagna (hard delete)
+ */
+function hardDeleteCampaign($campaign_id) {
+    global $pdo;
+    
+    try {
+        $pdo->beginTransaction();
+        
+        // Elimina visualizzazioni correlate
+        if (table_exists($pdo, 'campaign_views')) {
+            $stmt = $pdo->prepare("DELETE FROM campaign_views WHERE campaign_id = ?");
+            $stmt->execute([$campaign_id]);
+        }
+        
+        // Elimina inviti correlati
+        if (table_exists($pdo, 'campaign_invitations')) {
+            $stmt = $pdo->prepare("DELETE FROM campaign_invitations WHERE campaign_id = ?");
+            $stmt->execute([$campaign_id]);
+        }
+        
+        // Elimina applicazioni correlate
+        if (table_exists($pdo, 'campaign_applications')) {
+            $stmt = $pdo->prepare("DELETE FROM campaign_applications WHERE campaign_id = ?");
+            $stmt->execute([$campaign_id]);
+        }
+        
+        // Elimina la campagna
+        $stmt = $pdo->prepare("DELETE FROM campaigns WHERE id = ?");
+        $result = $stmt->execute([$campaign_id]);
+        
+        $pdo->commit();
+        return $result;
+        
+    } catch (PDOException $e) {
+        $pdo->rollBack();
+        error_log("Errore eliminazione campagna: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Duplica una campagna esistente
+ */
+function duplicateCampaign($campaign_id) {
+    global $pdo;
+    
+    try {
+        $campaign = getCampaignById($campaign_id);
+        if (!$campaign) {
+            return false;
+        }
+        
+        $sql = "INSERT INTO campaigns 
+                (brand_id, name, description, budget, currency, niche, platforms, 
+                 target_audience, status, start_date, end_date, requirements, 
+                 is_public, allow_applications, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, NOW(), NOW())";
+        
+        $new_name = $campaign['name'] . ' - Copia';
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            $campaign['brand_id'],
+            $new_name,
+            $campaign['description'],
+            $campaign['budget'],
+            $campaign['currency'],
+            $campaign['niche'],
+            $campaign['platforms'],
+            $campaign['target_audience'],
+            $campaign['start_date'],
+            $campaign['end_date'],
+            $campaign['requirements'],
+            $campaign['is_public'],
+            $campaign['allow_applications']
+        ]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore duplicazione campagna: " . $e->getMessage());
         return false;
     }
 }

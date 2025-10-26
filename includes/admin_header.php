@@ -30,6 +30,7 @@ check_admin_session_timeout();
 
 // Determina se siamo nella pagina settings per mantenere il menu aperto
 $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
+$is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php']);
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -64,7 +65,6 @@ $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
         .stat-card:hover {
             transform: translateY(-5px);
         }
-        /* RIMOSSO: .maintenance-badge e animazione blink */
         .navbar-brand {
             font-weight: 600;
         }
@@ -86,7 +86,6 @@ $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
         <div class="container-fluid">
             <a class="navbar-brand" href="/infl/admin/dashboard.php">
                 <i class="fas fa-crown me-2"></i>Admin Panel
-                <!-- RIMOSSO: Badge manutenzione lampeggiante accanto al logo -->
             </a>
             <div class="d-flex">
                 <span class="navbar-text me-3">
@@ -126,22 +125,40 @@ $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
                                 <i class="fas fa-building me-2"></i> Brands
                             </a>
                         </li>
+                        
+                        <!-- Menu Moderazione a tendina - SEMPLIFICATO -->
                         <li class="nav-item">
-                            <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'moderation.php' ? 'active' : ''; ?>" href="/infl/admin/moderation.php">
+                            <a class="nav-link <?php echo $is_moderation_page ? '' : 'collapsed'; ?>" 
+                               data-bs-toggle="collapse" 
+                               href="#moderationSubmenu" 
+                               role="button" 
+                               aria-expanded="<?php echo $is_moderation_page ? 'true' : 'false'; ?>" 
+                               aria-controls="moderationSubmenu">
                                 <i class="fas fa-shield-alt me-2"></i> Moderazione
+                                <i class="fas fa-chevron-down float-end mt-1"></i>
                             </a>
+                            <div class="collapse <?php echo $is_moderation_page ? 'show' : ''; ?>" id="moderationSubmenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'brand-campaigns.php' ? 'active' : ''; ?>" 
+                                           href="/infl/admin/brand-campaigns.php">
+                                            <i class="fas fa-bullhorn me-2"></i> Campagne Brand
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
                         </li>
+
+                        <!-- Menu Impostazioni a tendina -->
                         <li class="nav-item">
-                            <a class="nav-link <?php echo $is_settings_page ? '' : 'collapsed'; ?> d-flex justify-content-between align-items-center" 
+                            <a class="nav-link <?php echo $is_settings_page ? '' : 'collapsed'; ?>" 
                                data-bs-toggle="collapse" 
                                href="#settingsSubmenu" 
                                role="button" 
                                aria-expanded="<?php echo $is_settings_page ? 'true' : 'false'; ?>" 
                                aria-controls="settingsSubmenu">
-                                <div>
-                                    <i class="fas fa-cog me-2"></i> Impostazioni
-                                </div>
-                                <i class="fas fa-chevron-down"></i>
+                                <i class="fas fa-cog me-2"></i> Impostazioni
+                                <i class="fas fa-chevron-down float-end mt-1"></i>
                             </a>
                             <div class="collapse <?php echo $is_settings_page ? 'show' : ''; ?>" id="settingsSubmenu">
                                 <ul class="nav flex-column ms-3">
@@ -191,3 +208,5 @@ $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
                     </div>
                 </div>
                 <?php endif; ?>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
