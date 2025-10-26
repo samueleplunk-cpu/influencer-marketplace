@@ -529,6 +529,17 @@ function formatDate($date, $format = 'd/m/Y H:i') {
 // =============================================================================
 
 /**
+ * Elimina una campagna (soft delete)
+ */
+function deleteCampaign($campaign_id) {
+    global $pdo;
+    
+    $sql = "UPDATE campaigns SET deleted_at = NOW(), updated_at = NOW() WHERE id = ?";
+    $stmt = $pdo->prepare($sql);
+    return $stmt->execute([$campaign_id]);
+}
+
+/**
  * Recupera la lista delle campagne con filtri e paginazione
  */
 function getCampaigns($page = 1, $per_page = 15, $filters = []) {

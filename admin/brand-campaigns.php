@@ -67,8 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $message = '<div class="alert alert-info">Campagna completata</div>';
                 break;
             case 'delete':
-                updateCampaignStatus($campaign_id, 'deleted');
-                $message = '<div class="alert alert-info">Campagna eliminata</div>';
+                // MODIFICA: Usa la nuova funzione deleteCampaign per soft delete
+                $success = deleteCampaign($campaign_id);
+                if ($success) {
+                    $message = '<div class="alert alert-info">Campagna eliminata con successo</div>';
+                } else {
+                    $message = '<div class="alert alert-danger">Errore nell\'eliminazione della campagna</div>';
+                }
                 break;
         }
     }
