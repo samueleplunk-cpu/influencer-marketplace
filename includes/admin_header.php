@@ -48,6 +48,7 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
         .sidebar .nav-link {
             color: #fff;
             padding: 0.75rem 1rem;
+            cursor: pointer;
         }
         .sidebar .nav-link:hover {
             background-color: #495057;
@@ -126,7 +127,7 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
                             </a>
                         </li>
                         
-                        <!-- Menu Moderazione a tendina - SEMPLIFICATO -->
+                        <!-- Menu Moderazione a tendina -->
                         <li class="nav-item">
                             <a class="nav-link <?php echo $is_moderation_page ? '' : 'collapsed'; ?>" 
                                data-bs-toggle="collapse" 
@@ -210,3 +211,39 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
                 <?php endif; ?>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// SOLUZIONE SEMPLICE E FUNZIONANTE PER IL TOGGLE
+document.addEventListener('DOMContentLoaded', function() {
+    const dropdownToggles = document.querySelectorAll('.sidebar [data-bs-toggle="collapse"]');
+    
+    dropdownToggles.forEach(toggle => {
+        toggle.addEventListener('click', function(e) {
+            const target = document.querySelector(this.getAttribute('href'));
+            
+            if (target && target.classList.contains('show')) {
+                // Se il menu è già aperto, chiudiamo solo questo e non apriamo altri
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // Usiamo l'API Bootstrap per chiudere
+                const bsCollapse = bootstrap.Collapse.getInstance(target) || new bootstrap.Collapse(target, { toggle: false });
+                bsCollapse.hide();
+            } else {
+                // Se il menu è chiuso, chiudiamo tutti gli altri menu aperti prima di aprire questo
+                dropdownToggles.forEach(otherToggle => {
+                    if (otherToggle !== this) {
+                        const otherTarget = document.querySelector(otherToggle.getAttribute('href'));
+                        if (otherTarget && otherTarget.classList.contains('show')) {
+                            const bsOtherCollapse = bootstrap.Collapse.getInstance(otherTarget) || new bootstrap.Collapse(otherTarget, { toggle: false });
+                            bsOtherCollapse.hide();
+                        }
+                    }
+                });
+                // Bootstrap gestirà l'apertura automaticamente
+            }
+        });
+    });
+});
+</script>
+</body>
+</html>
