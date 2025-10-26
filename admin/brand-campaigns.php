@@ -1,8 +1,4 @@
 <?php
-// Debug - mostra tutti gli errori
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 // Includi file necessari
 require_once '../includes/config.php';
 require_once '../includes/admin_functions.php';
@@ -300,11 +296,7 @@ if ($action === 'list') {
                                                             <i class="fas fa-building text-white"></i>
                                                         </div>
                                                         <div>
-                                                            <strong><?php echo htmlspecialchars($campaign['brand_name']); ?></strong>
-                                                            <?php if ($campaign['company_name']): ?>
-                                                                <br>
-                                                                <small class="text-muted"><?php echo htmlspecialchars($campaign['company_name']); ?></small>
-                                                            <?php endif; ?>
+                                                            <strong><?php echo htmlspecialchars($campaign['brand_display_name']); ?></strong>
                                                         </div>
                                                     </div>
                                                 </td>
