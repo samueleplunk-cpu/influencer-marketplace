@@ -47,15 +47,15 @@ try {
     
     // Recupera campagne
     $stmt = $pdo->prepare("
-        SELECT c.*, 
-               COUNT(ci.id) as influencer_count,
-               COUNT(CASE WHEN ci.status = 'accepted' THEN 1 END) as accepted_count
-        FROM campaigns c 
-        LEFT JOIN campaign_influencers ci ON c.id = ci.campaign_id
-        WHERE c.brand_id = ?
-        GROUP BY c.id
-        ORDER BY c.created_at DESC
-    ");
+    SELECT c.*, 
+           COUNT(ci.id) as influencer_count,
+           COUNT(CASE WHEN ci.status = 'accepted' THEN 1 END) as accepted_count
+    FROM campaigns c 
+    LEFT JOIN campaign_influencers ci ON c.id = ci.campaign_id
+    WHERE c.brand_id = ? AND c.deleted_at IS NULL
+    GROUP BY c.id
+    ORDER BY c.created_at DESC
+");
     $stmt->execute([$brand['id']]);
     $campaigns = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
