@@ -55,25 +55,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         switch($action_type) {
             case 'pause':
-                updateCampaignStatus($campaign_id, 'paused');
-                $message = '<div class="alert alert-warning">Campagna messa in pausa</div>';
+                // Nuova gestione pausa con richiesta documenti
+                if (isset($_POST['pause_reason']) && !empty($_POST['pause_reason'])) {
+                    $pause_data = [
+                        'campaign_id' => $campaign_id,
+                        'admin_id' => $_SESSION['admin_id'],
+                        'pause_reason' => $_POST['pause_reason'],
+                        'required_documents' => isset($_POST['required_documents']) ? $_POST['required_documents'] : '',
+                        'deadline' => isset($_POST['deadline']) ? $_POST['deadline'] : null
+                    ];
+                    
+                    $success = createPauseRequest($pause_data);
+                    if ($success) {
+                        updateCampaignStatus($campaign_id, 'paused');
+                        $message = '<div class="alert alert-warning">Campagna messa in pausa con richiesta integrazioni</div>';
+                    } else {
+                        $message = '<div class="alert alert-danger">Errore nella creazione della richiesta di pausa</div>';
+                    }
+                } else {
+                    $message = '<div class="alert alert-danger">Motivo della pausa obbligatorio</div>';
+                }
                 break;
+                
             case 'resume':
                 updateCampaignStatus($campaign_id, 'active');
+                // Completa eventuali richieste di pausa pendenti
+                completePendingPauseRequests($campaign_id);
                 $message = '<div class="alert alert-success">Campagna ripresa</div>';
                 break;
+                
             case 'complete':
                 updateCampaignStatus($campaign_id, 'completed');
                 $message = '<div class="alert alert-info">Campagna completata</div>';
                 break;
+                
             case 'delete':
-                // MODIFICA: Usa la nuova funzione deleteCampaign per soft delete
                 $success = deleteCampaign($campaign_id);
                 if ($success) {
                     $message = '<div class="alert alert-info">Campagna eliminata con successo</div>';
                 } else {
                     $message = '<div class="alert alert-danger">Errore nell\'eliminazione della campagna</div>';
                 }
+                break;
+        }
+    }
+    
+    // Gestione richieste di pausa
+    if (isset($_POST['update_pause_request'])) {
+        $request_id = intval($_POST['pause_request_id']);
+        $action = $_POST['request_action'];
+        
+        switch($action) {
+            case 'complete':
+                $success = completePauseRequest($request_id);
+                $message = $success ? 
+                    '<div class="alert alert-success">Richiesta contrassegnata come completata</div>' :
+                    '<div class="alert alert-danger">Errore nell\'aggiornamento</div>';
+                break;
+                
+            case 'cancel':
+                $success = cancelPauseRequest($request_id);
+                $message = $success ? 
+                    '<div class="alert alert-info">Richiesta cancellata</div>' :
+                    '<div class="alert alert-danger">Errore nella cancellazione</div>';
                 break;
         }
     }
@@ -267,12 +311,17 @@ if ($action === 'list') {
                                             <th>Budget</th>
                                             <th>Stato</th>
                                             <th>Date</th>
-                                            <th>Statistiche</th>
+                                            <th>Richieste Pausa</th>
                                             <th>Azioni</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <?php foreach ($campaigns as $campaign): ?>
+                                        <?php foreach ($campaigns as $campaign): 
+                                            $pause_requests = getCampaignPauseRequests($campaign['id']);
+                                            $pending_requests = array_filter($pause_requests, function($req) {
+                                                return $req['status'] === 'pending';
+                                            });
+                                        ?>
                                             <tr>
                                                 <td>
                                                     <div class="d-flex align-items-center">
@@ -317,6 +366,9 @@ if ($action === 'list') {
                                                             break;
                                                         case 'paused':
                                                             $status_badge = '<span class="badge bg-warning"><i class="fas fa-pause me-1"></i> In pausa</span>';
+                                                            if (count($pending_requests) > 0) {
+                                                                $status_badge .= ' <span class="badge bg-danger" title="Richieste integrazioni pendenti"><i class="fas fa-exclamation-circle"></i></span>';
+                                                            }
                                                             break;
                                                         case 'completed':
                                                             $status_badge = '<span class="badge bg-info"><i class="fas fa-check me-1"></i> Completata</span>';
@@ -341,19 +393,18 @@ if ($action === 'list') {
                                                     </small>
                                                 </td>
                                                 <td>
-                                                    <div class="d-flex gap-2">
-                                                        <span class="badge bg-info" title="Visualizzazioni">
-                                                            <i class="fas fa-eye me-1"></i> <?php echo $campaign['views_count'] ?? 0; ?>
-                                                        </span>
-                                                        <span class="badge bg-success" title="Influencer invitati">
-                                                            <i class="fas fa-users me-1"></i> <?php echo $campaign['invited_count'] ?? 0; ?>
-                                                        </span>
-                                                        <?php if ($campaign['allow_applications']): ?>
-                                                            <span class="badge bg-primary" title="Accetta applicazioni">
-                                                                <i class="fas fa-user-plus"></i>
+                                                    <?php if (count($pause_requests) > 0): ?>
+                                                        <div class="small">
+                                                            <span class="badge bg-<?php echo count($pending_requests) > 0 ? 'warning' : 'secondary'; ?>">
+                                                                <?php echo count($pending_requests); ?> pendenti
                                                             </span>
-                                                        <?php endif; ?>
-                                                    </div>
+                                                            <span class="badge bg-info">
+                                                                <?php echo count($pause_requests); ?> totali
+                                                            </span>
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <span class="text-muted small">Nessuna</span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
                                                     <div class="btn-group btn-group-sm">
@@ -365,15 +416,12 @@ if ($action === 'list') {
                                                         
                                                         <!-- Pausa/Riprendi -->
                                                         <?php if ($campaign['status'] === 'active'): ?>
-                                                            <form method="post" class="d-inline">
-                                                                <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
-                                                                <input type="hidden" name="action_type" value="pause">
-                                                                <button type="submit" class="btn btn-outline-warning" 
-                                                                        onclick="return confirm('Metti in pausa questa campagna?')"
-                                                                        title="Metti in pausa">
-                                                                    <i class="fas fa-pause"></i>
-                                                                </button>
-                                                            </form>
+                                                            <button type="button" class="btn btn-outline-warning" 
+                                                                    data-bs-toggle="modal" 
+                                                                    data-bs-target="#pauseModal<?php echo $campaign['id']; ?>"
+                                                                    title="Metti in pausa">
+                                                                <i class="fas fa-pause"></i>
+                                                            </button>
                                                         <?php elseif ($campaign['status'] === 'paused'): ?>
                                                             <form method="post" class="d-inline">
                                                                 <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
@@ -412,6 +460,54 @@ if ($action === 'list') {
                                                     </div>
                                                 </td>
                                             </tr>
+
+                                            <!-- Modal Pausa Campagna -->
+                                            <div class="modal fade" id="pauseModal<?php echo $campaign['id']; ?>" tabindex="-1">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <form method="post">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title">Metti in Pausa Campagna</h5>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
+                                                                <input type="hidden" name="action_type" value="pause">
+                                                                
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Motivo della pausa <span class="text-danger">*</span></label>
+                                                                    <textarea class="form-control" name="pause_reason" rows="3" 
+                                                                              placeholder="Spiega al brand perché la campagna viene messa in pausa..." required></textarea>
+                                                                </div>
+                                                                
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Documenti richiesti (opzionale)</label>
+                                                                    <textarea class="form-control" name="required_documents" rows="2" 
+                                                                              placeholder="Specifica quali documenti o informazioni aggiuntive sono richiesti..."></textarea>
+                                                                    <div class="form-text">Es: Certificazioni, documenti fiscali, prove di conformità, etc.</div>
+                                                                </div>
+                                                                
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Scadenza per l'invio (opzionale)</label>
+                                                                    <input type="date" class="form-control" name="deadline" 
+                                                                           min="<?php echo date('Y-m-d'); ?>">
+                                                                </div>
+                                                                
+                                                                <div class="alert alert-info">
+                                                                    <small>
+                                                                        <i class="fas fa-info-circle"></i> 
+                                                                        Il brand riceverà una notifica e potrà caricare i documenti richiesti dalla dashboard della campagna.
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                                                                <button type="submit" class="btn btn-warning">Conferma Pausa</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>

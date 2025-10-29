@@ -234,7 +234,7 @@ require_once $header_file;
                     <div class="text-center py-5">
                         <h5>Nessuna candidatura trovata</h5>
                         <p class="text-muted">
-                            <?php echo $stats['total'] > 0 ? 'Le tue candidature per campagne eliminate non vengono mostrate. Prova a modificare i filtri di ricerca.' : 'Non hai ancora inviato candidature.'; ?>
+                            <?php echo $stats['total'] > 0 ? 'Candidati subito ed inizia a collaborare con i nostri Brand' : 'Non hai ancora inviato candidature.'; ?>
                         </p>
                         <?php if ($stats['total'] === 0): ?>
                             <a href="../campaigns/list.php" class="btn btn-primary">

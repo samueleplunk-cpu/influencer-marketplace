@@ -74,6 +74,34 @@ try {
         die("Campagna non trovata o accesso negato");
     }
     
+    // Recupera richieste di pausa per questa campagna
+    $pause_requests_stmt = $pdo->prepare("
+        SELECT cpr.*, a.username as admin_name 
+        FROM campaign_pause_requests cpr 
+        LEFT JOIN admins a ON cpr.admin_id = a.id 
+        WHERE cpr.campaign_id = ? 
+        ORDER BY cpr.created_at DESC
+    ");
+    $pause_requests_stmt->execute([$campaign_id]);
+    $pause_requests = $pause_requests_stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Recupera documenti caricati per le richieste di pausa
+    $pause_documents = [];
+    if (!empty($pause_requests)) {
+        $request_ids = array_column($pause_requests, 'id');
+        $placeholders = str_repeat('?,', count($request_ids) - 1) . '?';
+        
+        $documents_stmt = $pdo->prepare("
+            SELECT cpd.*, cpr.campaign_id 
+            FROM campaign_pause_documents cpd 
+            JOIN campaign_pause_requests cpr ON cpd.pause_request_id = cpr.id 
+            WHERE cpd.pause_request_id IN ($placeholders)
+            ORDER BY cpd.uploaded_at DESC
+        ");
+        $documents_stmt->execute($request_ids);
+        $pause_documents = $documents_stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
     // Conta totale influencer
     $count_stmt = $pdo->prepare("
         SELECT COUNT(*) 
@@ -138,6 +166,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
     } catch (PDOException $e) {
         $error = "Errore nell'aggiornamento: " . $e->getMessage();
+    }
+}
+
+// =============================================
+// GESTIONE UPLOAD DOCUMENTI PAUSA
+// =============================================
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_document'])) {
+    try {
+        $pause_request_id = intval($_POST['pause_request_id']);
+        
+        // Verifica che la richiesta di pausa appartenga a questa campagna
+        $check_stmt = $pdo->prepare("
+            SELECT cpr.* 
+            FROM campaign_pause_requests cpr 
+            JOIN campaigns c ON cpr.campaign_id = c.id 
+            JOIN brands b ON c.brand_id = b.id 
+            WHERE cpr.id = ? AND b.user_id = ? AND cpr.status = 'pending'
+        ");
+        $check_stmt->execute([$pause_request_id, $_SESSION['user_id']]);
+        $pause_request = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$pause_request) {
+            $error = "Richiesta di pausa non valida o già completata";
+        } elseif (empty($_FILES['document']['name'])) {
+            $error = "Seleziona un file da caricare";
+        } else {
+            // Gestione upload file
+            $upload_result = handlePauseDocumentUpload($_FILES['document'], $pause_request_id, $_SESSION['user_id']);
+            
+            if ($upload_result['success']) {
+                $_SESSION['success_message'] = "Documento caricato con successo!";
+                header("Location: campaign-details.php?id=" . $campaign_id);
+                exit();
+            } else {
+                $error = $upload_result['error'];
+            }
+        }
+    } catch (PDOException $e) {
+        $error = "Errore nel caricamento del documento: " . $e->getMessage();
     }
 }
 
@@ -343,6 +410,114 @@ require_once $header_file;
                 <?php endif; ?>
             </div>
         </div>
+
+        <!-- SEZIONE RICHIESTE INTEGRAZIONI PAUSA -->
+        <?php if (!empty($pause_requests) && $campaign['status'] === 'paused'): ?>
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Richieste Integrazioni
+                </h5>
+            </div>
+            <div class="card-body">
+                <?php foreach ($pause_requests as $request): 
+                    $request_documents = array_filter($pause_documents, function($doc) use ($request) {
+                        return $doc['pause_request_id'] == $request['id'];
+                    });
+                    $is_pending = $request['status'] === 'pending';
+                    $is_overdue = $request['deadline'] && strtotime($request['deadline']) < time();
+                ?>
+                    <div class="border rounded p-3 mb-3 <?php echo $is_overdue && $is_pending ? 'border-danger' : 'border-warning'; ?>">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="mb-0">
+                                Richiesta del <?php echo date('d/m/Y H:i', strtotime($request['created_at'])); ?>
+                                <?php if ($request['admin_name']): ?>
+                                    <small class="text-muted">da <?php echo htmlspecialchars($request['admin_name']); ?></small>
+                                <?php endif; ?>
+                            </h6>
+                            <span class="badge bg-<?php echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 'success'; ?>">
+                                <?php echo $is_pending ? ($is_overdue ? 'Scaduta' : 'In attesa') : 'Completata'; ?>
+                            </span>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Motivo della pausa:</strong>
+                            <p class="mb-1"><?php echo nl2br(htmlspecialchars($request['pause_reason'])); ?></p>
+                        </div>
+                        
+                        <?php if (!empty($request['required_documents'])): ?>
+                        <div class="mb-3">
+                            <strong>Documenti richiesti:</strong>
+                            <p class="mb-1"><?php echo nl2br(htmlspecialchars($request['required_documents'])); ?></p>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <?php if ($request['deadline']): ?>
+                        <div class="mb-3">
+                            <strong>Scadenza:</strong>
+                            <span class="<?php echo $is_overdue && $is_pending ? 'text-danger fw-bold' : ''; ?>">
+                                <?php echo date('d/m/Y', strtotime($request['deadline'])); ?>
+                                <?php if ($is_overdue && $is_pending): ?>
+                                    <i class="fas fa-exclamation-triangle ms-1"></i>
+                                <?php endif; ?>
+                            </span>
+                        </div>
+                        <?php endif; ?>
+                        
+                        <!-- Documenti caricati -->
+                        <div class="mb-3">
+                            <strong>Documenti caricati:</strong>
+                            <?php if (!empty($request_documents)): ?>
+                                <div class="mt-2">
+                                    <?php foreach ($request_documents as $doc): ?>
+                                        <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+                                            <div>
+                                                <i class="fas fa-file me-2"></i>
+                                                <a href="<?php echo htmlspecialchars($doc['file_path']); ?>" 
+                                                   target="_blank" class="text-decoration-none">
+                                                    <?php echo htmlspecialchars($doc['original_name']); ?>
+                                                </a>
+                                                <small class="text-muted ms-2">
+                                                    (<?php echo formatFileSize($doc['file_size']); ?>)
+                                                </small>
+                                            </div>
+                                            <small class="text-muted">
+                                                <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
+                                            </small>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php else: ?>
+                                <p class="text-muted mb-2">Nessun documento caricato</p>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <!-- Form upload documenti (solo per richieste pendenti) -->
+                        <?php if ($is_pending): ?>
+                        <div class="border-top pt-3">
+                            <form method="post" enctype="multipart/form-data">
+                                <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
+                                
+                                <div class="mb-3">
+                                    <label class="form-label">Carica documento</label>
+                                    <input type="file" class="form-control" name="document" 
+                                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" required>
+                                    <div class="form-text">
+                                        Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 10MB)
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" name="upload_document" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-upload me-1"></i> Carica Documento
+                                </button>
+                            </form>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                <?php endforeach; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Lista Influencer Matching -->
         <div class="card">
@@ -655,6 +830,100 @@ require_once $header_file;
 </style>
 
 <?php
+// =============================================
+// FUNZIONI HELPER
+// =============================================
+
+/**
+ * Formatta la dimensione del file in formato leggibile
+ */
+function formatFileSize($bytes) {
+    if ($bytes == 0) return "0 Bytes";
+    $k = 1024;
+    $sizes = ["Bytes", "KB", "MB", "GB"];
+    $i = floor(log($bytes) / log($k));
+    return round($bytes / pow($k, $i), 2) . " " . $sizes[$i];
+}
+
+/**
+ * Gestisce l'upload dei documenti per le richieste di pausa
+ */
+function handlePauseDocumentUpload($file, $pause_request_id, $user_id) {
+    global $pdo;
+    
+    // Configurazione upload
+    $upload_dir = dirname(__DIR__) . '/uploads/pause_documents/';
+    $max_file_size = 10 * 1024 * 1024; // 10MB
+    $allowed_types = [
+        'pdf' => 'application/pdf',
+        'doc' => 'application/msword',
+        'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'txt' => 'text/plain'
+    ];
+    
+    // Crea directory se non esiste
+    if (!file_exists($upload_dir)) {
+        mkdir($upload_dir, 0755, true);
+    }
+    
+    // Validazioni
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return ['success' => false, 'error' => 'Errore nel caricamento del file'];
+    }
+    
+    if ($file['size'] > $max_file_size) {
+        return ['success' => false, 'error' => 'File troppo grande (max 10MB)'];
+    }
+    
+    $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    $file_type = $file['type'];
+    
+    if (!in_array($file_extension, array_keys($allowed_types)) || 
+        !in_array($file_type, array_values($allowed_types))) {
+        return ['success' => false, 'error' => 'Tipo file non supportato'];
+    }
+    
+    // Genera nome file sicuro
+    $filename = uniqid() . '_' . preg_replace('/[^a-zA-Z0-9\._-]/', '_', $file['name']);
+    $file_path = $upload_dir . $filename;
+    
+    // Sposta file
+    if (!move_uploaded_file($file['tmp_name'], $file_path)) {
+        return ['success' => false, 'error' => 'Errore nel salvataggio del file'];
+    }
+    
+    // Salva nel database
+    try {
+        $stmt = $pdo->prepare("
+            INSERT INTO campaign_pause_documents 
+            (pause_request_id, filename, original_name, file_path, file_size, file_type, uploaded_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ");
+        
+        $stmt->execute([
+            $pause_request_id,
+            $filename,
+            $file['name'],
+            $file_path,
+            $file['size'],
+            $file_type,
+            $user_id
+        ]);
+        
+        return ['success' => true, 'file_path' => $file_path];
+        
+    } catch (PDOException $e) {
+        // Cancella file in caso di errore database
+        if (file_exists($file_path)) {
+            unlink($file_path);
+        }
+        return ['success' => false, 'error' => 'Errore nel salvataggio nel database'];
+    }
+}
+
 // =============================================
 // INCLUSIONE FOOTER
 // =============================================

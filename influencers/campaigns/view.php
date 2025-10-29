@@ -55,23 +55,10 @@ $campaign_id = intval($_GET['id']);
 $campaign = null;
 $has_applied = false;
 $application = null;
+$campaign_paused = false;
 
 try {
-    // Recupera campagna
-    $stmt = $pdo->prepare("
-        SELECT c.*, b.company_name, b.website as brand_website, b.description as brand_description
-        FROM campaigns c
-        JOIN brands b ON c.brand_id = b.id
-        WHERE c.id = ? AND c.status = 'active' AND c.is_public = TRUE AND c.allow_applications = TRUE
-    ");
-    $stmt->execute([$campaign_id]);
-    $campaign = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$campaign) {
-        die("Campagna non trovata o non disponibile");
-    }
-    
-    // Verifica se l'influencer si è già candidato
+    // Verifica prima se l'influencer si è candidato
     $stmt = $pdo->prepare("
         SELECT * FROM campaign_applications 
         WHERE campaign_id = ? AND influencer_id = ?
@@ -79,6 +66,35 @@ try {
     $stmt->execute([$campaign_id, $influencer['id']]);
     $application = $stmt->fetch(PDO::FETCH_ASSOC);
     $has_applied = $application !== false;
+    
+    // Recupera campagna con condizioni diverse per campagne in pausa
+    if ($has_applied) {
+        // Se l'influencer ha già una candidatura, permette di vedere anche campagne in pausa
+        $stmt = $pdo->prepare("
+            SELECT c.*, b.company_name, b.website as brand_website, b.description as brand_description
+            FROM campaigns c
+            JOIN brands b ON c.brand_id = b.id
+            WHERE c.id = ? AND c.is_public = TRUE
+        ");
+    } else {
+        // Altrimenti, solo campagne attive
+        $stmt = $pdo->prepare("
+            SELECT c.*, b.company_name, b.website as brand_website, b.description as brand_description
+            FROM campaigns c
+            JOIN brands b ON c.brand_id = b.id
+            WHERE c.id = ? AND c.status = 'active' AND c.is_public = TRUE AND c.allow_applications = TRUE
+        ");
+    }
+    
+    $stmt->execute([$campaign_id]);
+    $campaign = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$campaign) {
+        die("Campagna non trovata o non disponibile");
+    }
+    
+    // Verifica se la campagna è in pausa
+    $campaign_paused = ($campaign['status'] === 'paused');
     
 } catch (PDOException $e) {
     die("Errore nel caricamento della campagna: " . $e->getMessage());
@@ -93,6 +109,8 @@ $error_msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['apply'])) {
     if ($has_applied) {
         $error_msg = "Ti sei già candidato a questa campagna.";
+    } elseif ($campaign_paused) {
+        $error_msg = "Non puoi candidarti a questa campagna perché è attualmente in fase di revisione.";
     } else {
         try {
             $pdo->beginTransaction();
@@ -189,10 +207,17 @@ require_once $header_file;
             <!-- Dettagli Campagna -->
             <div class="col-md-8">
                 <div class="card mb-4">
-                    <div class="card-header bg-primary text-white">
+                    <div class="card-header <?php echo $campaign_paused ? 'bg-warning' : 'bg-primary'; ?> text-white">
                         <h5 class="card-title mb-0"><?php echo htmlspecialchars($campaign['name']); ?></h5>
                     </div>
                     <div class="card-body">
+                        <?php if ($campaign_paused): ?>
+                            <div class="alert alert-warning">
+                                <strong>Campagna in fase di revisione</strong><br>
+                                Questa campagna è attualmente in fase di revisione. Il brand valuterà la tua candidatura e, se interessato, provvederà a contattarti.
+                            </div>
+                        <?php endif; ?>
+                        
                         <p class="card-text"><?php echo nl2br(htmlspecialchars($campaign['description'])); ?></p>
                         
                         <div class="row">
@@ -209,7 +234,11 @@ require_once $header_file;
                                 
                                 <div class="mb-3">
                                     <strong>Stato:</strong>
-                                    <span class="badge bg-success">Attiva</span>
+                                    <?php if ($campaign_paused): ?>
+                                        <span class="badge bg-warning">In fase di revisione</span>
+                                    <?php else: ?>
+                                        <span class="badge bg-success">Attiva</span>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             
@@ -323,10 +352,17 @@ require_once $header_file;
                     </div>
                     <div class="card-body text-center">
                         <?php if (!$has_applied): ?>
-                            <p class="card-text">Non ti sei ancora candidato a questa campagna</p>
-                            <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#applyModal">
-                                Candidati Ora
-                            </button>
+                            <?php if ($campaign_paused): ?>
+                                <p class="card-text text-muted">Campagna in fase di revisione</p>
+                                <button type="button" class="btn btn-secondary w-100" disabled>
+                                    Candidatura Non Disponibile
+                                </button>
+                            <?php else: ?>
+                                <p class="card-text">Non ti sei ancora candidato a questa campagna</p>
+                                <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#applyModal">
+                                    Candidati Ora
+                                </button>
+                            <?php endif; ?>
                         <?php else: ?>
                             <?php
                             $status_texts = [
@@ -448,7 +484,7 @@ require_once $header_file;
 </div>
 
 <!-- Modal Candidatura -->
-<?php if (!$has_applied): ?>
+<?php if (!$has_applied && !$campaign_paused): ?>
 <div class="modal fade" id="applyModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">

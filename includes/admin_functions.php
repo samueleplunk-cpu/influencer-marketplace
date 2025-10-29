@@ -865,4 +865,311 @@ function duplicateCampaign($campaign_id) {
         return false;
     }
 }
+
+// =============================================================================
+// FUNZIONI PER IL SISTEMA DI PAUSA CAMPAGNE E RICHIESTE DOCUMENTI
+// =============================================================================
+
+/**
+ * Crea una nuova richiesta di pausa per una campagna
+ */
+function createPauseRequest($data) {
+    global $pdo;
+    
+    try {
+        $sql = "INSERT INTO campaign_pause_requests 
+                (campaign_id, admin_id, pause_reason, required_documents, deadline, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, NOW(), NOW())";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            $data['campaign_id'],
+            $data['admin_id'],
+            $data['pause_reason'],
+            $data['required_documents'],
+            $data['deadline']
+        ]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore creazione richiesta pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Ottiene tutte le richieste di pausa per una campagna
+ */
+function getCampaignPauseRequests($campaign_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT cpr.*, a.username as admin_name 
+                FROM campaign_pause_requests cpr 
+                LEFT JOIN admins a ON cpr.admin_id = a.id 
+                WHERE cpr.campaign_id = ? 
+                ORDER BY cpr.created_at DESC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$campaign_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero richieste pausa: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Ottiene una specifica richiesta di pausa
+ */
+function getPauseRequest($request_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT cpr.*, a.username as admin_name, c.name as campaign_name, 
+                       b.company_name as brand_name, u.email as brand_email
+                FROM campaign_pause_requests cpr 
+                LEFT JOIN admins a ON cpr.admin_id = a.id 
+                JOIN campaigns c ON cpr.campaign_id = c.id 
+                JOIN brands b ON c.brand_id = b.id 
+                JOIN users u ON b.user_id = u.id 
+                WHERE cpr.id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$request_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero richiesta pausa: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Completa una richiesta di pausa
+ */
+function completePauseRequest($request_id) {
+    global $pdo;
+    
+    try {
+        $sql = "UPDATE campaign_pause_requests 
+                SET status = 'completed', updated_at = NOW() 
+                WHERE id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$request_id]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore completamento richiesta pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Cancella una richiesta di pausa
+ */
+function cancelPauseRequest($request_id) {
+    global $pdo;
+    
+    try {
+        $sql = "UPDATE campaign_pause_requests 
+                SET status = 'cancelled', updated_at = NOW() 
+                WHERE id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$request_id]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore cancellazione richiesta pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Completa tutte le richieste di pausa pendenti per una campagna
+ */
+function completePendingPauseRequests($campaign_id) {
+    global $pdo;
+    
+    try {
+        $sql = "UPDATE campaign_pause_requests 
+                SET status = 'completed', updated_at = NOW() 
+                WHERE campaign_id = ? AND status = 'pending'";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$campaign_id]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore completamento richieste pausa pendenti: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Ottiene i documenti caricati per una richiesta di pausa
+ */
+function getPauseRequestDocuments($pause_request_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT cpd.*, u.name as uploaded_by_name 
+                FROM campaign_pause_documents cpd 
+                LEFT JOIN users u ON cpd.uploaded_by = u.id 
+                WHERE cpd.pause_request_id = ? 
+                ORDER BY cpd.uploaded_at DESC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$pause_request_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero documenti pausa: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Conta le richieste di pausa pendenti per una campagna
+ */
+function countPendingPauseRequests($campaign_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT COUNT(*) FROM campaign_pause_requests 
+                WHERE campaign_id = ? AND status = 'pending'";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$campaign_id]);
+        return $stmt->fetchColumn();
+        
+    } catch (PDOException $e) {
+        error_log("Errore conteggio richieste pausa pendenti: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Ottiene statistiche sulle richieste di pausa
+ */
+function getPauseRequestsStats($timeframe = 'month') {
+    global $pdo;
+    
+    try {
+        $time_conditions = [
+            'week' => "created_at >= DATE_SUB(NOW(), INTERVAL 1 WEEK)",
+            'month' => "created_at >= DATE_SUB(NOW(), INTERVAL 1 MONTH)",
+            'year' => "created_at >= DATE_SUB(NOW(), INTERVAL 1 YEAR)"
+        ];
+        
+        $time_condition = $time_conditions[$timeframe] ?? $time_conditions['month'];
+        
+        $sql = "SELECT 
+                COUNT(*) as total_requests,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_requests,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_requests,
+                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_requests,
+                SUM(CASE WHEN deadline < CURDATE() AND status = 'pending' THEN 1 ELSE 0 END) as overdue_requests
+                FROM campaign_pause_requests 
+                WHERE $time_condition";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore statistiche richieste pausa: " . $e->getMessage());
+        return [
+            'total_requests' => 0,
+            'pending_requests' => 0,
+            'completed_requests' => 0,
+            'cancelled_requests' => 0,
+            'overdue_requests' => 0
+        ];
+    }
+}
+
+/**
+ * Invia notifica al brand per una nuova richiesta di pausa
+ */
+function sendPauseRequestNotification($pause_request_id) {
+    global $pdo;
+    
+    try {
+        $request = getPauseRequest($pause_request_id);
+        if (!$request) {
+            return false;
+        }
+        
+        // Qui puoi implementare l'invio di email o notifiche push
+        // Per ora, logghiamo l'evento
+        error_log("Notifica richiesta pausa: Campagna '{$request['campaign_name']}' - Brand: {$request['brand_email']}");
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Errore invio notifica pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Verifica se una campagna ha richieste di pausa pendenti
+ */
+function hasPendingPauseRequests($campaign_id) {
+    return countPendingPauseRequests($campaign_id) > 0;
+}
+
+/**
+ * Ottiene le richieste di pausa in scadenza
+ */
+function getExpiringPauseRequests($days_before = 3) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT cpr.*, c.name as campaign_name, b.company_name as brand_name,
+                       DATEDIFF(cpr.deadline, CURDATE()) as days_remaining
+                FROM campaign_pause_requests cpr 
+                JOIN campaigns c ON cpr.campaign_id = c.id 
+                JOIN brands b ON c.brand_id = b.id 
+                WHERE cpr.status = 'pending' 
+                AND cpr.deadline IS NOT NULL 
+                AND cpr.deadline BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+                ORDER BY cpr.deadline ASC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$days_before]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero richieste in scadenza: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Ottiene le richieste di pausa scadute
+ */
+function getOverduePauseRequests() {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT cpr.*, c.name as campaign_name, b.company_name as brand_name,
+                       DATEDIFF(CURDATE(), cpr.deadline) as days_overdue
+                FROM campaign_pause_requests cpr 
+                JOIN campaigns c ON cpr.campaign_id = c.id 
+                JOIN brands b ON c.brand_id = b.id 
+                WHERE cpr.status = 'pending' 
+                AND cpr.deadline IS NOT NULL 
+                AND cpr.deadline < CURDATE()
+                ORDER BY cpr.deadline ASC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero richieste scadute: " . $e->getMessage());
+        return [];
+    }
+}
 ?>
