@@ -80,6 +80,7 @@ try {
         WHERE c.status = 'active' 
           AND c.is_public = TRUE 
           AND c.allow_applications = TRUE
+          AND c.deleted_at IS NULL
     ";
     
     $count_query = "
@@ -88,6 +89,7 @@ try {
         WHERE c.status = 'active' 
           AND c.is_public = TRUE 
           AND c.allow_applications = TRUE
+          AND c.deleted_at IS NULL
     ";
     
     $params = [$influencer['id']];
@@ -163,7 +165,6 @@ if (!file_exists($header_file)) {
 require_once $header_file;
 ?>
 
-<!-- IL RESTO DEL CODICE HTML RIMANE INVARIATO -->
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
