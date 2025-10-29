@@ -1,13 +1,17 @@
 # DEVELOPMENT TRACKER - Influencer Marketplace
-*Ultimo aggiornamento: <?php echo date('Y-m-d'); ?>*
 
 ## 📋 PRIORITÀ DI SVILUPPO
 
 ### 🚨 PRIORITÀ 1 - Fix Critici (Urgenti)
-**Stato:** ⏳ In attesa
-- [ ] **FIX:** Influencer con candidatura esistente non può vedere dettagli campagna in pausa
+**Stato:** ✅ Completato
+- [x] **FIX:** Influencer con candidatura esistente non può vedere dettagli campagna in pausa
   - **File:** `/infl/influencers/campaigns/view.php`
   - **Obiettivo:** Permettere visualizzazione SOLO se ha candidatura, mostrare "Campagna in fase di revisione"
+  - **Implementazione:** 
+    - Logica di accesso modificata per permettere visualizzazione campagne in pausa solo a influencer con candidatura esistente
+    - UI aggiornata con stato "In fase di revisione" e badge giallo
+    - Pulsante candidatura disabilitato per campagne in pausa
+    - Mantenute tutte le funzionalità esistenti
 
 ### 🎯 PRIORITÀ 2 - Comunicazione Brand-Admin (Essenziali)
 **Stato:** 📝 Pianificato
@@ -33,6 +37,11 @@
 ## 🔧 MODIFICHE IMPLEMENTATE
 
 ### ✅ Completate
+- [x] **2024-XX-XX:** Fix critico - Influencer con candidatura vede campagne in pausa
+  - **File:** `/infl/influencers/campaigns/view.php`
+  - **Chat:** https://chat.deepseek.com/a/chat/s/2046c4b7-7166-45fc-9763-5e0ad3fadeb6
+  - **Dettagli:** Risolto problema "Campagna non trovata" per influencer con candidatura esistente quando admin mette in pausa campagna
+
 - [x] **2024-XX-XX:** Soft delete campagne - Filtro `deleted_at IS NULL` in listing influencer
   - **File:** `/infl/influencers/campaigns/list.php`
   - **Chat:** [Inserire link chat precedente]
