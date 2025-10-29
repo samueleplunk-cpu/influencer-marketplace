@@ -1,12 +1,5 @@
 <?php
 // =============================================
-// CONFIGURAZIONE ERRORI E SICUREZZA
-// =============================================
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-
-// =============================================
 // INCLUSIONE CONFIG CON PERCORSO ASSOLUTO CORRETTO
 // =============================================
 $config_file = dirname(dirname(dirname(__FILE__))) . '/includes/config.php';
@@ -70,6 +63,7 @@ try {
         JOIN campaigns c ON ca.campaign_id = c.id
         JOIN brands b ON c.brand_id = b.id
         WHERE ca.influencer_id = ?
+        AND c.deleted_at IS NULL
     ";
     
     $count_query = "
@@ -77,6 +71,7 @@ try {
         FROM campaign_applications ca
         JOIN campaigns c ON ca.campaign_id = c.id
         WHERE ca.influencer_id = ?
+        AND c.deleted_at IS NULL
     ";
     
     $params = [$influencer['id']];
@@ -120,6 +115,24 @@ try {
 }
 
 // =============================================
+// STATISTICHE (TUTTE LE CANDIDATURE)
+// =============================================
+try {
+    $stats_stmt = $pdo->prepare("
+        SELECT COUNT(*) as total,
+               COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted,
+               COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+               COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
+        FROM campaign_applications 
+        WHERE influencer_id = ?
+    ");
+    $stats_stmt->execute([$influencer['id']]);
+    $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
+} catch (PDOException $e) {
+    $stats = ['total' => 0, 'accepted' => 0, 'pending' => 0, 'rejected' => 0];
+}
+
+// =============================================
 // INCLUSIONE HEADER
 // =============================================
 $header_file = dirname(dirname(dirname(__FILE__))) . '/includes/header.php';
@@ -129,7 +142,6 @@ if (!file_exists($header_file)) {
 require_once $header_file;
 ?>
 
-<!-- IL RESTO DEL CODICE HTML RIMANE INVARIATO -->
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -174,19 +186,6 @@ require_once $header_file;
         </div>
 
         <!-- Statistiche -->
-        <?php
-        $stats_stmt = $pdo->prepare("
-            SELECT COUNT(*) as total,
-                   COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted,
-                   COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-                   COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
-            FROM campaign_applications 
-            WHERE influencer_id = ?
-        ");
-        $stats_stmt->execute([$influencer['id']]);
-        $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
-        ?>
-        
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card text-white bg-primary">
@@ -227,7 +226,7 @@ require_once $header_file;
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Tutte le Candidature</h5>
                 <small class="text-muted">
-                    <?php echo $total_applications; ?> risultati totali
+                    <?php echo $total_applications; ?> risultati totali (campagne attive)
                 </small>
             </div>
             <div class="card-body">
@@ -235,7 +234,7 @@ require_once $header_file;
                     <div class="text-center py-5">
                         <h5>Nessuna candidatura trovata</h5>
                         <p class="text-muted">
-                            <?php echo $stats['total'] > 0 ? 'Prova a modificare i filtri di ricerca.' : 'Non hai ancora inviato candidature.'; ?>
+                            <?php echo $stats['total'] > 0 ? 'Le tue candidature per campagne eliminate non vengono mostrate. Prova a modificare i filtri di ricerca.' : 'Non hai ancora inviato candidature.'; ?>
                         </p>
                         <?php if ($stats['total'] === 0): ?>
                             <a href="../campaigns/list.php" class="btn btn-primary">

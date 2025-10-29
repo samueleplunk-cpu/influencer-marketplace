@@ -1,13 +1,6 @@
 <?php
 
 // =============================================
-// CONFIGURAZIONE ERRORI E SICUREZZA
-// =============================================
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-
-// =============================================
 // INCLUSIONE CONFIG CON PERCORSO ASSOLUTO
 // =============================================
 $config_file = dirname(__DIR__) . '/includes/config.php';
@@ -73,7 +66,7 @@ $application_stats = [
 
 if ($influencer) {
     try {
-        // Recupera candidature recenti
+        // Recupera candidature recenti (SOLO campagne non eliminate)
         $stmt = $pdo->prepare("
             SELECT ca.*, c.name as campaign_name, c.budget, b.company_name,
                    ca.status, ca.created_at as application_date
@@ -81,13 +74,15 @@ if ($influencer) {
             JOIN campaigns c ON ca.campaign_id = c.id
             JOIN brands b ON c.brand_id = b.id
             WHERE ca.influencer_id = ?
+            AND c.deleted_at IS NULL
             ORDER BY ca.created_at DESC
             LIMIT 5
         ");
         $stmt->execute([$influencer['id']]);
         $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Statistiche candidature
+        // Statistiche candidature (TUTTE le candidature, anche per campagne eliminate)
+        // Questo per mantenere le statistiche accurate
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as total_applications,
                    COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_applications,
