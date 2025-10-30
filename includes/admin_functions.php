@@ -584,7 +584,7 @@ function getCampaigns($page = 1, $per_page = 15, $filters = []) {
     $stmt->execute($params);
     $total = $stmt->fetchColumn();
     
-    // Query per i dati - CORREZIONE: Query semplificata e funzionante
+    // Query per i dati
     $sql = "SELECT c.*, 
                    COALESCE(
                        NULLIF(u.company_name, ''), 
@@ -927,12 +927,11 @@ function getPauseRequest($request_id) {
     
     try {
         $sql = "SELECT cpr.*, a.username as admin_name, c.name as campaign_name, 
-                       b.company_name as brand_name, u.email as brand_email
+                       u.company_name as brand_name, u.email as brand_email
                 FROM campaign_pause_requests cpr 
                 LEFT JOIN admins a ON cpr.admin_id = a.id 
                 JOIN campaigns c ON cpr.campaign_id = c.id 
-                JOIN brands b ON c.brand_id = b.id 
-                JOIN users u ON b.user_id = u.id 
+                JOIN users u ON c.brand_id = u.id 
                 WHERE cpr.id = ?";
         
         $stmt = $pdo->prepare($sql);
@@ -1101,7 +1100,6 @@ function sendPauseRequestNotification($pause_request_id) {
         }
         
         // Qui puoi implementare l'invio di email o notifiche push
-        // Per ora, logghiamo l'evento
         error_log("Notifica richiesta pausa: Campagna '{$request['campaign_name']}' - Brand: {$request['brand_email']}");
         
         return true;
@@ -1126,11 +1124,11 @@ function getExpiringPauseRequests($days_before = 3) {
     global $pdo;
     
     try {
-        $sql = "SELECT cpr.*, c.name as campaign_name, b.company_name as brand_name,
+        $sql = "SELECT cpr.*, c.name as campaign_name, u.company_name as brand_name,
                        DATEDIFF(cpr.deadline, CURDATE()) as days_remaining
                 FROM campaign_pause_requests cpr 
                 JOIN campaigns c ON cpr.campaign_id = c.id 
-                JOIN brands b ON c.brand_id = b.id 
+                JOIN users u ON c.brand_id = u.id 
                 WHERE cpr.status = 'pending' 
                 AND cpr.deadline IS NOT NULL 
                 AND cpr.deadline BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
@@ -1153,11 +1151,11 @@ function getOverduePauseRequests() {
     global $pdo;
     
     try {
-        $sql = "SELECT cpr.*, c.name as campaign_name, b.company_name as brand_name,
+        $sql = "SELECT cpr.*, c.name as campaign_name, u.company_name as brand_name,
                        DATEDIFF(CURDATE(), cpr.deadline) as days_overdue
                 FROM campaign_pause_requests cpr 
                 JOIN campaigns c ON cpr.campaign_id = c.id 
-                JOIN brands b ON c.brand_id = b.id 
+                JOIN users u ON c.brand_id = u.id 
                 WHERE cpr.status = 'pending' 
                 AND cpr.deadline IS NOT NULL 
                 AND cpr.deadline < CURDATE()
@@ -1170,6 +1168,175 @@ function getOverduePauseRequests() {
     } catch (PDOException $e) {
         error_log("Errore recupero richieste scadute: " . $e->getMessage());
         return [];
+    }
+}
+
+// =============================================================================
+// FUNZIONI PER IL SISTEMA DI APPROVAZIONE DOCUMENTI
+// =============================================================================
+
+/**
+ * Aggiorna lo stato di una richiesta di pausa con commento admin
+ */
+function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $admin_id = null) {
+    global $pdo;
+    
+    try {
+        $sql = "UPDATE campaign_pause_requests 
+                SET status = ?, admin_review_comment = ?, admin_reviewed_by = ?, 
+                    admin_reviewed_at = NOW(), updated_at = NOW() 
+                WHERE id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            $status,
+            $admin_comment,
+            $admin_id,
+            $request_id
+        ]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore aggiornamento stato richiesta pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Ottiene la cronologia completa delle pause per una campagna
+ */
+function getCampaignPauseHistory($campaign_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT cpr.*, a.username as admin_name, 
+                       ar.username as reviewed_by_name,
+                       (SELECT COUNT(*) FROM campaign_pause_documents cpd WHERE cpd.pause_request_id = cpr.id) as documents_count
+                FROM campaign_pause_requests cpr 
+                LEFT JOIN admins a ON cpr.admin_id = a.id 
+                LEFT JOIN admins ar ON cpr.admin_reviewed_by = ar.id 
+                WHERE cpr.campaign_id = ? 
+                ORDER BY cpr.created_at DESC";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$campaign_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero cronologia pause: " . $e->getMessage());
+        return [];
+    }
+}
+
+/**
+ * Ottiene statistiche dettagliate per le richieste di pausa di una campagna
+ */
+function getCampaignPauseStats($campaign_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT 
+                COUNT(*) as total_requests,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_requests,
+                SUM(CASE WHEN status = 'documents_uploaded' THEN 1 ELSE 0 END) as documents_uploaded_requests,
+                SUM(CASE WHEN status = 'under_review' THEN 1 ELSE 0 END) as under_review_requests,
+                SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_requests,
+                SUM(CASE WHEN status = 'changes_requested' THEN 1 ELSE 0 END) as changes_requested_requests,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_requests,
+                SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelled_requests
+                FROM campaign_pause_requests 
+                WHERE campaign_id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$campaign_id]);
+        return $stmt->fetch(PDO::FETCH_ASSOC);
+        
+    } catch (PDOException $e) {
+        error_log("Errore statistiche pause campagna: " . $e->getMessage());
+        return [
+            'total_requests' => 0,
+            'pending_requests' => 0,
+            'documents_uploaded_requests' => 0,
+            'under_review_requests' => 0,
+            'approved_requests' => 0,
+            'changes_requested_requests' => 0,
+            'completed_requests' => 0,
+            'cancelled_requests' => 0
+        ];
+    }
+}
+
+/**
+ * Contrassegna una richiesta di pausa come "in revisione"
+ */
+function markPauseRequestUnderReview($request_id, $admin_id) {
+    global $pdo;
+    
+    try {
+        $sql = "UPDATE campaign_pause_requests 
+                SET status = 'under_review', admin_reviewed_by = ?, 
+                    admin_reviewed_at = NOW(), updated_at = NOW() 
+                WHERE id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$admin_id, $request_id]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore marcatura in revisione: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Ottiene il percorso del file per il download
+ */
+function getDocumentFilePath($document_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT file_path FROM campaign_pause_documents WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$document_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? $result['file_path'] : null;
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero percorso file: " . $e->getMessage());
+        return null;
+    }
+}
+
+/**
+ * Invia notifica al brand per cambio stato richiesta
+ */
+function sendPauseRequestStatusNotification($pause_request_id, $new_status, $admin_comment = null) {
+    global $pdo;
+    
+    try {
+        $request = getPauseRequest($pause_request_id);
+        if (!$request) {
+            return false;
+        }
+        
+        // Qui puoi implementare l'invio di email o notifiche push
+        $status_messages = [
+            'approved' => 'I tuoi documenti sono stati approvati',
+            'changes_requested' => 'Sono richieste modifiche ai documenti inviati',
+            'under_review' => 'I tuoi documenti sono in revisione'
+        ];
+        
+        $message = $status_messages[$new_status] ?? "Stato richiesta aggiornato: {$new_status}";
+        if ($admin_comment) {
+            $message .= "\nCommento admin: {$admin_comment}";
+        }
+        
+        error_log("Notifica stato richiesta pausa: Campagna '{$request['campaign_name']}' - Brand: {$request['brand_email']} - Messaggio: {$message}");
+        
+        return true;
+        
+    } catch (Exception $e) {
+        error_log("Errore invio notifica stato: " . $e->getMessage());
+        return false;
     }
 }
 ?>
