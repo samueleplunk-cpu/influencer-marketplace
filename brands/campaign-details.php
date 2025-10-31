@@ -74,13 +74,15 @@ try {
         die("Campagna non trovata o accesso negato");
     }
     
-    // Recupera richieste di pausa per questa campagna
+    // MODIFICA: Recupera SOLO l'ultima richiesta di pausa attiva/pendente
     $pause_requests_stmt = $pdo->prepare("
         SELECT cpr.*, a.username as admin_name 
         FROM campaign_pause_requests cpr 
         LEFT JOIN admins a ON cpr.admin_id = a.id 
         WHERE cpr.campaign_id = ? 
-        ORDER BY cpr.created_at DESC
+        AND cpr.status IN ('pending', 'documents_uploaded')
+        ORDER BY cpr.created_at DESC 
+        LIMIT 1
     ");
     $pause_requests_stmt->execute([$campaign_id]);
     $pause_requests = $pause_requests_stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -183,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_document'])) {
             FROM campaign_pause_requests cpr 
             JOIN campaigns c ON cpr.campaign_id = c.id 
             JOIN brands b ON c.brand_id = b.id 
-            WHERE cpr.id = ? AND b.user_id = ? AND cpr.status = 'pending'
+            WHERE cpr.id = ? AND b.user_id = ? AND cpr.status IN ('pending', 'documents_uploaded')
         ");
         $check_stmt->execute([$pause_request_id, $_SESSION['user_id']]);
         $pause_request = $check_stmt->fetch(PDO::FETCH_ASSOC);
@@ -198,14 +200,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_document'])) {
             
             if ($upload_result['success']) {
                 // Aggiorna il commento del brand se fornito
-if (!empty($brand_comment)) {
-    $stmt = $pdo->prepare("
-        UPDATE campaign_pause_requests 
-        SET brand_upload_comment = ?, updated_at = NOW() 
-        WHERE id = ?
-    ");
-    $stmt->execute([$brand_comment, $pause_request_id]);
-}
+                if (!empty($brand_comment)) {
+                    $stmt = $pdo->prepare("
+                        UPDATE campaign_pause_requests 
+                        SET brand_upload_comment = ?, updated_at = NOW() 
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$brand_comment, $pause_request_id]);
+                }
                 
                 $_SESSION['success_message'] = "Documento caricato con successo!" . (!empty($brand_comment) ? " Commento aggiunto." : "");
                 header("Location: campaign-details.php?id=" . $campaign_id);
@@ -430,8 +432,8 @@ require_once $header_file;
             </div>
         </div>
 
-        <!-- SEZIONE RICHIESTE INTEGRAZIONI PAUSA -->
-        <?php if (!empty($pause_requests) && $campaign['status'] === 'paused'): ?>
+        <!-- MODIFICA: SEZIONE RICHIESTE INTEGRAZIONI PAUSA - SOLO ULTIMA RICHIESTA ATTIVA -->
+        <?php if (!empty($pause_requests) && ($campaign['status'] === 'paused' || !empty($pause_requests))): ?>
         <div class="card mb-4">
             <div class="card-header bg-warning text-dark">
                 <h5 class="card-title mb-0">
@@ -439,132 +441,144 @@ require_once $header_file;
                 </h5>
             </div>
             <div class="card-body">
-                <?php foreach ($pause_requests as $request): 
-                    $request_documents = array_filter($pause_documents, function($doc) use ($request) {
-                        return $doc['pause_request_id'] == $request['id'];
-                    });
-                    $is_pending = $request['status'] === 'pending';
-                    $is_overdue = $request['deadline'] && strtotime($request['deadline']) < time();
+                <?php 
+                // MODIFICA: Mostra solo l'ultima richiesta (già filtrata dalla query)
+                $request = $pause_requests[0];
+                $request_documents = array_filter($pause_documents, function($doc) use ($request) {
+                    return $doc['pause_request_id'] == $request['id'];
+                });
+                $is_pending = $request['status'] === 'pending';
+                $is_documents_uploaded = $request['status'] === 'documents_uploaded';
+                $is_overdue = $request['deadline'] && strtotime($request['deadline']) < time();
                 ?>
-                    <div class="border rounded p-3 mb-3 <?php echo $is_overdue && $is_pending ? 'border-danger' : 'border-warning'; ?>">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="mb-0">
-                                Richiesta del <?php echo date('d/m/Y H:i', strtotime($request['created_at'])); ?>
-                                <?php if ($request['admin_name']): ?>
-                                    <small class="text-muted">da <?php echo htmlspecialchars($request['admin_name']); ?></small>
-                                <?php endif; ?>
-                            </h6>
-                            <span class="badge bg-<?php echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 'success'; ?>">
-                                <?php echo $is_pending ? ($is_overdue ? 'Scaduta' : 'In attesa') : 'Completata'; ?>
-                            </span>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <strong>Motivo della pausa:</strong>
-                            <p class="mb-1"><?php echo nl2br(htmlspecialchars($request['pause_reason'])); ?></p>
-                        </div>
-                        
-                        <?php if (!empty($request['required_documents'])): ?>
-                        <div class="mb-3">
-                            <strong>Documenti richiesti:</strong>
-                            <p class="mb-1"><?php echo nl2br(htmlspecialchars($request['required_documents'])); ?></p>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <?php if ($request['deadline']): ?>
-                        <div class="mb-3">
-                            <strong>Scadenza:</strong>
-                            <span class="<?php echo $is_overdue && $is_pending ? 'text-danger fw-bold' : ''; ?>">
-                                <?php echo date('d/m/Y', strtotime($request['deadline'])); ?>
-                                <?php if ($is_overdue && $is_pending): ?>
-                                    <i class="fas fa-exclamation-triangle ms-1"></i>
-                                <?php endif; ?>
-                            </span>
-                        </div>
-                        <?php endif; ?>
-                        
-                        <!-- Commento Admin -->
-                        <?php if (!empty($request['admin_review_comment'])): ?>
-                            <div class="alert alert-info mb-3">
-                                <strong>Commento Admin:</strong>
-                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['admin_review_comment'])); ?></p>
-                            </div>
-                        <?php endif; ?>
-                        
-                        <!-- Documenti caricati -->
-                        <div class="mb-3">
-                            <strong>Documenti caricati:</strong>
-                            <?php if (!empty($request_documents)): ?>
-                                <div class="mt-2">
-                                    <?php foreach ($request_documents as $doc): ?>
-                                        <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
-                                            <div>
-                                                <i class="fas fa-file me-2"></i>
-                                                <a href="<?php echo htmlspecialchars($doc['file_path']); ?>" 
-                                                   target="_blank" class="text-decoration-none">
-                                                    <?php echo htmlspecialchars($doc['original_name']); ?>
-                                                </a>
-                                                <small class="text-muted ms-2">
-                                                    (<?php echo formatFileSize($doc['file_size']); ?>)
-                                                </small>
-                                            </div>
-                                            <div>
-                                                <small class="text-muted me-3">
-                                                    <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
-                                                </small>
-                                                <a href="<?php echo htmlspecialchars($doc['file_path']); ?>" 
-                                                   class="btn btn-sm btn-outline-primary" target="_blank" download>
-                                                    <i class="fas fa-download"></i>
-                                                </a>
-                                            </div>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php else: ?>
-                                <p class="text-muted mb-2">Nessun documento caricato</p>
+                <div class="border rounded p-3 mb-3 <?php echo $is_overdue && ($is_pending || $is_documents_uploaded) ? 'border-danger' : 'border-warning'; ?>">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="mb-0">
+                            Richiesta del <?php echo date('d/m/Y H:i', strtotime($request['created_at'])); ?>
+                            <?php if ($request['admin_name']): ?>
+                                <small class="text-muted">da <?php echo htmlspecialchars($request['admin_name']); ?></small>
                             <?php endif; ?>
+                        </h6>
+                        <span class="badge bg-<?php 
+                            echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 
+                                 ($is_documents_uploaded ? 'info' : 'success'); 
+                        ?>">
+                            <?php 
+                            echo $is_pending ? ($is_overdue ? 'Scaduta' : 'In attesa documenti') : 
+                                 ($is_documents_uploaded ? 'Documenti caricati' : 'Completata'); 
+                            ?>
+                        </span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <strong>Motivo della pausa:</strong>
+                        <p class="mb-1"><?php echo nl2br(htmlspecialchars($request['pause_reason'])); ?></p>
+                    </div>
+                    
+                    <?php if (!empty($request['required_documents'])): ?>
+                    <div class="mb-3">
+                        <strong>Documenti richiesti:</strong>
+                        <p class="mb-1"><?php echo nl2br(htmlspecialchars($request['required_documents'])); ?></p>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <?php if ($request['deadline']): ?>
+                    <div class="mb-3">
+                        <strong>Scadenza:</strong>
+                        <span class="<?php echo $is_overdue && ($is_pending || $is_documents_uploaded) ? 'text-danger fw-bold' : ''; ?>">
+                            <?php echo date('d/m/Y', strtotime($request['deadline'])); ?>
+                            <?php if ($is_overdue && ($is_pending || $is_documents_uploaded)): ?>
+                                <i class="fas fa-exclamation-triangle ms-1"></i>
+                            <?php endif; ?>
+                        </span>
+                    </div>
+                    <?php endif; ?>
+                    
+                    <!-- Commento Admin -->
+                    <?php if (!empty($request['admin_review_comment'])): ?>
+                        <div class="alert alert-info mb-3">
+                            <strong>Commento Admin:</strong>
+                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['admin_review_comment'])); ?></p>
                         </div>
-                        
-                        <!-- Commento Brand -->
-                        <?php if (!empty($request['brand_upload_comment'])): ?>
-                            <div class="alert alert-light border mb-3">
-                                <strong>Il tuo commento:</strong>
-                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['brand_upload_comment'])); ?></p>
+                    <?php endif; ?>
+                    
+                    <!-- Documenti caricati -->
+                    <div class="mb-3">
+                        <strong>Documenti caricati:</strong>
+                        <?php if (!empty($request_documents)): ?>
+                            <div class="mt-2">
+                                <?php foreach ($request_documents as $doc): ?>
+                                    <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+                                        <div>
+                                            <i class="fas fa-file me-2"></i>
+                                            <a href="<?php echo htmlspecialchars($doc['file_path']); ?>" 
+                                               target="_blank" class="text-decoration-none">
+                                                <?php echo htmlspecialchars($doc['original_name']); ?>
+                                            </a>
+                                            <small class="text-muted ms-2">
+                                                (<?php echo formatFileSize($doc['file_size']); ?>)
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <small class="text-muted me-3">
+                                                <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
+                                            </small>
+                                            <a href="<?php echo htmlspecialchars($doc['file_path']); ?>" 
+                                               class="btn btn-sm btn-outline-primary" target="_blank" download>
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
-                        <?php endif; ?>
-                        
-                        <!-- Form upload documenti (solo per richieste pendenti) -->
-                        <?php if ($is_pending): ?>
-                        <div class="border-top pt-3">
-                            <form method="post" enctype="multipart/form-data">
-                                <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Carica documento <span class="text-danger">*</span></label>
-                                    <input type="file" class="form-control" name="document" 
-                                           accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" required>
-                                    <div class="form-text">
-                                        Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 10MB)
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label class="form-label">Commento (opzionale)</label>
-                                    <textarea class="form-control" name="brand_comment" rows="3" 
-                                              placeholder="Aggiungi un commento per l'admin..."></textarea>
-                                    <div class="form-text">
-                                        Puoi aggiungere note o spiegazioni sui documenti caricati
-                                    </div>
-                                </div>
-                                
-                                <button type="submit" name="upload_document" class="btn btn-primary">
-                                    <i class="fas fa-upload me-1"></i> Carica Documento
-                                </button>
-                            </form>
-                        </div>
+                        <?php else: ?>
+                            <p class="text-muted mb-2">Nessun documento caricato</p>
                         <?php endif; ?>
                     </div>
-                <?php endforeach; ?>
+                    
+                    <!-- Commento Brand -->
+                    <?php if (!empty($request['brand_upload_comment'])): ?>
+                        <div class="alert alert-light border mb-3">
+                            <strong>Il tuo commento:</strong>
+                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['brand_upload_comment'])); ?></p>
+                        </div>
+                    <?php endif; ?>
+                    
+                    <!-- Form upload documenti (solo per richieste pendenti o documents_uploaded) -->
+                    <?php if ($is_pending || $is_documents_uploaded): ?>
+                    <div class="border-top pt-3">
+                        <form method="post" enctype="multipart/form-data">
+                            <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Carica documento <?php if ($is_pending): ?><span class="text-danger">*</span><?php endif; ?></label>
+                                <input type="file" class="form-control" name="document" 
+                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" <?php echo $is_pending ? 'required' : ''; ?>>
+                                <div class="form-text">
+                                    Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 10MB)
+                                    <?php if ($is_documents_uploaded): ?>
+                                        <br><span class="text-info">Puoi caricare documenti aggiuntivi se necessario.</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Commento (opzionale)</label>
+                                <textarea class="form-control" name="brand_comment" rows="3" 
+                                          placeholder="Aggiungi un commento per l'admin..."></textarea>
+                                <div class="form-text">
+                                    Puoi aggiungere note o spiegazioni sui documenti caricati
+                                </div>
+                            </div>
+                            
+                            <button type="submit" name="upload_document" class="btn btn-primary">
+                                <i class="fas fa-upload me-1"></i> 
+                                <?php echo $is_documents_uploaded ? 'Carica Documento Aggiuntivo' : 'Carica Documento'; ?>
+                            </button>
+                        </form>
+                    </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
         <?php endif; ?>
@@ -995,4 +1009,3 @@ if (file_exists($footer_file)) {
 } else {
     echo '<!-- Footer non trovato -->';
 }
-?>
