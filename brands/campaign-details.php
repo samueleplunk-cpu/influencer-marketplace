@@ -80,7 +80,7 @@ try {
         FROM campaign_pause_requests cpr 
         LEFT JOIN admins a ON cpr.admin_id = a.id 
         WHERE cpr.campaign_id = ? 
-        AND cpr.status IN ('pending', 'documents_uploaded')
+        AND cpr.status IN ('pending', 'documents_uploaded', 'under_review')
         ORDER BY cpr.created_at DESC 
         LIMIT 1
     ");
@@ -199,17 +199,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_document'])) {
             $upload_result = handlePauseDocumentUpload($_FILES['document'], $pause_request_id, $_SESSION['user_id']);
             
             if ($upload_result['success']) {
-                // Aggiorna il commento del brand se fornito
-                if (!empty($brand_comment)) {
-                    $stmt = $pdo->prepare("
-                        UPDATE campaign_pause_requests 
-                        SET brand_upload_comment = ?, updated_at = NOW() 
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([$brand_comment, $pause_request_id]);
-                }
+                // *** MODIFICA: CAMBIA AUTOMATICAMENTE STATO DA 'pending' A 'under_review' ***
+                $new_status = 'under_review';
                 
-                $_SESSION['success_message'] = "Documento caricato con successo!" . (!empty($brand_comment) ? " Commento aggiunto." : "");
+                // Aggiorna lo stato della richiesta e il commento del brand
+                $stmt = $pdo->prepare("
+                    UPDATE campaign_pause_requests 
+                    SET status = ?, 
+                        brand_upload_comment = COALESCE(?, brand_upload_comment), 
+                        updated_at = NOW() 
+                    WHERE id = ?
+                ");
+                $stmt->execute([$new_status, $brand_comment, $pause_request_id]);
+                
+                $_SESSION['success_message'] = "Documento caricato con successo! La richiesta è ora in revisione." . (!empty($brand_comment) ? " Commento aggiunto." : "");
                 header("Location: campaign-details.php?id=" . $campaign_id);
                 exit();
             } else {
@@ -449,9 +452,10 @@ require_once $header_file;
                 });
                 $is_pending = $request['status'] === 'pending';
                 $is_documents_uploaded = $request['status'] === 'documents_uploaded';
+                $is_under_review = $request['status'] === 'under_review';
                 $is_overdue = $request['deadline'] && strtotime($request['deadline']) < time();
                 ?>
-                <div class="border rounded p-3 mb-3 <?php echo $is_overdue && ($is_pending || $is_documents_uploaded) ? 'border-danger' : 'border-warning'; ?>">
+                <div class="border rounded p-3 mb-3 <?php echo $is_overdue && ($is_pending || $is_documents_uploaded || $is_under_review) ? 'border-danger' : 'border-warning'; ?>">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="mb-0">
                             Richiesta del <?php echo date('d/m/Y H:i', strtotime($request['created_at'])); ?>
@@ -461,11 +465,13 @@ require_once $header_file;
                         </h6>
                         <span class="badge bg-<?php 
                             echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 
-                                 ($is_documents_uploaded ? 'info' : 'success'); 
+                                 ($is_under_review ? 'info' : 
+                                 ($is_documents_uploaded ? 'info' : 'success')); 
                         ?>">
                             <?php 
                             echo $is_pending ? ($is_overdue ? 'Scaduta' : 'In attesa documenti') : 
-                                 ($is_documents_uploaded ? 'Documenti caricati' : 'Completata'); 
+                                 ($is_under_review ? 'In revisione' : 
+                                 ($is_documents_uploaded ? 'Documenti caricati' : 'Completata')); 
                             ?>
                         </span>
                     </div>
@@ -485,9 +491,9 @@ require_once $header_file;
                     <?php if ($request['deadline']): ?>
                     <div class="mb-3">
                         <strong>Scadenza:</strong>
-                        <span class="<?php echo $is_overdue && ($is_pending || $is_documents_uploaded) ? 'text-danger fw-bold' : ''; ?>">
+                        <span class="<?php echo $is_overdue && ($is_pending || $is_documents_uploaded || $is_under_review) ? 'text-danger fw-bold' : ''; ?>">
                             <?php echo date('d/m/Y', strtotime($request['deadline'])); ?>
-                            <?php if ($is_overdue && ($is_pending || $is_documents_uploaded)): ?>
+                            <?php if ($is_overdue && ($is_pending || $is_documents_uploaded || $is_under_review)): ?>
                                 <i class="fas fa-exclamation-triangle ms-1"></i>
                             <?php endif; ?>
                         </span>
@@ -544,8 +550,8 @@ require_once $header_file;
                         </div>
                     <?php endif; ?>
                     
-                    <!-- Form upload documenti (solo per richieste pendenti o documents_uploaded) -->
-                    <?php if ($is_pending || $is_documents_uploaded): ?>
+                    <!-- Form upload documenti (solo per richieste pendenti, documents_uploaded o under_review) -->
+                    <?php if ($is_pending || $is_documents_uploaded || $is_under_review): ?>
                     <div class="border-top pt-3">
                         <form method="post" enctype="multipart/form-data">
                             <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
@@ -556,7 +562,7 @@ require_once $header_file;
                                        accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" <?php echo $is_pending ? 'required' : ''; ?>>
                                 <div class="form-text">
                                     Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 10MB)
-                                    <?php if ($is_documents_uploaded): ?>
+                                    <?php if ($is_documents_uploaded || $is_under_review): ?>
                                         <br><span class="text-info">Puoi caricare documenti aggiuntivi se necessario.</span>
                                     <?php endif; ?>
                                 </div>
@@ -573,7 +579,7 @@ require_once $header_file;
                             
                             <button type="submit" name="upload_document" class="btn btn-primary">
                                 <i class="fas fa-upload me-1"></i> 
-                                <?php echo $is_documents_uploaded ? 'Carica Documento Aggiuntivo' : 'Carica Documento'; ?>
+                                <?php echo ($is_documents_uploaded || $is_under_review) ? 'Carica Documento Aggiuntivo' : 'Carica Documento'; ?>
                             </button>
                         </form>
                     </div>
