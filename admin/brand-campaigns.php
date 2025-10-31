@@ -122,13 +122,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Gestione approvazione documenti
+    // Gestione approvazione documenti - FIXED: Controllo corretto dei parametri POST
     if (isset($_POST['review_action']) && isset($_POST['pause_request_id'])) {
         $request_id = intval($_POST['pause_request_id']);
-        $action = $_POST['review_action'];
-        $admin_comment = $_POST['admin_comment'] ?? null;
+        $review_action = $_POST['review_action']; // Cambiato nome variabile per evitare conflitto
+        $admin_comment = isset($_POST['admin_comment']) ? trim($_POST['admin_comment']) : '';
         
-        switch($action) {
+        switch($review_action) {
             case 'mark_under_review':
                 $success = markPauseRequestUnderReview($request_id, $_SESSION['admin_id']);
                 $message = $success ? 
@@ -159,6 +159,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
                 break;
+        }
+        
+        // Redirect per evitare doppio invio form
+        if (isset($_GET['id'])) {
+            header("Location: brand-campaigns.php?action=edit&id=" . $_GET['id'] . "&message=" . urlencode($message));
+            exit;
         }
     }
 }
@@ -1039,12 +1045,12 @@ if ($action === 'list') {
                                                                         <input type="hidden" name="pause_request_id" value="<?php echo $pause['id']; ?>">
                                                                         
                                                                         <div class="col-md-8">
-                                                                            <label class="form-label">Commento Admin <?php if ($pause['status'] === 'changes_requested'): ?><span class="text-danger">*</span><?php endif; ?></label>
+                                                                            <label class="form-label">Commento Admin <?php if (in_array($pause['status'], ['changes_requested', 'under_review'])): ?><span class="text-danger">*</span><?php endif; ?></label>
                                                                             <textarea class="form-control" name="admin_comment" rows="3" 
                                                                                       placeholder="Inserisci commento per il brand..." 
-                                                                                      <?php echo $pause['status'] === 'changes_requested' ? 'required' : ''; ?>><?php echo htmlspecialchars($pause['admin_review_comment'] ?? ''); ?></textarea>
-                                                                            <?php if ($pause['status'] === 'changes_requested'): ?>
-                                                                                <div class="form-text text-danger">Il commento è obbligatorio quando si richiedono modifiche</div>
+                                                                                      <?php echo in_array($pause['status'], ['changes_requested', 'under_review']) ? 'required' : ''; ?>><?php echo htmlspecialchars($pause['admin_review_comment'] ?? ''); ?></textarea>
+                                                                            <?php if (in_array($pause['status'], ['changes_requested', 'under_review'])): ?>
+                                                                                <div class="form-text text-danger">Il commento è obbligatorio quando si richiedono modifiche o si approva</div>
                                                                             <?php endif; ?>
                                                                         </div>
                                                                         

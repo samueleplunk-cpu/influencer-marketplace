@@ -1172,8 +1172,28 @@ function getOverduePauseRequests() {
 }
 
 // =============================================================================
-// FUNZIONI PER IL SISTEMA DI APPROVAZIONE DOCUMENTI (AGGIORNATE)
+// FUNZIONI PER IL SISTEMA DI APPROVAZIONE DOCUMENTI (AGGIORNATE E CORRETTE)
 // =============================================================================
+
+/**
+ * Recupera l'ID della campagna da una richiesta di pausa
+ */
+function getCampaignIdFromPauseRequest($pause_request_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT campaign_id FROM campaign_pause_requests WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$pause_request_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? $result['campaign_id'] : null;
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero campaign_id da pause request: " . $e->getMessage());
+        return null;
+    }
+}
 
 /**
  * Aggiorna lo stato di una richiesta di pausa con commento admin
@@ -1188,12 +1208,23 @@ function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $
                 WHERE id = ?";
         
         $stmt = $pdo->prepare($sql);
-        return $stmt->execute([
+        $result = $stmt->execute([
             $status,
             $admin_comment,
             $admin_id,
             $request_id
         ]);
+        
+        // Se l'approvazione è riuscita, riprendi la campagna
+        if ($result && $status === 'approved') {
+            $campaign_id = getCampaignIdFromPauseRequest($request_id);
+            if ($campaign_id) {
+                updateCampaignStatus($campaign_id, 'active');
+                error_log("Campagna $campaign_id riattivata dopo approvazione documenti");
+            }
+        }
+        
+        return $result;
         
     } catch (PDOException $e) {
         error_log("Errore aggiornamento stato richiesta pausa: " . $e->getMessage());
@@ -1359,6 +1390,58 @@ function sendPauseRequestStatusNotification($pause_request_id, $new_status, $adm
         
     } catch (Exception $e) {
         error_log("Errore invio notifica stato: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Verifica se una richiesta di pausa può essere approvata
+ */
+function canApprovePauseRequest($request_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT status, campaign_id FROM campaign_pause_requests WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$request_id]);
+        $request = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$request) {
+            return false;
+        }
+        
+        // Può essere approvata solo se in stati specifici
+        $approvable_states = ['documents_uploaded', 'under_review', 'changes_requested'];
+        return in_array($request['status'], $approvable_states);
+        
+    } catch (PDOException $e) {
+        error_log("Errore verifica approvazione richiesta: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Verifica se una richiesta di pausa può richiedere modifiche
+ */
+function canRequestChangesPauseRequest($request_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT status FROM campaign_pause_requests WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$request_id]);
+        $request = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$request) {
+            return false;
+        }
+        
+        // Può richiedere modifiche solo se in stati specifici
+        $changeable_states = ['documents_uploaded', 'under_review'];
+        return in_array($request['status'], $changeable_states);
+        
+    } catch (PDOException $e) {
+        error_log("Errore verifica richiesta modifiche: " . $e->getMessage());
         return false;
     }
 }
