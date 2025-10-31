@@ -1172,7 +1172,7 @@ function getOverduePauseRequests() {
 }
 
 // =============================================================================
-// FUNZIONI PER IL SISTEMA DI APPROVAZIONE DOCUMENTI
+// FUNZIONI PER IL SISTEMA DI APPROVAZIONE DOCUMENTI (AGGIORNATE)
 // =============================================================================
 
 /**
@@ -1197,6 +1197,29 @@ function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $
         
     } catch (PDOException $e) {
         error_log("Errore aggiornamento stato richiesta pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Aggiorna il commento del brand durante l'upload documenti
+ */
+function updatePauseRequestBrandComment($request_id, $brand_comment) {
+    global $pdo;
+    
+    try {
+        $sql = "UPDATE campaign_pause_requests 
+                SET brand_upload_comment = ?, updated_at = NOW() 
+                WHERE id = ?";
+        
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([
+            $brand_comment,
+            $request_id
+        ]);
+        
+    } catch (PDOException $e) {
+        error_log("Errore aggiornamento commento brand: " . $e->getMessage());
         return false;
     }
 }

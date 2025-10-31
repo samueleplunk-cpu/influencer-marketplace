@@ -175,6 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_document'])) {
     try {
         $pause_request_id = intval($_POST['pause_request_id']);
+        $brand_comment = $_POST['brand_comment'] ?? '';
         
         // Verifica che la richiesta di pausa appartenga a questa campagna
         $check_stmt = $pdo->prepare("
@@ -196,7 +197,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_document'])) {
             $upload_result = handlePauseDocumentUpload($_FILES['document'], $pause_request_id, $_SESSION['user_id']);
             
             if ($upload_result['success']) {
-                $_SESSION['success_message'] = "Documento caricato con successo!";
+                // Aggiorna il commento del brand se fornito
+if (!empty($brand_comment)) {
+    $stmt = $pdo->prepare("
+        UPDATE campaign_pause_requests 
+        SET brand_upload_comment = ?, updated_at = NOW() 
+        WHERE id = ?
+    ");
+    $stmt->execute([$brand_comment, $pause_request_id]);
+}
+                
+                $_SESSION['success_message'] = "Documento caricato con successo!" . (!empty($brand_comment) ? " Commento aggiunto." : "");
                 header("Location: campaign-details.php?id=" . $campaign_id);
                 exit();
             } else {
@@ -228,6 +239,14 @@ require_once $header_file;
         </div>
 
         <!-- Messaggi di stato -->
+        <?php if (isset($_SESSION['success_message'])): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <?php echo $_SESSION['success_message']; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            <?php unset($_SESSION['success_message']); ?>
+        <?php endif; ?>
+
         <?php if ($error): ?>
             <div class="alert alert-danger alert-dismissible fade show" role="alert">
                 <?php echo htmlspecialchars($error); ?>
@@ -464,6 +483,14 @@ require_once $header_file;
                         </div>
                         <?php endif; ?>
                         
+                        <!-- Commento Admin -->
+                        <?php if (!empty($request['admin_review_comment'])): ?>
+                            <div class="alert alert-info mb-3">
+                                <strong>Commento Admin:</strong>
+                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['admin_review_comment'])); ?></p>
+                            </div>
+                        <?php endif; ?>
+                        
                         <!-- Documenti caricati -->
                         <div class="mb-3">
                             <strong>Documenti caricati:</strong>
@@ -481,9 +508,15 @@ require_once $header_file;
                                                     (<?php echo formatFileSize($doc['file_size']); ?>)
                                                 </small>
                                             </div>
-                                            <small class="text-muted">
-                                                <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
-                                            </small>
+                                            <div>
+                                                <small class="text-muted me-3">
+                                                    <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
+                                                </small>
+                                                <a href="<?php echo htmlspecialchars($doc['file_path']); ?>" 
+                                                   class="btn btn-sm btn-outline-primary" target="_blank" download>
+                                                    <i class="fas fa-download"></i>
+                                                </a>
+                                            </div>
                                         </div>
                                     <?php endforeach; ?>
                                 </div>
@@ -492,6 +525,14 @@ require_once $header_file;
                             <?php endif; ?>
                         </div>
                         
+                        <!-- Commento Brand -->
+                        <?php if (!empty($request['brand_upload_comment'])): ?>
+                            <div class="alert alert-light border mb-3">
+                                <strong>Il tuo commento:</strong>
+                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['brand_upload_comment'])); ?></p>
+                            </div>
+                        <?php endif; ?>
+                        
                         <!-- Form upload documenti (solo per richieste pendenti) -->
                         <?php if ($is_pending): ?>
                         <div class="border-top pt-3">
@@ -499,7 +540,7 @@ require_once $header_file;
                                 <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
                                 
                                 <div class="mb-3">
-                                    <label class="form-label">Carica documento</label>
+                                    <label class="form-label">Carica documento <span class="text-danger">*</span></label>
                                     <input type="file" class="form-control" name="document" 
                                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" required>
                                     <div class="form-text">
@@ -507,7 +548,16 @@ require_once $header_file;
                                     </div>
                                 </div>
                                 
-                                <button type="submit" name="upload_document" class="btn btn-primary btn-sm">
+                                <div class="mb-3">
+                                    <label class="form-label">Commento (opzionale)</label>
+                                    <textarea class="form-control" name="brand_comment" rows="3" 
+                                              placeholder="Aggiungi un commento per l'admin..."></textarea>
+                                    <div class="form-text">
+                                        Puoi aggiungere note o spiegazioni sui documenti caricati
+                                    </div>
+                                </div>
+                                
+                                <button type="submit" name="upload_document" class="btn btn-primary">
                                     <i class="fas fa-upload me-1"></i> Carica Documento
                                 </button>
                             </form>
@@ -595,7 +645,19 @@ require_once $header_file;
                                             </small>
                                         </td>
                                         <td>
-                                            <?php echo get_match_badge($influencer['match_score'], $influencer['match_details']); ?>
+                                            <?php 
+                                            // Funzione semplificata per badge match
+                                            $match_score = $influencer['match_score'] ?? 0;
+                                            if ($match_score >= 80) {
+                                                echo '<span class="badge bg-success">Ottimo Match</span>';
+                                            } elseif ($match_score >= 60) {
+                                                echo '<span class="badge bg-primary">Buon Match</span>';
+                                            } elseif ($match_score >= 40) {
+                                                echo '<span class="badge bg-warning">Match Moderato</span>';
+                                            } else {
+                                                echo '<span class="badge bg-secondary">Match Basso</span>';
+                                            }
+                                            ?>
                                         </td>
                                         <td>
                                             <?php 
@@ -608,7 +670,23 @@ require_once $header_file;
                                         </td>
                                         <td>
                                             <strong>€<?php echo number_format($influencer['rate'], 2); ?></strong><br>
-                                            <?php echo get_affordability_indicator($influencer['rate'], $campaign['budget']); ?>
+                                            <?php 
+                                            // Indicatore affordability semplificato
+                                            $budget = $campaign['budget'] ?? 0;
+                                            $rate = $influencer['rate'] ?? 0;
+                                            if ($budget > 0 && $rate > 0) {
+                                                $percentage = ($rate / $budget) * 100;
+                                                if ($percentage <= 25) {
+                                                    echo '<span class="badge bg-success">Ottimo</span>';
+                                                } elseif ($percentage <= 50) {
+                                                    echo '<span class="badge bg-primary">Buono</span>';
+                                                } elseif ($percentage <= 75) {
+                                                    echo '<span class="badge bg-warning">Accettabile</span>';
+                                                } else {
+                                                    echo '<span class="badge bg-danger">Alto</span>';
+                                                }
+                                            }
+                                            ?>
                                         </td>
                                         <td>
                                             <div class="progress" style="height: 20px;" 
@@ -663,7 +741,6 @@ require_once $header_file;
                                                 <div class="modal-header">
                                                     <h5 class="modal-title">
                                                         <?php echo htmlspecialchars($influencer['full_name']); ?>
-                                                        <?php echo get_match_badge($influencer['match_score'], $influencer['match_details']); ?>
                                                     </h5>
                                                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                                 </div>
@@ -678,30 +755,15 @@ require_once $header_file;
                                                         </div>
                                                         <div class="col-md-6">
                                                             <h6>Dettagli Match</h6>
-                                                            <?php 
-                                                            $details = json_decode($influencer['match_details'], true);
-                                                            if ($details): 
-                                                            ?>
-                                                                <p><strong>Score Totale:</strong> <?php echo $influencer['match_score']; ?>%</p>
-                                                                <?php if (isset($details['niche'])): ?>
-                                                                    <p><strong>Niche Match:</strong> 
-                                                                        <?php echo $details['niche'] === 'exact' ? '🎯 Esatto' : 
-                                                                              ($details['niche'] === 'similar' ? '📈 Simile' : '❌ Nessuno'); ?>
-                                                                    </p>
-                                                                <?php endif; ?>
-                                                                <?php if (isset($details['platforms'])): ?>
-                                                                    <p><strong>Piattaforme:</strong> 
-                                                                        <?php echo $details['platforms']['matches']; ?>/<?php echo $details['platforms']['total']; ?> 
-                                                                        (<?php echo $details['platforms']['score']; ?> punti)
-                                                                    </p>
-                                                                <?php endif; ?>
-                                                                <?php if (isset($details['affordability'])): ?>
-                                                                    <p><strong>Affordability:</strong> 
-                                                                        <?php echo $details['affordability_score']; ?> punti
-                                                                        (<?php echo get_affordability_indicator($influencer['rate'], $campaign['budget']); ?>)
-                                                                    </p>
-                                                                <?php endif; ?>
-                                                            <?php endif; ?>
+                                                            <p><strong>Score Totale:</strong> <?php echo $influencer['match_score']; ?>%</p>
+                                                            <div class="progress mb-2">
+                                                                <div class="progress-bar 
+                                                                    <?php echo $influencer['match_score'] >= 70 ? 'bg-success' : 
+                                                                          ($influencer['match_score'] >= 40 ? 'bg-warning' : 'bg-danger'); ?>" 
+                                                                    role="progressbar" 
+                                                                    style="width: <?php echo $influencer['match_score']; ?>%">
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                     

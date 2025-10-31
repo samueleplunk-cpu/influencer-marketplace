@@ -979,6 +979,14 @@ if ($action === 'list') {
                                                                 </div>
                                                             <?php endif; ?>
                                                             
+                                                            <!-- Commento Brand -->
+                                                            <?php if (!empty($pause['brand_upload_comment'])): ?>
+                                                                <div class="alert alert-light border mb-3">
+                                                                    <strong>Commento del Brand:</strong>
+                                                                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['brand_upload_comment'])); ?></p>
+                                                                </div>
+                                                            <?php endif; ?>
+                                                            
                                                             <!-- Documenti Caricati -->
                                                             <?php if (!empty($documents)): ?>
                                                                 <div class="mb-3">
@@ -1029,12 +1037,15 @@ if ($action === 'list') {
                                                                     <h6>Azioni Revisione:</h6>
                                                                     <form method="post" class="row g-3">
                                                                         <input type="hidden" name="pause_request_id" value="<?php echo $pause['id']; ?>">
-                                                                        <input type="hidden" name="action_type" value="review_documents">
                                                                         
                                                                         <div class="col-md-8">
-                                                                            <label class="form-label">Commento (obbligatorio per "Richiedi Modifiche")</label>
+                                                                            <label class="form-label">Commento Admin <?php if ($pause['status'] === 'changes_requested'): ?><span class="text-danger">*</span><?php endif; ?></label>
                                                                             <textarea class="form-control" name="admin_comment" rows="3" 
-                                                                                      placeholder="Inserisci commento per il brand..."><?php echo htmlspecialchars($pause['admin_review_comment'] ?? ''); ?></textarea>
+                                                                                      placeholder="Inserisci commento per il brand..." 
+                                                                                      <?php echo $pause['status'] === 'changes_requested' ? 'required' : ''; ?>><?php echo htmlspecialchars($pause['admin_review_comment'] ?? ''); ?></textarea>
+                                                                            <?php if ($pause['status'] === 'changes_requested'): ?>
+                                                                                <div class="form-text text-danger">Il commento è obbligatorio quando si richiedono modifiche</div>
+                                                                            <?php endif; ?>
                                                                         </div>
                                                                         
                                                                         <div class="col-md-4">
