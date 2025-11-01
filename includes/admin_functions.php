@@ -1197,12 +1197,29 @@ function getCampaignIdFromPauseRequest($pause_request_id) {
 
 /**
  * Aggiorna lo stato di una richiesta di pausa con commento admin
- * FIXED: Gestione corretta degli stati e riattivazione campagna
+ * FIXED: Prevenzione duplicazioni e gestione corretta stati
  */
 function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $admin_id = null) {
     global $pdo;
     
     try {
+        // FIX: Verifica che la richiesta esista e non sia già completata
+        $check_sql = "SELECT campaign_id, status FROM campaign_pause_requests WHERE id = ?";
+        $check_stmt = $pdo->prepare($check_sql);
+        $check_stmt->execute([$request_id]);
+        $existing_request = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$existing_request) {
+            error_log("Richiesta pausa non trovata: " . $request_id);
+            return false;
+        }
+        
+        // FIX: Se è già approved, non fare nulla
+        if ($existing_request['status'] === 'approved') {
+            error_log("Richiesta pausa già approvata: " . $request_id);
+            return true;
+        }
+        
         $sql = "UPDATE campaign_pause_requests 
                 SET status = ?, admin_review_comment = ?, admin_reviewed_by = ?, 
                     admin_reviewed_at = NOW(), updated_at = NOW() 
@@ -1216,13 +1233,12 @@ function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $
             $request_id
         ]);
         
-        // FIXED: Logica di riattivazione campagna migliorata
+        // FIX: Logica di riattivazione campagna migliorata - SOLO per approvazione
         if ($result && $status === 'approved') {
-            $campaign_id = getCampaignIdFromPauseRequest($request_id);
+            $campaign_id = $existing_request['campaign_id'];
             if ($campaign_id) {
                 updateCampaignStatus($campaign_id, 'active');
-                // Completa anche la richiesta di pausa
-                completePauseRequest($request_id);
+                // FIX: Non completare la richiesta, mantieni lo stato approved
             }
         }
         
@@ -1230,6 +1246,27 @@ function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $
         
     } catch (PDOException $e) {
         error_log("Errore aggiornamento stato richiesta pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * FIX: Nuova funzione per prevenire duplicazioni - Verifica richieste attive
+ */
+function hasActivePauseRequest($campaign_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT COUNT(*) FROM campaign_pause_requests 
+                WHERE campaign_id = ? 
+                AND status IN ('pending', 'documents_uploaded', 'under_review', 'changes_requested')";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$campaign_id]);
+        return $stmt->fetchColumn() > 0;
+        
+    } catch (PDOException $e) {
+        error_log("Errore verifica richieste attive: " . $e->getMessage());
         return false;
     }
 }

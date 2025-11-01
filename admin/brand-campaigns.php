@@ -1,4 +1,7 @@
 <?php
+
+ob_start();
+
 // Includi file necessari
 require_once '../includes/config.php';
 require_once '../includes/admin_functions.php';
@@ -55,27 +58,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         switch($action_type) {
             case 'pause':
-                // Nuova gestione pausa con richiesta documenti
-                if (isset($_POST['pause_reason']) && !empty($_POST['pause_reason'])) {
-                    $pause_data = [
-                        'campaign_id' => $campaign_id,
-                        'admin_id' => $_SESSION['admin_id'],
-                        'pause_reason' => $_POST['pause_reason'],
-                        'required_documents' => isset($_POST['required_documents']) ? $_POST['required_documents'] : '',
-                        'deadline' => isset($_POST['deadline']) ? $_POST['deadline'] : null
-                    ];
-                    
-                    $success = createPauseRequest($pause_data);
-                    if ($success) {
-                        updateCampaignStatus($campaign_id, 'paused');
-                        $message = '<div class="alert alert-warning">Campagna messa in pausa con richiesta integrazioni</div>';
-                    } else {
-                        $message = '<div class="alert alert-danger">Errore nella creazione della richiesta di pausa</div>';
-                    }
-                } else {
-                    $message = '<div class="alert alert-danger">Motivo della pausa obbligatorio</div>';
-                }
-                break;
+    // FIX: Prevenzione duplicazione - Verifica se esiste già una richiesta attiva
+    if (hasActivePauseRequest($campaign_id)) {
+        $message = '<div class="alert alert-warning">Esiste già una richiesta di integrazione attiva per questa campagna.</div>';
+        break;
+    }
+    
+    // Nuova gestione pausa con richiesta documenti
+    if (isset($_POST['pause_reason']) && !empty($_POST['pause_reason'])) {
+        $pause_data = [
+            'campaign_id' => $campaign_id,
+            'admin_id' => $_SESSION['admin_id'],
+            'pause_reason' => $_POST['pause_reason'],
+            'required_documents' => isset($_POST['required_documents']) ? $_POST['required_documents'] : '',
+            'deadline' => isset($_POST['deadline']) ? $_POST['deadline'] : null
+        ];
+        
+        $success = createPauseRequest($pause_data);
+        if ($success) {
+            updateCampaignStatus($campaign_id, 'paused');
+            $message = '<div class="alert alert-warning">Campagna messa in pausa con richiesta integrazioni</div>';
+        } else {
+            $message = '<div class="alert alert-danger">Errore nella creazione della richiesta di pausa</div>';
+        }
+    } else {
+        $message = '<div class="alert alert-danger">Motivo della pausa obbligatorio</div>';
+    }
+    break;
                 
             case 'resume':
                 updateCampaignStatus($campaign_id, 'active');
@@ -122,55 +131,70 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Gestione approvazione documenti - FIXED: Redirect corretto
-    if (isset($_POST['review_action']) && isset($_POST['pause_request_id'])) {
-        $request_id = intval($_POST['pause_request_id']);
-        $review_action = $_POST['review_action'];
-        $admin_comment = isset($_POST['admin_comment']) ? trim($_POST['admin_comment']) : '';
-        
-        switch($review_action) {
-            case 'mark_under_review':
-                $success = markPauseRequestUnderReview($request_id, $_SESSION['admin_id']);
-                $message = $success ? 
-                    '<div class="alert alert-info">Richiesta messa in revisione</div>' :
-                    '<div class="alert alert-danger">Errore nell\'aggiornamento</div>';
-                break;
-                
-            case 'approve':
-                $success = updatePauseRequestStatus($request_id, 'approved', $admin_comment, $_SESSION['admin_id']);
-                if ($success) {
-                    sendPauseRequestStatusNotification($request_id, 'approved', $admin_comment);
-                    $message = '<div class="alert alert-success">Documenti approvati con successo</div>';
-                } else {
-                    $message = '<div class="alert alert-danger">Errore nell\'approvazione</div>';
-                }
-                break;
-                
-            case 'request_changes':
-                if (empty($admin_comment)) {
-                    $message = '<div class="alert alert-danger">Il commento è obbligatorio per richiedere modifiche</div>';
-                } else {
-                    $success = updatePauseRequestStatus($request_id, 'changes_requested', $admin_comment, $_SESSION['admin_id']);
-                    if ($success) {
-                        sendPauseRequestStatusNotification($request_id, 'changes_requested', $admin_comment);
-                        $message = '<div class="alert alert-warning">Modifiche richieste al brand</div>';
-                    } else {
-                        $message = '<div class="alert alert-danger">Errore nella richiesta di modifiche</div>';
-                    }
-                }
-                break;
-        }
-        
-        // FIXED: Redirect corretto senza parametro message malformato
-        if (isset($_GET['id'])) {
-            header("Location: brand-campaigns.php?action=edit&id=" . $_GET['id']);
-            exit;
+// Gestione approvazione documenti
+if (isset($_POST['review_action']) && isset($_POST['pause_request_id'])) {
+    $request_id = intval($_POST['pause_request_id']);
+    $review_action = $_POST['review_action'];
+    $admin_comment = isset($_POST['admin_comment']) ? trim($_POST['admin_comment']) : '';
+    
+    // Recupera campaign_id per il redirect
+    $campaign_id = getCampaignIdFromPauseRequest($request_id);
+    
+    switch($review_action) {
+        case 'mark_under_review':
+            $success = markPauseRequestUnderReview($request_id, $_SESSION['admin_id']);
+            if ($success) {
+                $_SESSION['admin_message'] = '<div class="alert alert-info">Richiesta messa in revisione</div>';
+            } else {
+                $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nell\'aggiornamento</div>';
+            }
+            break;
+            
+        case 'approve':
+    if (empty($admin_comment)) {
+        $message = '<div class="alert alert-danger">Il commento è obbligatorio per approvare i documenti</div>';
+    } else {
+        $success = updatePauseRequestStatus($request_id, 'approved', $admin_comment, $_SESSION['admin_id']);
+        if ($success) {
+            sendPauseRequestStatusNotification($request_id, 'approved', $admin_comment);
+            $_SESSION['admin_message'] = '<div class="alert alert-success">Documenti approvati con successo! La campagna è stata riattivata.</div>';
         } else {
-            // Se non c'è ID, redirect alla lista
-            header("Location: brand-campaigns.php?action=list");
-            exit;
+            $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nell\'approvazione dei documenti</div>';
         }
     }
+    break;
+            
+        case 'request_changes':
+            if (empty($admin_comment)) {
+                $_SESSION['admin_message'] = '<div class="alert alert-danger">Il commento è obbligatorio per richiedere modifiche</div>';
+            } else {
+                $success = updatePauseRequestStatus($request_id, 'changes_requested', $admin_comment, $_SESSION['admin_id']);
+                if ($success) {
+                    sendPauseRequestStatusNotification($request_id, 'changes_requested', $admin_comment);
+                    $_SESSION['admin_message'] = '<div class="alert alert-warning">Modifiche richieste al brand</div>';
+                } else {
+                    $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nella richiesta di modifiche</div>';
+                }
+            }
+            break;
+    }
+    
+    // === UNICO REDIRECT PER TUTTE LE AZIONI ===
+    if (isset($_GET['id']) && !empty($_GET['id'])) {
+        header("Location: brand-campaigns.php?action=edit&id=" . $_GET['id']);
+    } elseif ($campaign_id) {
+        header("Location: brand-campaigns.php?action=edit&id=" . $campaign_id);
+    } else {
+        header("Location: brand-campaigns.php?action=list");
+    }
+    exit;
+}
+}
+
+// All'inizio del file, dopo la gestione POST:
+if (isset($_SESSION['admin_message'])) {
+    $message = $_SESSION['admin_message'];
+    unset($_SESSION['admin_message']);
 }
 
 // Gestione delle diverse azioni
@@ -1141,6 +1165,8 @@ if ($action === 'list') {
     header('Location: brand-campaigns.php');
     exit;
 }
+
+ob_end_flush();
 
 require_once '../includes/admin_footer.php';
 
