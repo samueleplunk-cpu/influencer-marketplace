@@ -180,13 +180,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_document'])) {
         $brand_comment = $_POST['brand_comment'] ?? '';
         
         // Verifica che la richiesta di pausa appartenga a questa campagna
-        $check_stmt = $pdo->prepare("
-            SELECT cpr.* 
-            FROM campaign_pause_requests cpr 
-            JOIN campaigns c ON cpr.campaign_id = c.id 
-            JOIN brands b ON c.brand_id = b.id 
-            WHERE cpr.id = ? AND b.user_id = ? AND cpr.status IN ('pending', 'documents_uploaded')
-        ");
+$check_stmt = $pdo->prepare("
+    SELECT cpr.* 
+    FROM campaign_pause_requests cpr 
+    JOIN campaigns c ON cpr.campaign_id = c.id 
+    JOIN brands b ON c.brand_id = b.id 
+    WHERE cpr.id = ? AND b.user_id = ? AND cpr.status IN ('pending', 'documents_uploaded', 'changes_requested')
+");
         $check_stmt->execute([$pause_request_id, $_SESSION['user_id']]);
         $pause_request = $check_stmt->fetch(PDO::FETCH_ASSOC);
         
