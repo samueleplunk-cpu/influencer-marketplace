@@ -103,9 +103,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Gestione richieste di pausa
     if (isset($_POST['update_pause_request'])) {
         $request_id = intval($_POST['pause_request_id']);
-        $action = $_POST['request_action'];
+        $request_action = $_POST['request_action']; // Cambiato nome per evitare conflitto
         
-        switch($action) {
+        switch($request_action) {
             case 'complete':
                 $success = completePauseRequest($request_id);
                 $message = $success ? 
@@ -122,10 +122,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Gestione approvazione documenti - FIXED: Controllo corretto dei parametri POST
+    // Gestione approvazione documenti - FIXED: Redirect corretto
     if (isset($_POST['review_action']) && isset($_POST['pause_request_id'])) {
         $request_id = intval($_POST['pause_request_id']);
-        $review_action = $_POST['review_action']; // Cambiato nome variabile per evitare conflitto
+        $review_action = $_POST['review_action'];
         $admin_comment = isset($_POST['admin_comment']) ? trim($_POST['admin_comment']) : '';
         
         switch($review_action) {
@@ -161,9 +161,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
         }
         
-        // Redirect per evitare doppio invio form
+        // FIXED: Redirect corretto senza parametro message malformato
         if (isset($_GET['id'])) {
-            header("Location: brand-campaigns.php?action=edit&id=" . $_GET['id'] . "&message=" . urlencode($message));
+            header("Location: brand-campaigns.php?action=edit&id=" . $_GET['id']);
+            exit;
+        } else {
+            // Se non c'è ID, redirect alla lista
+            header("Location: brand-campaigns.php?action=list");
             exit;
         }
     }

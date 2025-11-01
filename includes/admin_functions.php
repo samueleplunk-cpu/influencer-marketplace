@@ -1197,6 +1197,7 @@ function getCampaignIdFromPauseRequest($pause_request_id) {
 
 /**
  * Aggiorna lo stato di una richiesta di pausa con commento admin
+ * FIXED: Gestione corretta degli stati e riattivazione campagna
  */
 function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $admin_id = null) {
     global $pdo;
@@ -1215,12 +1216,13 @@ function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $
             $request_id
         ]);
         
-        // Se l'approvazione è riuscita, riprendi la campagna
+        // FIXED: Logica di riattivazione campagna migliorata
         if ($result && $status === 'approved') {
             $campaign_id = getCampaignIdFromPauseRequest($request_id);
             if ($campaign_id) {
                 updateCampaignStatus($campaign_id, 'active');
-                error_log("Campagna $campaign_id riattivata dopo approvazione documenti");
+                // Completa anche la richiesta di pausa
+                completePauseRequest($request_id);
             }
         }
         
@@ -1321,6 +1323,7 @@ function getCampaignPauseStats($campaign_id) {
 
 /**
  * Contrassegna una richiesta di pausa come "in revisione"
+ * FIXED: Funzione corretta per stato under_review
  */
 function markPauseRequestUnderReview($request_id, $admin_id) {
     global $pdo;
