@@ -1197,7 +1197,7 @@ function getCampaignIdFromPauseRequest($pause_request_id) {
 
 /**
  * Aggiorna lo stato di una richiesta di pausa con commento admin
- * FIXED: Prevenzione duplicazioni e gestione corretta stati
+ * FIXED: Gestione corretta stati per mantenere campagna in pausa quando si richiedono modifiche
  */
 function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $admin_id = null) {
     global $pdo;
@@ -1233,13 +1233,17 @@ function updatePauseRequestStatus($request_id, $status, $admin_comment = null, $
             $request_id
         ]);
         
-        // FIX: Logica di riattivazione campagna migliorata - SOLO per approvazione
-        if ($result && $status === 'approved') {
-            $campaign_id = $existing_request['campaign_id'];
-            if ($campaign_id) {
+        // FIX: Logica di gestione stati campagna migliorata
+        $campaign_id = $existing_request['campaign_id'];
+        if ($result && $campaign_id) {
+            if ($status === 'approved') {
+                // Approvazione: riattiva la campagna
                 updateCampaignStatus($campaign_id, 'active');
-                // FIX: Non completare la richiesta, mantieni lo stato approved
+            } elseif ($status === 'changes_requested') {
+                // Richiesta modifiche: MANTIENE la campagna in pausa
+                updateCampaignStatus($campaign_id, 'paused');
             }
+            // Per gli altri stati (under_review, etc.) non cambia lo stato campagna
         }
         
         return $result;

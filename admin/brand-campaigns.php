@@ -165,18 +165,18 @@ if (isset($_POST['review_action']) && isset($_POST['pause_request_id'])) {
     break;
             
         case 'request_changes':
-            if (empty($admin_comment)) {
-                $_SESSION['admin_message'] = '<div class="alert alert-danger">Il commento è obbligatorio per richiedere modifiche</div>';
-            } else {
-                $success = updatePauseRequestStatus($request_id, 'changes_requested', $admin_comment, $_SESSION['admin_id']);
-                if ($success) {
-                    sendPauseRequestStatusNotification($request_id, 'changes_requested', $admin_comment);
-                    $_SESSION['admin_message'] = '<div class="alert alert-warning">Modifiche richieste al brand</div>';
-                } else {
-                    $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nella richiesta di modifiche</div>';
-                }
-            }
-            break;
+    if (empty($admin_comment)) {
+        $message = '<div class="alert alert-danger">Il commento è obbligatorio per richiedere modifiche</div>';
+    } else {
+        $success = updatePauseRequestStatus($request_id, 'changes_requested', $admin_comment, $_SESSION['admin_id']);
+        if ($success) {
+            sendPauseRequestStatusNotification($request_id, 'changes_requested', $admin_comment);
+            $_SESSION['admin_message'] = '<div class="alert alert-warning">Modifiche richieste al brand</div>';
+        } else {
+            $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nella richiesta di modifiche</div>';
+        }
+    }
+    break;
     }
     
     // === UNICO REDIRECT PER TUTTE LE AZIONI ===

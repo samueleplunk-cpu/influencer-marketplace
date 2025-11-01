@@ -74,18 +74,18 @@ try {
         die("Campagna non trovata o accesso negato");
     }
     
-    // MODIFICA: Recupera SOLO l'ultima richiesta di pausa attiva/pendente
-    $pause_requests_stmt = $pdo->prepare("
-        SELECT cpr.*, a.username as admin_name 
-        FROM campaign_pause_requests cpr 
-        LEFT JOIN admins a ON cpr.admin_id = a.id 
-        WHERE cpr.campaign_id = ? 
-        AND cpr.status IN ('pending', 'documents_uploaded', 'under_review')
-        ORDER BY cpr.created_at DESC 
-        LIMIT 1
-    ");
-    $pause_requests_stmt->execute([$campaign_id]);
-    $pause_requests = $pause_requests_stmt->fetchAll(PDO::FETCH_ASSOC);
+    // Recupera SOLO l'ultima richiesta di pausa attiva/pendente - INCLUDE changes_requested
+$pause_requests_stmt = $pdo->prepare("
+    SELECT cpr.*, a.username as admin_name 
+    FROM campaign_pause_requests cpr 
+    LEFT JOIN admins a ON cpr.admin_id = a.id 
+    WHERE cpr.campaign_id = ? 
+    AND cpr.status IN ('pending', 'documents_uploaded', 'under_review', 'changes_requested')
+    ORDER BY cpr.created_at DESC 
+    LIMIT 1
+");
+$pause_requests_stmt->execute([$campaign_id]);
+$pause_requests = $pause_requests_stmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Recupera documenti caricati per le richieste di pausa
     $pause_documents = [];
@@ -453,6 +453,7 @@ require_once $header_file;
                 $is_pending = $request['status'] === 'pending';
                 $is_documents_uploaded = $request['status'] === 'documents_uploaded';
                 $is_under_review = $request['status'] === 'under_review';
+				$is_changes_requested = $request['status'] === 'changes_requested';
                 $is_overdue = $request['deadline'] && strtotime($request['deadline']) < time();
                 ?>
                 <div class="border rounded p-3 mb-3 <?php echo $is_overdue && ($is_pending || $is_documents_uploaded || $is_under_review) ? 'border-danger' : 'border-warning'; ?>">
@@ -464,16 +465,18 @@ require_once $header_file;
                             <?php endif; ?>
                         </h6>
                         <span class="badge bg-<?php 
-                            echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 
-                                 ($is_under_review ? 'info' : 
-                                 ($is_documents_uploaded ? 'info' : 'success')); 
-                        ?>">
-                            <?php 
-                            echo $is_pending ? ($is_overdue ? 'Scaduta' : 'In attesa documenti') : 
-                                 ($is_under_review ? 'In revisione' : 
-                                 ($is_documents_uploaded ? 'Documenti caricati' : 'Completata')); 
-                            ?>
-                        </span>
+    echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 
+         ($is_under_review ? 'info' : 
+         ($is_documents_uploaded ? 'info' : 
+         ($is_changes_requested ? 'warning text-dark' : 'success'))); 
+?>">
+    <?php 
+    echo $is_pending ? ($is_overdue ? 'Scaduta' : 'In attesa documenti') : 
+         ($is_under_review ? 'In revisione' : 
+         ($is_documents_uploaded ? 'Documenti caricati' : 
+         ($is_changes_requested ? 'Modifiche Richieste' : 'Completata'))); 
+    ?>
+</span>
                     </div>
                     
                     <div class="mb-3">
@@ -550,40 +553,48 @@ require_once $header_file;
                         </div>
                     <?php endif; ?>
                     
-                    <!-- Form upload documenti (solo per richieste pendenti, documents_uploaded o under_review) -->
-                    <?php if ($is_pending || $is_documents_uploaded || $is_under_review): ?>
-                    <div class="border-top pt-3">
-                        <form method="post" enctype="multipart/form-data">
-                            <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Carica documento <?php if ($is_pending): ?><span class="text-danger">*</span><?php endif; ?></label>
-                                <input type="file" class="form-control" name="document" 
-                                       accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" <?php echo $is_pending ? 'required' : ''; ?>>
-                                <div class="form-text">
-                                    Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 10MB)
-                                    <?php if ($is_documents_uploaded || $is_under_review): ?>
-                                        <br><span class="text-info">Puoi caricare documenti aggiuntivi se necessario.</span>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label class="form-label">Commento (opzionale)</label>
-                                <textarea class="form-control" name="brand_comment" rows="3" 
-                                          placeholder="Aggiungi un commento per l'admin..."></textarea>
-                                <div class="form-text">
-                                    Puoi aggiungere note o spiegazioni sui documenti caricati
-                                </div>
-                            </div>
-                            
-                            <button type="submit" name="upload_document" class="btn btn-primary">
-                                <i class="fas fa-upload me-1"></i> 
-                                <?php echo ($is_documents_uploaded || $is_under_review) ? 'Carica Documento Aggiuntivo' : 'Carica Documento'; ?>
-                            </button>
-                        </form>
-                    </div>
-                    <?php endif; ?>
+                    <?php 
+// Variabile per richiesta modifiche da parte di un admin
+$is_changes_requested = $request['status'] === 'changes_requested';
+?>
+
+<!-- Form upload documenti (solo per richieste attive) -->
+<?php if ($is_pending || $is_documents_uploaded || $is_under_review || $is_changes_requested): ?>
+<div class="border-top pt-3">
+    <form method="post" enctype="multipart/form-data">
+        <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
+        
+        <div class="mb-3">
+            <label class="form-label">Carica documento <?php if ($is_pending || $is_changes_requested): ?><span class="text-danger">*</span><?php endif; ?></label>
+            <input type="file" class="form-control" name="document" 
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" <?php echo ($is_pending || $is_changes_requested) ? 'required' : ''; ?>>
+            <div class="form-text">
+                Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 10MB)
+                <?php if ($is_documents_uploaded || $is_under_review || $is_changes_requested): ?>
+                    <br><span class="text-info">Puoi caricare documenti aggiuntivi se necessario.</span>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label">Commento (opzionale)</label>
+            <textarea class="form-control" name="brand_comment" rows="3" 
+                      placeholder="Aggiungi un commento per l'admin..."></textarea>
+            <div class="form-text">
+                Puoi aggiungere note o spiegazioni sui documenti caricati
+                <?php if ($is_changes_requested): ?>
+                    <br><span class="text-warning">Stai rispondendo alla richiesta di modifiche dell'admin.</span>
+                <?php endif; ?>
+            </div>
+        </div>
+        
+        <button type="submit" name="upload_document" class="btn btn-primary">
+            <i class="fas fa-upload me-1"></i> 
+            <?php echo $is_changes_requested ? 'Carica Documenti Corretti' : (($is_documents_uploaded || $is_under_review) ? 'Carica Documento Aggiuntivo' : 'Carica Documento'); ?>
+        </button>
+    </form>
+</div>
+<?php endif; ?>
                 </div>
             </div>
         </div>
