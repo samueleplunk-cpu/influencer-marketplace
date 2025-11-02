@@ -931,7 +931,7 @@ if ($action === 'list') {
                             </div>
                         </div>
                         
-                        <!-- Timeline Cronologia Pause -->
+                        <!-- Timeline Cronologia Pause - TRASFORMATA IN ACCORDION -->
                         <div class="card">
                             <div class="card-header bg-dark text-white">
                                 <h5 class="card-title mb-0">
@@ -946,177 +946,185 @@ if ($action === 'list') {
                                         <p class="text-muted">Non ci sono richieste di integrazione informazioni per questa campagna.</p>
                                     </div>
                                 <?php else: ?>
-                                    <div class="timeline">
+                                    <div class="accordion" id="pauseRequestsAccordion">
                                         <?php foreach ($pause_history as $index => $pause): 
                                             $documents = getPauseRequestDocuments($pause['id']);
                                             $status_config = getPauseRequestStatusConfig($pause['status']);
+                                            $accordion_id = 'pauseRequest' . $pause['id'];
                                         ?>
-                                            <div class="timeline-item mb-4">
-                                                <div class="timeline-marker <?php echo $status_config['badge_class']; ?>">
-                                                    <i class="<?php echo $status_config['icon']; ?>"></i>
-                                                </div>
-                                                <div class="timeline-content">
-                                                    <div class="card">
-                                                        <div class="card-header d-flex justify-content-between align-items-center">
-                                                            <h6 class="mb-0">
-                                                                Richiesta del <?php echo date('d/m/Y H:i', strtotime($pause['created_at'])); ?>
-                                                            </h6>
+                                            <div class="accordion-item mb-3">
+                                                <h2 class="accordion-header" id="heading<?php echo $accordion_id; ?>">
+                                                    <button class="accordion-button collapsed" type="button" 
+                                                            data-bs-toggle="collapse" 
+                                                            data-bs-target="#collapse<?php echo $accordion_id; ?>" 
+                                                            aria-expanded="false" 
+                                                            aria-controls="collapse<?php echo $accordion_id; ?>">
+                                                        <div class="d-flex justify-content-between align-items-center w-100 me-3">
                                                             <div>
-                                                                <span class="badge <?php echo $status_config['badge_class']; ?>">
+                                                                <i class="fas fa-chevron-down accordion-arrow me-2"></i>
+                                                                <strong>Richiesta del <?php echo date('d/m/Y H:i', strtotime($pause['created_at'])); ?></strong>
+                                                            </div>
+                                                            <div>
+                                                                <span class="badge <?php echo $status_config['badge_class']; ?> me-2">
                                                                     <i class="<?php echo $status_config['icon']; ?> me-1"></i>
                                                                     <?php echo $status_config['label']; ?>
                                                                 </span>
                                                                 <?php if ($pause['deadline'] && strtotime($pause['deadline']) < time() && in_array($pause['status'], ['pending', 'documents_uploaded'])): ?>
-                                                                    <span class="badge bg-danger ms-1">
+                                                                    <span class="badge bg-danger">
                                                                         <i class="fas fa-clock me-1"></i>Scaduta
                                                                     </span>
                                                                 <?php endif; ?>
                                                             </div>
                                                         </div>
-                                                        <div class="card-body">
-                                                            <!-- Informazioni Base Richiesta -->
-                                                            <div class="row mb-3">
-                                                                <div class="col-md-6">
-                                                                    <strong>Creata da:</strong>
-                                                                    <span class="text-muted"><?php echo htmlspecialchars($pause['admin_name'] ?? 'Admin'); ?></span>
-                                                                </div>
-                                                                <div class="col-md-6">
-                                                                    <strong>Documenti:</strong>
-                                                                    <span class="badge bg-info"><?php echo $pause['documents_count']; ?> file</span>
-                                                                </div>
+                                                    </button>
+                                                </h2>
+                                                <div id="collapse<?php echo $accordion_id; ?>" 
+                                                     class="accordion-collapse collapse" 
+                                                     aria-labelledby="heading<?php echo $accordion_id; ?>" 
+                                                     data-bs-parent="#pauseRequestsAccordion">
+                                                    <div class="accordion-body">
+                                                        <!-- Informazioni Base Richiesta -->
+                                                        <div class="row mb-3">
+                                                            <div class="col-md-6">
+                                                                <strong>Creata da:</strong>
+                                                                <span class="text-muted"><?php echo htmlspecialchars($pause['admin_name'] ?? 'Admin'); ?></span>
                                                             </div>
-                                                            
-                                                            <!-- Motivo Pausa -->
-                                                            <div class="mb-3">
-                                                                <strong>Motivo della pausa:</strong>
-                                                                <p class="mb-1"><?php echo nl2br(htmlspecialchars($pause['pause_reason'])); ?></p>
+                                                            <div class="col-md-6">
+                                                                <strong>Documenti:</strong>
+                                                                <span class="badge bg-info"><?php echo $pause['documents_count']; ?> file</span>
                                                             </div>
-                                                            
-                                                            <!-- Documenti Richiesti -->
-                                                            <?php if (!empty($pause['required_documents'])): ?>
-                                                                <div class="mb-3">
-                                                                    <strong>Documenti richiesti:</strong>
-                                                                    <p class="mb-1"><?php echo nl2br(htmlspecialchars($pause['required_documents'])); ?></p>
-                                                                </div>
-                                                            <?php endif; ?>
-                                                            
-                                                            <!-- Scadenza -->
-                                                            <?php if ($pause['deadline']): ?>
-                                                                <div class="mb-3">
-                                                                    <strong>Scadenza:</strong>
-                                                                    <span class="<?php echo strtotime($pause['deadline']) < time() ? 'text-danger fw-bold' : ''; ?>">
-                                                                        <?php echo date('d/m/Y', strtotime($pause['deadline'])); ?>
-                                                                        <?php if (strtotime($pause['deadline']) < time()): ?>
-                                                                            <small class="text-muted">(Scaduta)</small>
-                                                                        <?php endif; ?>
-                                                                    </span>
-                                                                </div>
-                                                            <?php endif; ?>
-                                                            
-                                                            <!-- Commento Brand -->
-                                                            <?php if (!empty($pause['brand_upload_comment'])): ?>
-                                                                <div class="alert alert-light border mb-3">
-                                                                    <strong>Commento del Brand:</strong>
-                                                                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['brand_upload_comment'])); ?></p>
-                                                                </div>
-                                                            <?php endif; ?>
-                                                            
-                                                            <!-- Documenti Caricati -->
-                                                            <?php if (!empty($documents)): ?>
-                                                                <div class="mb-3">
-                                                                    <strong>Documenti caricati dal brand:</strong>
-                                                                    <div class="mt-2">
-                                                                        <?php foreach ($documents as $doc): ?>
-                                                                            <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
-                                                                                <div>
-                                                                                    <i class="fas fa-file me-2"></i>
-                                                                                    <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
-                                                                                       target="_blank" class="text-decoration-none">
-                                                                                        <?php echo htmlspecialchars($doc['original_name']); ?>
-                                                                                    </a>
-                                                                                    <small class="text-muted ms-2">
-                                                                                        (<?php echo formatFileSize($doc['file_size']); ?>)
-                                                                                    </small>
-                                                                                </div>
-                                                                                <div>
-                                                                                    <small class="text-muted me-3">
-                                                                                        <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
-                                                                                    </small>
-                                                                                    <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
-                                                                                       class="btn btn-sm btn-outline-primary" target="_blank">
-                                                                                        <i class="fas fa-download"></i>
-                                                                                    </a>
-                                                                                </div>
-                                                                            </div>
-                                                                        <?php endforeach; ?>
-                                                                    </div>
-                                                                </div>
-                                                            <?php endif; ?>
-                                                            
-                                                            <!-- Commento Admin e Azioni -->
-                                                            <?php if ($pause['admin_review_comment']): ?>
-                                                                <div class="alert alert-info">
-                                                                    <strong>Commento Admin:</strong>
-                                                                    <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['admin_review_comment'])); ?></p>
-                                                                    <small class="text-muted">
-                                                                        Revisionato da <?php echo htmlspecialchars($pause['reviewed_by_name'] ?? 'Admin'); ?> 
-                                                                        il <?php echo date('d/m/Y H:i', strtotime($pause['admin_reviewed_at'])); ?>
-                                                                    </small>
-                                                                </div>
-                                                            <?php endif; ?>
-                                                            
-                                                            <!-- Azioni Admin -->
-                                                            <?php if (in_array($pause['status'], ['documents_uploaded', 'under_review', 'changes_requested'])): ?>
-                                                                <div class="border-top pt-3">
-                                                                    <h6>Azioni Revisione:</h6>
-                                                                    <form method="post" class="row g-3">
-                                                                        <input type="hidden" name="pause_request_id" value="<?php echo $pause['id']; ?>">
-                                                                        
-                                                                        <div class="col-md-8">
-                                                                            <label class="form-label">Commento Admin <?php if (in_array($pause['status'], ['changes_requested', 'under_review'])): ?><span class="text-danger">*</span><?php endif; ?></label>
-                                                                            <textarea class="form-control" name="admin_comment" rows="3" 
-                                                                                      placeholder="Inserisci commento per il brand..." 
-                                                                                      <?php echo in_array($pause['status'], ['changes_requested', 'under_review']) ? 'required' : ''; ?>><?php echo htmlspecialchars($pause['admin_review_comment'] ?? ''); ?></textarea>
-                                                                            <?php if (in_array($pause['status'], ['changes_requested', 'under_review'])): ?>
-                                                                                <div class="form-text text-danger">Il commento è obbligatorio quando si richiedono modifiche o si approva</div>
-                                                                            <?php endif; ?>
-                                                                        </div>
-                                                                        
-                                                                        <div class="col-md-4">
-                                                                            <label class="form-label">Azione</label>
-                                                                            <div class="d-grid gap-2">
-                                                                                <?php if ($pause['status'] === 'documents_uploaded'): ?>
-                                                                                    <button type="submit" name="review_action" value="mark_under_review" 
-                                                                                            class="btn btn-info btn-sm">
-                                                                                        <i class="fas fa-search me-1"></i>Metti in Revisione
-                                                                                    </button>
-                                                                                <?php endif; ?>
-                                                                                
-                                                                                <button type="submit" name="review_action" value="approve" 
-                                                                                        class="btn btn-success btn-sm">
-                                                                                    <i class="fas fa-check me-1"></i>Approva
-                                                                                </button>
-                                                                                
-                                                                                <button type="submit" name="review_action" value="request_changes" 
-                                                                                        class="btn btn-warning btn-sm">
-                                                                                    <i class="fas fa-edit me-1"></i>Richiedi Modifiche
-                                                                                </button>
-                                                                            </div>
-                                                                        </div>
-                                                                    </form>
-                                                                </div>
-                                                            <?php elseif ($pause['status'] === 'pending' && empty($documents)): ?>
-                                                                <div class="alert alert-warning">
-                                                                    <i class="fas fa-clock me-2"></i>
-                                                                    In attesa che il brand carichi i documenti richiesti
-                                                                </div>
-                                                            <?php elseif ($pause['status'] === 'approved'): ?>
-                                                                <div class="alert alert-success">
-                                                                    <i class="fas fa-check-circle me-2"></i>
-                                                                    Documenti approvati il <?php echo date('d/m/Y H:i', strtotime($pause['admin_reviewed_at'])); ?>
-                                                                </div>
-                                                            <?php endif; ?>
                                                         </div>
+                                                        
+                                                        <!-- Motivo Pausa -->
+                                                        <div class="mb-3">
+                                                            <strong>Motivo della pausa:</strong>
+                                                            <p class="mb-1"><?php echo nl2br(htmlspecialchars($pause['pause_reason'])); ?></p>
+                                                        </div>
+                                                        
+                                                        <!-- Documenti Richiesti -->
+                                                        <?php if (!empty($pause['required_documents'])): ?>
+                                                            <div class="mb-3">
+                                                                <strong>Documenti richiesti:</strong>
+                                                                <p class="mb-1"><?php echo nl2br(htmlspecialchars($pause['required_documents'])); ?></p>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        
+                                                        <!-- Scadenza -->
+                                                        <?php if ($pause['deadline']): ?>
+                                                            <div class="mb-3">
+                                                                <strong>Scadenza:</strong>
+                                                                <span class="<?php echo strtotime($pause['deadline']) < time() ? 'text-danger fw-bold' : ''; ?>">
+                                                                    <?php echo date('d/m/Y', strtotime($pause['deadline'])); ?>
+                                                                    <?php if (strtotime($pause['deadline']) < time()): ?>
+                                                                        <small class="text-muted">(Scaduta)</small>
+                                                                    <?php endif; ?>
+                                                                </span>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        
+                                                        <!-- Commento Brand -->
+                                                        <?php if (!empty($pause['brand_upload_comment'])): ?>
+                                                            <div class="alert alert-light border mb-3">
+                                                                <strong>Commento del Brand:</strong>
+                                                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['brand_upload_comment'])); ?></p>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        
+                                                        <!-- Documenti Caricati -->
+                                                        <?php if (!empty($documents)): ?>
+                                                            <div class="mb-3">
+                                                                <strong>Documenti caricati dal brand:</strong>
+                                                                <div class="mt-2">
+                                                                    <?php foreach ($documents as $doc): ?>
+                                                                        <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+                                                                            <div>
+                                                                                <i class="fas fa-file me-2"></i>
+                                                                                <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
+                                                                                   target="_blank" class="text-decoration-none">
+                                                                                    <?php echo htmlspecialchars($doc['original_name']); ?>
+                                                                                </a>
+                                                                                <small class="text-muted ms-2">
+                                                                                    (<?php echo formatFileSize($doc['file_size']); ?>)
+                                                                                </small>
+                                                                            </div>
+                                                                            <div>
+                                                                                <small class="text-muted me-3">
+                                                                                    <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
+                                                                                </small>
+                                                                                <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
+                                                                                   class="btn btn-sm btn-outline-primary" target="_blank">
+                                                                                    <i class="fas fa-download"></i>
+                                                                                </a>
+                                                                            </div>
+                                                                        </div>
+                                                                    <?php endforeach; ?>
+                                                                </div>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        
+                                                        <!-- Commento Admin e Azioni -->
+                                                        <?php if ($pause['admin_review_comment']): ?>
+                                                            <div class="alert alert-info">
+                                                                <strong>Commento Admin:</strong>
+                                                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['admin_review_comment'])); ?></p>
+                                                                <small class="text-muted">
+                                                                    Revisionato da <?php echo htmlspecialchars($pause['reviewed_by_name'] ?? 'Admin'); ?> 
+                                                                    il <?php echo date('d/m/Y H:i', strtotime($pause['admin_reviewed_at'])); ?>
+                                                                </small>
+                                                            </div>
+                                                        <?php endif; ?>
+                                                        
+                                                        <!-- Azioni Admin -->
+                                                        <?php if (in_array($pause['status'], ['documents_uploaded', 'under_review', 'changes_requested'])): ?>
+                                                            <div class="border-top pt-3">
+                                                                <h6>Azioni Revisione:</h6>
+                                                                <form method="post" class="row g-3">
+                                                                    <input type="hidden" name="pause_request_id" value="<?php echo $pause['id']; ?>">
+                                                                    
+                                                                    <div class="col-md-8">
+                                                                        <label class="form-label">Commento Admin <?php if (in_array($pause['status'], ['changes_requested', 'under_review'])): ?><span class="text-danger">*</span><?php endif; ?></label>
+                                                                        <textarea class="form-control" name="admin_comment" rows="3" 
+                                                                                  placeholder="Inserisci commento per il brand..." 
+                                                                                  <?php echo in_array($pause['status'], ['changes_requested', 'under_review']) ? 'required' : ''; ?>><?php echo htmlspecialchars($pause['admin_review_comment'] ?? ''); ?></textarea>
+                                                                        <?php if (in_array($pause['status'], ['changes_requested', 'under_review'])): ?>
+                                                                            <div class="form-text text-danger">Il commento è obbligatorio quando si richiedono modifiche o si approva</div>
+                                                                        <?php endif; ?>
+                                                                    </div>
+                                                                    
+                                                                    <div class="col-md-4">
+                                                                        <label class="form-label">Azione</label>
+                                                                        <div class="d-grid gap-2">
+                                                                            <?php if ($pause['status'] === 'documents_uploaded'): ?>
+                                                                                <button type="submit" name="review_action" value="mark_under_review" 
+                                                                                        class="btn btn-info btn-sm">
+                                                                                    <i class="fas fa-search me-1"></i>Metti in Revisione
+                                                                                </button>
+                                                                            <?php endif; ?>
+                                                                            
+                                                                            <button type="submit" name="review_action" value="approve" 
+                                                                                    class="btn btn-success btn-sm">
+                                                                                <i class="fas fa-check me-1"></i>Approva
+                                                                            </button>
+                                                                            
+                                                                            <button type="submit" name="review_action" value="request_changes" 
+                                                                                    class="btn btn-warning btn-sm">
+                                                                                <i class="fas fa-edit me-1"></i>Richiedi Modifiche
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </form>
+                                                            </div>
+                                                        <?php elseif ($pause['status'] === 'pending' && empty($documents)): ?>
+                                                            <div class="alert alert-warning">
+                                                                <i class="fas fa-clock me-2"></i>
+                                                                In attesa che il brand carichi i documenti richiesti
+                                                            </div>
+                                                        <?php elseif ($pause['status'] === 'approved'): ?>
+                                                            <div class="alert alert-success">
+                                                                <i class="fas fa-check-circle me-2"></i>
+                                                                Documenti approvati il <?php echo date('d/m/Y H:i', strtotime($pause['admin_reviewed_at'])); ?>
+                                                            </div>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </div>
                                             </div>
@@ -1133,6 +1141,27 @@ if ($action === 'list') {
     </div>
     
     <style>
+    /* Stili per l'accordion delle richieste di pausa */
+    .accordion-button:not(.collapsed) .accordion-arrow {
+        transform: rotate(180deg);
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .accordion-arrow {
+        transition: transform 0.2s ease-in-out;
+        font-size: 0.8rem;
+    }
+
+    .accordion-button {
+        font-weight: 500;
+    }
+
+    .accordion-button:focus {
+        box-shadow: none;
+        border-color: rgba(0,0,0,.125);
+    }
+
+    /* Mantieni la timeline per altri utilizzi se necessario */
     .timeline {
         position: relative;
         padding-left: 30px;
