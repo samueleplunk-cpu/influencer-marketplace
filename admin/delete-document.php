@@ -28,7 +28,7 @@ $document_id = intval($_POST['document_id']);
 try {
     // Recupera informazioni sul documento
     global $pdo;
-    $sql = "SELECT cpd.*, cpr.campaign_id, cpr.status as pause_request_status 
+    $sql = "SELECT cpd.*, cpr.campaign_id 
             FROM campaign_pause_documents cpd 
             JOIN campaign_pause_requests cpr ON cpd.pause_request_id = cpr.id 
             WHERE cpd.id = ?";
@@ -41,17 +41,29 @@ try {
         exit('Documento non trovato');
     }
 
-    // Verifica che la richiesta di pausa non sia già approvata
-    if ($document['pause_request_status'] === 'approved') {
-        http_response_code(403);
-        exit('Non è possibile eliminare documenti di richieste già approvate');
-    }
-
-    // Elimina il file fisico dal server
-    $file_path = $_SERVER['DOCUMENT_ROOT'] . $document['file_path'];
+    // FIX: Eliminazione file fisico
+    $base_upload_path = $_SERVER['DOCUMENT_ROOT'] . '/infl/uploads/pause_documents/';
+    $file_name = basename($document['file_path']);
+    $file_path = $base_upload_path . $file_name;
+    
+    // Verifica se il file esiste e eliminalo
     if (file_exists($file_path)) {
-        if (!unlink($file_path)) {
+        if (unlink($file_path)) {
+            error_log("File eliminato con successo: " . $file_path);
+        } else {
             error_log("Errore nell'eliminazione del file: " . $file_path);
+        }
+    } else {
+        // Prova percorso alternativo
+        $alt_path = $_SERVER['DOCUMENT_ROOT'] . $document['file_path'];
+        if (file_exists($alt_path)) {
+            if (unlink($alt_path)) {
+                error_log("File eliminato con successo (percorso alternativo): " . $alt_path);
+            } else {
+                error_log("Errore nell'eliminazione del file (percorso alternativo): " . $alt_path);
+            }
+        } else {
+            error_log("File non trovato, procedo con eliminazione record DB. Percorsi provati: " . $file_path . " e " . $alt_path);
         }
     }
 

@@ -1538,7 +1538,7 @@ function canDeletePauseDocument($document_id) {
     global $pdo;
     
     try {
-        $sql = "SELECT cpr.status 
+        $sql = "SELECT cpd.*, cpr.status 
                 FROM campaign_pause_documents cpd 
                 JOIN campaign_pause_requests cpr ON cpd.pause_request_id = cpr.id 
                 WHERE cpd.id = ?";
@@ -1550,8 +1550,8 @@ function canDeletePauseDocument($document_id) {
             return false;
         }
 
-        // Non permettere eliminazione se la richiesta è già approvata
-        return $result['status'] !== 'approved';
+        // FIX: Permetti eliminazione in qualsiasi stato
+        return true;
 
     } catch (PDOException $e) {
         error_log("Errore verifica eliminazione documento: " . $e->getMessage());

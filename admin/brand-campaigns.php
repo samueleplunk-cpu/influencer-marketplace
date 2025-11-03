@@ -1035,79 +1035,75 @@ if ($action === 'list') {
                                                             </div>
                                                         <?php endif; ?>
                                                         
-                                                        <!-- Documenti Caricati -->
-                                                        <?php if (!empty($documents)): ?>
-                                                            <div class="mb-3">
-                                                                <strong>Documenti caricati dal brand:</strong>
-                                                                <div class="mt-2">
-                                                                    <?php foreach ($documents as $doc): ?>
-                                                                        <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
-                                                                            <div>
-                                                                                <i class="fas fa-file me-2"></i>
-                                                                                <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
-                                                                                   target="_blank" class="text-decoration-none">
-                                                                                    <?php echo htmlspecialchars($doc['original_name']); ?>
-                                                                                </a>
-                                                                                <small class="text-muted ms-2">
-                                                                                    (<?php echo formatFileSize($doc['file_size']); ?>)
-                                                                                </small>
-                                                                            </div>
-                                                                            <div>
-                                                                                <small class="text-muted me-3">
-                                                                                    <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
-                                                                                </small>
-                                                                                <!-- Pulsante Download -->
-                                                                                <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
-                                                                                   class="btn btn-sm btn-outline-primary" target="_blank" title="Scarica documento">
-                                                                                    <i class="fas fa-download"></i>
-                                                                                </a>
-                                                                                <!-- Pulsante Elimina -->
-                                                                                <?php if (canDeletePauseDocument($doc['id'])): ?>
-                                                                                    <button type="button" class="btn btn-sm btn-outline-danger ms-1" 
-                                                                                            data-bs-toggle="modal" 
-                                                                                            data-bs-target="#deleteDocumentModal<?php echo $doc['id']; ?>"
-                                                                                            title="Elimina documento">
-                                                                                        <i class="fas fa-trash"></i>
-                                                                                    </button>
-                                                                                <?php endif; ?>
-                                                                            </div>
-                                                                        </div>
+ <!-- Documenti Caricati -->
+<?php if (!empty($documents)): ?>
+    <div class="mb-3">
+        <strong>Documenti caricati dal brand:</strong>
+        <div class="mt-2">
+            <?php foreach ($documents as $doc): ?>
+                <div class="d-flex justify-content-between align-items-center border rounded p-2 mb-2">
+                    <div>
+                        <i class="fas fa-file me-2"></i>
+                        <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
+                           target="_blank" class="text-decoration-none">
+                            <?php echo htmlspecialchars($doc['original_name']); ?>
+                        </a>
+                        <small class="text-muted ms-2">
+                            (<?php echo formatFileSize($doc['file_size']); ?>)
+                        </small>
+                    </div>
+                    <div>
+                        <small class="text-muted me-3">
+                            <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
+                        </small>
+                        <!-- Pulsante Download -->
+                        <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
+                           class="btn btn-sm btn-outline-primary" target="_blank" title="Scarica documento">
+                            <i class="fas fa-download"></i>
+                        </a>
+                        <!-- Pulsante Elimina - SEMPRE VISIBILE -->
+                        <button type="button" class="btn btn-sm btn-outline-danger ms-1" 
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteDocumentModal<?php echo $doc['id']; ?>"
+                                title="Elimina documento">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
 
-                                                                        <!-- Modal Conferma Eliminazione -->
-                                                                        <?php if (canDeletePauseDocument($doc['id'])): ?>
-                                                                        <div class="modal fade" id="deleteDocumentModal<?php echo $doc['id']; ?>" tabindex="-1">
-                                                                            <div class="modal-dialog modal-dialog-centered">
-                                                                                <div class="modal-content">
-                                                                                    <form method="post" action="/infl/admin/delete-document.php">
-                                                                                        <div class="modal-header">
-                                                                                            <h5 class="modal-title text-danger">
-                                                                                                <i class="fas fa-exclamation-triangle me-2"></i>Conferma Eliminazione
-                                                                                            </h5>
-                                                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                                                        </div>
-                                                                                        <div class="modal-body">
-                                                                                            <p>Sei sicuro di voler eliminare il documento <strong>"<?php echo htmlspecialchars($doc['original_name']); ?>"</strong>?</p>
-                                                                                            <p class="text-muted small">Questa azione non può essere annullata. Il file verrà rimosso definitivamente dal server.</p>
-                                                                                            
-                                                                                            <input type="hidden" name="document_id" value="<?php echo $doc['id']; ?>">
-                                                                                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
-                                                                                            <input type="hidden" name="redirect_to" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>">
-                                                                                        </div>
-                                                                                        <div class="modal-footer">
-                                                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                                                                                            <button type="submit" class="btn btn-danger">
-                                                                                                <i class="fas fa-trash me-1"></i> Elimina Definitivamente
-                                                                                            </button>
-                                                                                        </div>
-                                                                                    </form>
-                                                                                </div>
-                                                                            </div>
-                                                                        </div>
-                                                                        <?php endif; ?>
-                                                                    <?php endforeach; ?>
-                                                                </div>
-                                                            </div>
-                                                        <?php endif; ?>
+                <!-- Modal Conferma Eliminazione - SEMPRE VISIBILE -->
+                <div class="modal fade" id="deleteDocumentModal<?php echo $doc['id']; ?>" tabindex="-1">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <form method="post" action="/infl/admin/delete-document.php">
+                                <div class="modal-header">
+                                    <h5 class="modal-title text-danger">
+                                        <i class="fas fa-exclamation-triangle me-2"></i>Conferma Eliminazione
+                                    </h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <p>Sei sicuro di voler eliminare il documento <strong>"<?php echo htmlspecialchars($doc['original_name']); ?>"</strong>?</p>
+                                    <p class="text-muted small">Questa azione non può essere annullata. Il file verrà rimosso definitivamente dal server.</p>
+                                    
+                                    <input type="hidden" name="document_id" value="<?php echo $doc['id']; ?>">
+                                    <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                    <input type="hidden" name="redirect_to" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>">
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="fas fa-trash me-1"></i> Elimina Definitivamente
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+<?php endif; ?>
                                                         
                                                         <!-- Commento Admin e Azioni -->
                                                         <?php if ($pause['admin_review_comment']): ?>
