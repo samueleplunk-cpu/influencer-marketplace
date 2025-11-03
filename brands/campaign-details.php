@@ -486,7 +486,7 @@ require_once $header_file;
                     
                     <?php if (!empty($request['required_documents'])): ?>
                     <div class="mb-3">
-                        <strong>Documenti richiesti:</strong>
+                        <strong>Informazioni aggiuntive richieste:</strong>
                         <p class="mb-1"><?php echo nl2br(htmlspecialchars($request['required_documents'])); ?></p>
                     </div>
                     <?php endif; ?>
@@ -511,9 +511,9 @@ require_once $header_file;
                         </div>
                     <?php endif; ?>
                     
-                    <!-- Documenti caricati -->
+                    <!-- File caricati -->
                     <div class="mb-3">
-                        <strong>Documenti caricati:</strong>
+                        <strong>File caricati:</strong>
                         <?php if (!empty($request_documents)): ?>
                             <div class="mt-2">
                                 <?php foreach ($request_documents as $doc): ?>
@@ -541,7 +541,7 @@ require_once $header_file;
                                 <?php endforeach; ?>
                             </div>
                         <?php else: ?>
-                            <p class="text-muted mb-2">Nessun documento caricato</p>
+                            <p class="text-muted mb-2">Nessun file caricato</p>
                         <?php endif; ?>
                     </div>
                     
@@ -565,13 +565,13 @@ $is_changes_requested = $request['status'] === 'changes_requested';
         <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
         
         <div class="mb-3">
-            <label class="form-label">Carica documento <?php if ($is_pending || $is_changes_requested): ?><span class="text-danger">*</span><?php endif; ?></label>
+            <label class="form-label">Allega file <?php if ($is_pending || $is_changes_requested): ?><span class="text-danger">*</span><?php endif; ?></label>
             <input type="file" class="form-control" name="document" 
                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" <?php echo ($is_pending || $is_changes_requested) ? 'required' : ''; ?>>
             <div class="form-text">
-                Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 10MB)
+                Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 2MB)
                 <?php if ($is_documents_uploaded || $is_under_review || $is_changes_requested): ?>
-                    <br><span class="text-info">Puoi caricare documenti aggiuntivi se necessario.</span>
+                    <br><span class="text-info">Puoi caricare file aggiuntivi se necessario.</span>
                 <?php endif; ?>
             </div>
         </div>
@@ -581,7 +581,7 @@ $is_changes_requested = $request['status'] === 'changes_requested';
             <textarea class="form-control" name="brand_comment" rows="3" 
                       placeholder="Aggiungi un commento per l'admin..."></textarea>
             <div class="form-text">
-                Puoi aggiungere note o spiegazioni sui documenti caricati
+                Puoi aggiungere note o spiegazioni sui file caricati
                 <?php if ($is_changes_requested): ?>
                     <br><span class="text-warning">Stai rispondendo alla richiesta di modifiche dell'admin.</span>
                 <?php endif; ?>
@@ -590,7 +590,7 @@ $is_changes_requested = $request['status'] === 'changes_requested';
         
         <button type="submit" name="upload_document" class="btn btn-primary">
             <i class="fas fa-upload me-1"></i> 
-            <?php echo $is_changes_requested ? 'Carica Documenti Corretti' : (($is_documents_uploaded || $is_under_review) ? 'Carica Documento Aggiuntivo' : 'Carica Documento'); ?>
+            <?php echo $is_changes_requested ? 'Allega File Corretti' : (($is_documents_uploaded || $is_under_review) ? 'Allega File Aggiuntivo' : 'Allega File'); ?>
         </button>
     </form>
 </div>
@@ -939,14 +939,14 @@ function formatFileSize($bytes) {
 }
 
 /**
- * Gestisce l'upload dei documenti per le richieste di pausa
+ * Gestisce l'upload dei file per le richieste di pausa
  */
 function handlePauseDocumentUpload($file, $pause_request_id, $user_id) {
     global $pdo;
     
-    // Configurazione upload
+    // Configurazione upload - usa la costante centrale
     $upload_dir = dirname(__DIR__) . '/uploads/pause_documents/';
-    $max_file_size = 10 * 1024 * 1024; // 10MB
+    $max_file_size = MAX_UPLOAD_SIZE; // Usa la costante da config.php
     $allowed_types = [
         'pdf' => 'application/pdf',
         'doc' => 'application/msword',
@@ -964,11 +964,11 @@ function handlePauseDocumentUpload($file, $pause_request_id, $user_id) {
     
     // Validazioni
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        return ['success' => false, 'error' => 'Errore nel caricamento del file'];
+        return ['success' => false, 'error' => 'File troppo grande (max 2MB)'];
     }
     
     if ($file['size'] > $max_file_size) {
-        return ['success' => false, 'error' => 'File troppo grande (max 10MB)'];
+        return ['success' => false, 'error' => 'File troppo grande (max 2MB)'];
     }
     
     $file_extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));

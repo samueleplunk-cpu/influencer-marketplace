@@ -52,6 +52,9 @@ try {
 define('ROOT_PATH', BASE_DIR);
 define('INCLUDES_PATH', BASE_DIR . '/includes');
 
+// === UPLOAD CONFIGURATION ===
+define('MAX_UPLOAD_SIZE', 2 * 1024 * 1024); // 2MB in bytes
+
 // === BASE_URL CALCOLATO DINAMICAMENTE ===
 $script_path = dirname($_SERVER['SCRIPT_NAME']);
 if ($script_path === '/infl' || strpos($script_path, '/infl') !== false) {
