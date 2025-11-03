@@ -541,52 +541,45 @@ if ($action === 'list') {
                                             </tr>
 
                                             <!-- Modal Pausa Campagna -->
-                                            <div class="modal fade" id="pauseModal<?php echo $campaign['id']; ?>" tabindex="-1">
-                                                <div class="modal-dialog">
-                                                    <div class="modal-content">
-                                                        <form method="post">
-                                                            <div class="modal-header">
-                                                                <h5 class="modal-title">Metti in Pausa Campagna</h5>
-                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                                            </div>
-                                                            <div class="modal-body">
-                                                                <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
-                                                                <input type="hidden" name="action_type" value="pause">
-                                                                
-                                                                <div class="mb-3">
-                                                                    <label class="form-label">Motivo della pausa <span class="text-danger">*</span></label>
-                                                                    <textarea class="form-control" name="pause_reason" rows="3" 
-                                                                              placeholder="Spiega al brand perché la campagna viene messa in pausa..." required></textarea>
-                                                                </div>
-                                                                
-                                                                <div class="mb-3">
-                                                                    <label class="form-label">Documenti richiesti (opzionale)</label>
-                                                                    <textarea class="form-control" name="required_documents" rows="2" 
-                                                                              placeholder="Specifica quali documenti o informazioni aggiuntive sono richiesti..."></textarea>
-                                                                    <div class="form-text">Es: Certificazioni, documenti fiscali, prove di conformità, etc.</div>
-                                                                </div>
-                                                                
-                                                                <div class="mb-3">
-                                                                    <label class="form-label">Scadenza per l'invio (opzionale)</label>
-                                                                    <input type="date" class="form-control" name="deadline" 
-                                                                           min="<?php echo date('Y-m-d'); ?>">
-                                                                </div>
-                                                                
-                                                                <div class="alert alert-info">
-                                                                    <small>
-                                                                        <i class="fas fa-info-circle"></i> 
-                                                                        Il brand riceverà una notifica e potrà caricare i documenti richiesti dalla dashboard della campagna.
-                                                                    </small>
-                                                                </div>
-                                                            </div>
-                                                            <div class="modal-footer">
-                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                                                                <button type="submit" class="btn btn-warning">Conferma Pausa</button>
-                                                            </div>
-                                                        </form>
-                                                    </div>
-                                                </div>
-                                            </div>
+<div class="modal fade" id="pauseModal<?php echo $campaign['id']; ?>" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                <div class="modal-header">
+                    <h5 class="modal-title">Metti in Pausa Campagna</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
+                    <input type="hidden" name="action_type" value="pause">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Motivo della pausa <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="pause_reason" rows="3" 
+                                  placeholder="Spiega al brand perché la campagna viene messa in pausa..." required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Informazioni aggiuntive richieste <span class="text-danger">*</span></label>
+                        <textarea class="form-control" name="required_documents" rows="2" 
+                                  placeholder="Specifica quali informazioni aggiuntive sono richieste..." required></textarea>
+                        <div class="form-text">Es: Certificazioni, documenti fiscali, prove di conformità, etc.</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Scadenza per l'invio <span class="text-danger">*</span></label>
+                        <input type="date" class="form-control" name="deadline" 
+                               min="<?php echo date('Y-m-d'); ?>" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                    <button type="submit" class="btn btn-warning">Conferma Pausa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
