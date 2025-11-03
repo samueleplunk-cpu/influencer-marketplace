@@ -10,6 +10,11 @@ require_once '../includes/admin_header.php';
 // Verifica login
 checkAdminLogin();
 
+// Genera CSRF token se non esiste
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Inizializza variabili
 $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 $id = isset($_GET['id']) ? intval($_GET['id']) : null;
@@ -946,7 +951,7 @@ if ($action === 'list') {
                                         <p class="text-muted">Non ci sono richieste di integrazione informazioni per questa campagna.</p>
                                     </div>
                                 <?php else: ?>
-                                    <div class="accordion" id="pauseRequestsAccordion">
+                                    <div class="accordion" id="pauseRequestsAccordion" data-exclude-sidebar-toggle="true">
                                         <?php foreach ($pause_history as $index => $pause): 
                                             $documents = getPauseRequestDocuments($pause['id']);
                                             $status_config = getPauseRequestStatusConfig($pause['status']);
@@ -1051,12 +1056,54 @@ if ($action === 'list') {
                                                                                 <small class="text-muted me-3">
                                                                                     <?php echo date('d/m/Y H:i', strtotime($doc['uploaded_at'])); ?>
                                                                                 </small>
+                                                                                <!-- Pulsante Download -->
                                                                                 <a href="/infl/admin/download-document.php?id=<?php echo $doc['id']; ?>" 
-                                                                                   class="btn btn-sm btn-outline-primary" target="_blank">
+                                                                                   class="btn btn-sm btn-outline-primary" target="_blank" title="Scarica documento">
                                                                                     <i class="fas fa-download"></i>
                                                                                 </a>
+                                                                                <!-- Pulsante Elimina -->
+                                                                                <?php if (canDeletePauseDocument($doc['id'])): ?>
+                                                                                    <button type="button" class="btn btn-sm btn-outline-danger ms-1" 
+                                                                                            data-bs-toggle="modal" 
+                                                                                            data-bs-target="#deleteDocumentModal<?php echo $doc['id']; ?>"
+                                                                                            title="Elimina documento">
+                                                                                        <i class="fas fa-trash"></i>
+                                                                                    </button>
+                                                                                <?php endif; ?>
                                                                             </div>
                                                                         </div>
+
+                                                                        <!-- Modal Conferma Eliminazione -->
+                                                                        <?php if (canDeletePauseDocument($doc['id'])): ?>
+                                                                        <div class="modal fade" id="deleteDocumentModal<?php echo $doc['id']; ?>" tabindex="-1">
+                                                                            <div class="modal-dialog modal-dialog-centered">
+                                                                                <div class="modal-content">
+                                                                                    <form method="post" action="/infl/admin/delete-document.php">
+                                                                                        <div class="modal-header">
+                                                                                            <h5 class="modal-title text-danger">
+                                                                                                <i class="fas fa-exclamation-triangle me-2"></i>Conferma Eliminazione
+                                                                                            </h5>
+                                                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                                                        </div>
+                                                                                        <div class="modal-body">
+                                                                                            <p>Sei sicuro di voler eliminare il documento <strong>"<?php echo htmlspecialchars($doc['original_name']); ?>"</strong>?</p>
+                                                                                            <p class="text-muted small">Questa azione non può essere annullata. Il file verrà rimosso definitivamente dal server.</p>
+                                                                                            
+                                                                                            <input type="hidden" name="document_id" value="<?php echo $doc['id']; ?>">
+                                                                                            <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+                                                                                            <input type="hidden" name="redirect_to" value="<?php echo htmlspecialchars($_SERVER['REQUEST_URI']); ?>">
+                                                                                        </div>
+                                                                                        <div class="modal-footer">
+                                                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                                                                                            <button type="submit" class="btn btn-danger">
+                                                                                                <i class="fas fa-trash me-1"></i> Elimina Definitivamente
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    </form>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                        <?php endif; ?>
                                                                     <?php endforeach; ?>
                                                                 </div>
                                                             </div>
@@ -1159,6 +1206,15 @@ if ($action === 'list') {
     .accordion-button:focus {
         box-shadow: none;
         border-color: rgba(0,0,0,.125);
+    }
+
+    /* Stili per i pulsanti documento */
+    .btn-document {
+        transition: all 0.2s ease-in-out;
+    }
+
+    .btn-document:hover {
+        transform: translateY(-1px);
     }
 
     /* Mantieni la timeline per altri utilizzi se necessario */

@@ -1489,4 +1489,89 @@ function canRequestChangesPauseRequest($request_id) {
         return false;
     }
 }
+
+// =============================================================================
+// FUNZIONI PER ELIMINAZIONE DOCUMENTI (NUOVE)
+// =============================================================================
+
+/**
+ * Elimina un documento dalla richiesta di pausa
+ */
+function deletePauseDocument($document_id) {
+    global $pdo;
+    
+    try {
+        // Recupera informazioni sul documento
+        $sql = "SELECT cpd.*, cpr.campaign_id 
+                FROM campaign_pause_documents cpd 
+                JOIN campaign_pause_requests cpr ON cpd.pause_request_id = cpr.id 
+                WHERE cpd.id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$document_id]);
+        $document = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$document) {
+            return false;
+        }
+
+        // Elimina il file fisico
+        $file_path = $_SERVER['DOCUMENT_ROOT'] . $document['file_path'];
+        if (file_exists($file_path)) {
+            unlink($file_path);
+        }
+
+        // Elimina il record dal database
+        $delete_sql = "DELETE FROM campaign_pause_documents WHERE id = ?";
+        $delete_stmt = $pdo->prepare($delete_sql);
+        return $delete_stmt->execute([$document_id]);
+
+    } catch (PDOException $e) {
+        error_log("Errore eliminazione documento pausa: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Verifica se un documento può essere eliminato
+ */
+function canDeletePauseDocument($document_id) {
+    global $pdo;
+    
+    try {
+        $sql = "SELECT cpr.status 
+                FROM campaign_pause_documents cpd 
+                JOIN campaign_pause_requests cpr ON cpd.pause_request_id = cpr.id 
+                WHERE cpd.id = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$document_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$result) {
+            return false;
+        }
+
+        // Non permettere eliminazione se la richiesta è già approvata
+        return $result['status'] !== 'approved';
+
+    } catch (PDOException $e) {
+        error_log("Errore verifica eliminazione documento: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Log delle azioni admin
+ */
+function logAdminAction($admin_id, $action) {
+    global $pdo;
+    
+    try {
+        $sql = "INSERT INTO admin_actions (admin_id, action, created_at) VALUES (?, ?, NOW())";
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$admin_id, $action]);
+    } catch (PDOException $e) {
+        error_log("Errore log azione admin: " . $e->getMessage());
+        return false;
+    }
+}
 ?>
