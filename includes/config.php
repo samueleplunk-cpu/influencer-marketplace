@@ -18,8 +18,16 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 
 // === SESSION CONFIGURATION ===
+// Configurazione dinamica basata su remember_me
+$session_lifetime = 3600; // Default: 1 ora
+
+// Se la sessione esiste già e remember_me è attivo, usa 14 giorni
+if (session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['remember_me']) && $_SESSION['remember_me'] === true) {
+    $session_lifetime = 1209600; // 14 giorni
+}
+
 session_set_cookie_params([
-    'lifetime' => 86400,
+    'lifetime' => $session_lifetime,
     'path' => '/',
     'domain' => $_SERVER['HTTP_HOST'],
     'secure' => isset($_SERVER['HTTPS']),
@@ -565,7 +573,7 @@ if (file_exists($auth_functions_file)) {
 } else {
     if (!function_exists('is_logged_in')) {
         function is_logged_in() {
-            return isset($_SESSION['user_id']);
+            return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
         }
     }
     if (!function_exists('is_influencer')) {

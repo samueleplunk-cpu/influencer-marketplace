@@ -1,12 +1,11 @@
 <?php
-// Includi direttamente functions.php per essere sicuri
-require_once '../includes/functions.php';
+// CORREGGI L'ORDINE DI INCLUDERE I FILE
+
+// PRIMA config.php (che gestisce sessioni e database)
 require_once '../includes/config.php';
 
-// Aggiungi session start
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// POI functions.php (che usa le sessioni e il database)
+require_once '../includes/functions.php';
 
 // DEFINISCI BASE_URL SE NON ESISTE
 if (!defined('BASE_URL')) {
@@ -14,53 +13,54 @@ if (!defined('BASE_URL')) {
 }
 
 // Se l'utente è già loggato, reindirizza
-if (isset($_SESSION['user_id'])) {
-    header("Location: /");
-    exit;
+if (is_logged_in()) {
+    if (is_influencer()) {
+        header("Location: /infl/influencers/dashboard.php");
+    } else {
+        header("Location: /infl/brands/dashboard.php");
+    }
+    exit();
 }
 
 $error = '';
 $success = '';
 $user_type = $_GET['type'] ?? 'influencer';
 
-$valid_types = ['influencer', 'brand', 'admin'];
+$valid_types = ['influencer', 'brand'];
 if (!in_array($user_type, $valid_types)) {
     $user_type = 'influencer';
-}
-
-// Funzione di sanitizzazione semplificata
-function sanitize_input($data) {
-    if (is_array($data)) {
-        return array_map('sanitize_input', $data);
-    }
-    return htmlspecialchars(trim($data ?? ''), ENT_QUOTES, 'UTF-8');
 }
 
 // Gestione del form di registrazione
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Gestisci nome/company_name correttamente
     if ($user_type === 'brand') {
-        $name = sanitize_input($_POST['company_name'] ?? '');
+        $name = clean_input($_POST['company_name'] ?? '');
     } else {
-        $name = sanitize_input($_POST['name'] ?? '');
+        $name = clean_input($_POST['name'] ?? '');
     }
     
-    $email = sanitize_input($_POST['email'] ?? '');
+    $email = clean_input($_POST['email'] ?? '');
     $password = $_POST['password'] ?? '';
     $confirm_password = $_POST['confirm_password'] ?? '';
-    $user_type_form = sanitize_input($_POST['user_type'] ?? 'influencer');
+    $user_type_form = clean_input($_POST['user_type'] ?? 'influencer');
     
     // Campi aggiuntivi
-    $influencer_type = sanitize_input($_POST['influencer_type'] ?? '');
-    $industry = sanitize_input($_POST['industry'] ?? '');
+    $influencer_type = clean_input($_POST['influencer_type'] ?? '');
+    $industry = clean_input($_POST['industry'] ?? '');
+    $terms = isset($_POST['terms']) && $_POST['terms'] == 'on';
     
     // Validazione
     if (empty($name) || empty($email) || empty($password)) {
         $error = 'Tutti i campi sono obbligatori';
+    } elseif (!$terms) {
+        $error = 'Devi accettare i termini di servizio';
     } elseif ($password !== $confirm_password) {
         $error = 'Le password non coincidono';
     } elseif (strlen($password) < 6) {
         $error = 'La password deve essere di almeno 6 caratteri';
+    } elseif (!validate_email($email)) {
+        $error = 'Email non valida';
     } else {
         try {
             // VERIFICA SE L'EMAIL ESISTE GIÀ NELLA TABELLA USERS
@@ -71,14 +71,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Questa email è già registrata';
             } else {
                 // Hash della password
-                $password_hash = password_hash($password, PASSWORD_DEFAULT);
+                $password_hash = hash_password($password);
                 
                 // INIZIA TRANSACTION
                 $pdo->beginTransaction();
                 
                 try {
                     // 1. INSERISCI NELLA TABELLA USERS
-                    $stmt = $pdo->prepare("INSERT INTO users (email, password, user_type, created_at) VALUES (?, ?, ?, NOW())");
+                    $stmt = $pdo->prepare("INSERT INTO users (email, password, user_type, is_active, created_at) VALUES (?, ?, ?, 1, NOW())");
                     $stmt->execute([$email, $password_hash, $user_type_form]);
                     $user_id = $pdo->lastInsertId();
                     
@@ -96,9 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     $success = 'Registrazione completata con successo! Ora puoi effettuare il login.';
                     
-                    // Reindirizza al login dopo 2 secondi
-                    header("refresh:2;url=".BASE_URL."/auth/login.php");
-                    exit();
+                    // Reindirizza al login dopo 3 secondi
+                    header("refresh:3;url=".BASE_URL."/auth/login.php?registered=1");
                     
                 } catch (Exception $e) {
                     // ROLLBACK IN CASO DI ERRORE
@@ -214,7 +213,7 @@ include '../includes/header.php';
                     <?php endif; ?>
                     
                     <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="terms" name="terms" required>
+                        <input type="checkbox" class="form-check-input" id="terms" name="terms" required <?php echo isset($_POST['terms']) ? 'checked' : ''; ?>>
                         <label class="form-check-label" for="terms">
                             Accetto i <a href="<?php echo BASE_URL; ?>/terms.php" target="_blank">Termini di Servizio</a> 
                             e l'<a href="<?php echo BASE_URL; ?>/privacy.php" target="_blank">Informativa Privacy</a>

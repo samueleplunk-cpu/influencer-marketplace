@@ -4,7 +4,7 @@
  * Verifica se l'utente è loggato
  */
 function is_logged_in() {
-    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']);
+    return isset($_SESSION['user_id']) && !empty($_SESSION['user_id']) && !is_session_expired();
 }
 
 /**
@@ -54,13 +54,29 @@ function require_brand() {
 }
 
 /**
- * Login utente
+ * Login utente con supporto "Ricordami"
  */
-function login_user($user_id, $user_type, $username = '') {
+function login_user($user_id, $user_type, $username = '', $remember_me = false) {
     $_SESSION['user_id'] = $user_id;
     $_SESSION['user_type'] = $user_type;
     $_SESSION['username'] = $username;
     $_SESSION['login_time'] = time();
+    $_SESSION['remember_me'] = $remember_me;
+    
+    // Se "Ricordami" è attivo, riconfigura la sessione per 14 giorni
+    if ($remember_me) {
+        session_set_cookie_params([
+            'lifetime' => 1209600, // 14 giorni in secondi
+            'path' => '/',
+            'domain' => $_SERVER['HTTP_HOST'],
+            'secure' => isset($_SERVER['HTTPS']),
+            'httponly' => true,
+            'samesite' => 'Lax'
+        ]);
+        
+        // Rigenera la sessione con la nuova durata
+        session_regenerate_id(true);
+    }
 }
 
 /**
@@ -81,14 +97,40 @@ function logout_user() {
 }
 
 /**
- * Verifica timeout sessione (8 ore)
+ * Verifica se la sessione è scaduta in base all'impostazione "Ricordami"
  */
-function check_session_timeout() {
-    $timeout = 8 * 60 * 60; // 8 ore in secondi
-    if (isset($_SESSION['login_time']) && (time() - $_SESSION['login_time'] > $timeout)) {
+function is_session_expired() {
+    if (!isset($_SESSION['login_time']) || !isset($_SESSION['remember_me'])) {
+        return true;
+    }
+    
+    $current_time = time();
+    $login_time = $_SESSION['login_time'];
+    
+    // Determina la durata della sessione in base a "Ricordami"
+    $session_duration = $_SESSION['remember_me'] ? 1209600 : 3600; // 14 giorni o 1 ora
+    
+    return ($current_time - $login_time) > $session_duration;
+}
+
+/**
+ * Controlla e gestisce la scadenza della sessione
+ */
+function check_session_expiry() {
+    if (isset($_SESSION['user_id']) && is_session_expired()) {
+        // Sessione scaduta, effettua il logout
         logout_user();
         header("Location: /infl/auth/login.php?timeout=1");
         exit();
     }
+}
+
+/**
+ * Verifica timeout sessione (8 ore) - mantenuto per compatibilità
+ * @deprecated Usare check_session_expiry() invece
+ */
+function check_session_timeout() {
+    // Delegato alla nuova funzione per mantenere compatibilità
+    check_session_expiry();
 }
 ?>
