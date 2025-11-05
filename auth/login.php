@@ -25,7 +25,6 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = $_POST['email'] ?? '';
     $password = $_POST['password'] ?? '';
-    $remember_me = isset($_POST['remember_me']) && $_POST['remember_me'] == '1';
     
     try {
         // Cerca utente nella tabella USERS con tutti i controlli di sicurezza
@@ -61,8 +60,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             if ($user_type) {
-                // MODIFICA: Passa il parametro remember_me alla funzione login
-                login_user($user['id'], $user_type, $name, $remember_me);
+                // MODIFICA: Chiamata semplificata senza remember_me
+                login_user($user['id'], $user_type, $name);
                 
                 // Redirect to appropriate dashboard
                 if ($user_type === 'influencer') {
@@ -150,10 +149,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .links-container a:hover {
             color: #007bff;
         }
-        .form-check-input:checked {
-            background-color: #007bff;
-            border-color: #007bff;
-        }
     </style>
 </head>
 <body class="bg-light">
@@ -192,12 +187,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 <label for="password" class="form-label">Password</label>
                                 <input type="password" class="form-control" id="password" name="password" required
                                        placeholder="Inserisci la tua password">
-                            </div>
-                            
-                            <!-- AGGIUNTA: Checkbox Ricordami -->
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="remember_me" name="remember_me" value="1">
-                                <label class="form-check-label" for="remember_me">Ricordami per 14 giorni</label>
                             </div>
                             
                             <button type="submit" class="btn btn-primary w-100 py-2">Accedi</button>

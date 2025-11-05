@@ -54,29 +54,13 @@ function require_brand() {
 }
 
 /**
- * Login utente con supporto "Ricordami"
+ * Login utente con sessione di 14 giorni
  */
-function login_user($user_id, $user_type, $username = '', $remember_me = false) {
+function login_user($user_id, $user_type, $username = '') {
     $_SESSION['user_id'] = $user_id;
     $_SESSION['user_type'] = $user_type;
     $_SESSION['username'] = $username;
     $_SESSION['login_time'] = time();
-    $_SESSION['remember_me'] = $remember_me;
-    
-    // Se "Ricordami" è attivo, riconfigura la sessione per 14 giorni
-    if ($remember_me) {
-        session_set_cookie_params([
-            'lifetime' => 1209600, // 14 giorni in secondi
-            'path' => '/',
-            'domain' => $_SERVER['HTTP_HOST'],
-            'secure' => isset($_SERVER['HTTPS']),
-            'httponly' => true,
-            'samesite' => 'Lax'
-        ]);
-        
-        // Rigenera la sessione con la nuova durata
-        session_regenerate_id(true);
-    }
 }
 
 /**
@@ -97,18 +81,18 @@ function logout_user() {
 }
 
 /**
- * Verifica se la sessione è scaduta in base all'impostazione "Ricordami"
+ * Verifica se la sessione è scaduta (14 giorni)
  */
 function is_session_expired() {
-    if (!isset($_SESSION['login_time']) || !isset($_SESSION['remember_me'])) {
+    if (!isset($_SESSION['login_time'])) {
         return true;
     }
     
     $current_time = time();
     $login_time = $_SESSION['login_time'];
     
-    // Determina la durata della sessione in base a "Ricordami"
-    $session_duration = $_SESSION['remember_me'] ? 1209600 : 3600; // 14 giorni o 1 ora
+    // Durata fissa della sessione: 14 giorni (1209600 secondi)
+    $session_duration = 1209600;
     
     return ($current_time - $login_time) > $session_duration;
 }

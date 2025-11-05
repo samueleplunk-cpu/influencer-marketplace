@@ -18,13 +18,8 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 
 // === SESSION CONFIGURATION ===
-// Configurazione dinamica basata su remember_me
-$session_lifetime = 3600; // Default: 1 ora
-
-// Se la sessione esiste già e remember_me è attivo, usa 14 giorni
-if (session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['remember_me']) && $_SESSION['remember_me'] === true) {
-    $session_lifetime = 1209600; // 14 giorni
-}
+// Sessione fissa di 14 giorni per tutti gli utenti
+$session_lifetime = 1209600; // 14 giorni in secondi
 
 session_set_cookie_params([
     'lifetime' => $session_lifetime,
