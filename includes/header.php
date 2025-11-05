@@ -10,6 +10,12 @@ if (file_exists($config_file)) {
     die("Config file not found: " . $config_file);
 }
 
+// Includi funzioni notifica
+$notification_functions_file = dirname(__DIR__) . '/includes/notification_functions.php';
+if (file_exists($notification_functions_file)) {
+    require_once $notification_functions_file;
+}
+
 // Verifica sessione
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -73,6 +79,12 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
         }
     }
 }
+
+// Conta notifiche non lette
+$unread_notifications_count = 0;
+if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exists('count_unread_notifications')) {
+    $unread_notifications_count = count_unread_notifications($pdo, $_SESSION['user_id'], $_SESSION['user_type']);
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -102,6 +114,24 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
             0% { transform: scale(1); }
             50% { transform: scale(1.1); }
             100% { transform: scale(1); }
+        }
+        .notification-dropdown {
+            min-width: 300px;
+            max-width: 400px;
+        }
+        .notification-item {
+            border-bottom: 1px solid #eee;
+            padding: 0.5rem 0;
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
+        .notification-item.unread {
+            background-color: #f8f9fa;
+        }
+        .notification-time {
+            font-size: 0.8rem;
+            color: #6c757d;
         }
     </style>
 </head>
@@ -167,6 +197,50 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
                             </a>
                         <?php endif; ?>
                         
+                        <!-- Icona Notifiche -->
+                        <div class="nav-item dropdown">
+                            <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-bell me-1"></i>
+                                <?php if ($unread_notifications_count > 0): ?>
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                        <?php echo $unread_notifications_count; ?>
+                                        <span class="visually-hidden">notifiche non lette</span>
+                                    </span>
+                                <?php endif; ?>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end notification-dropdown" aria-labelledby="notificationDropdown">
+                                <li><h6 class="dropdown-header">Notifiche</h6></li>
+                                <?php 
+                                if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exists('get_unread_notifications')) {
+                                    $notifications = get_unread_notifications($pdo, $_SESSION['user_id'], $_SESSION['user_type'], 5);
+                                    
+                                    if (empty($notifications)): ?>
+                                        <li><span class="dropdown-item text-muted">Nessuna notifica</span></li>
+                                    <?php else: 
+                                        foreach ($notifications as $notification): ?>
+                                            <li class="notification-item unread">
+                                                <div class="dropdown-item">
+                                                    <div class="fw-bold"><?php echo htmlspecialchars($notification['title']); ?></div>
+                                                    <div class="small"><?php echo htmlspecialchars($notification['message']); ?></div>
+                                                    <div class="notification-time">
+                                                        <?php echo date('d/m/Y H:i', strtotime($notification['created_at'])); ?>
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        <?php endforeach; ?>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <a class="dropdown-item text-center" href="/infl/<?php echo $_SESSION['user_type']; ?>s/settings.php#notifications">
+                                                <small>Gestisci notifiche</small>
+                                            </a>
+                                        </li>
+                                    <?php endif;
+                                } else { ?>
+                                    <li><span class="dropdown-item text-muted">Caricamento...</span></li>
+                                <?php } ?>
+                            </ul>
+                        </div>
+                        
                         <!-- Menu utente loggato -->
                         <div class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
@@ -174,9 +248,15 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type'])) {
                                 <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Utente'); ?>
                             </a>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="/infl/auth/profile-settings.php">
-                                    <i class="fas fa-cog me-2"></i>Impostazioni
-                                </a></li>
+                                <?php if ($_SESSION['user_type'] === 'brand'): ?>
+                                    <li><a class="dropdown-item" href="/infl/brands/settings.php">
+                                        <i class="fas fa-cog me-2"></i>Impostazioni
+                                    </a></li>
+                                <?php elseif ($_SESSION['user_type'] === 'influencer'): ?>
+                                    <li><a class="dropdown-item" href="/infl/influencers/settings.php">
+                                        <i class="fas fa-cog me-2"></i>Impostazioni
+                                    </a></li>
+                                <?php endif; ?>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="/infl/auth/logout.php">
                                     <i class="fas fa-sign-out-alt me-2"></i>Logout

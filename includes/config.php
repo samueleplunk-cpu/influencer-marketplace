@@ -607,6 +607,12 @@ if (file_exists($email_functions_file)) {
     }
 }
 
+// === INCLUSIONE FUNZIONI NOTIFICA ===
+$notification_functions_file = __DIR__ . '/notification_functions.php';
+if (file_exists($notification_functions_file)) {
+    require_once $notification_functions_file;
+}
+
 // === FUNZIONI UTILITY AGGIUNTIVE ===
 if (!function_exists('generate_secure_token')) {
     function generate_secure_token($length = 50) {

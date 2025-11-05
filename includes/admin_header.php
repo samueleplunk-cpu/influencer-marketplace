@@ -30,6 +30,7 @@ check_admin_session_timeout();
 
 // Determina se siamo nella pagina settings per mantenere il menu aperto
 $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
+$is_notifications_page = basename($_SERVER['PHP_SELF']) == 'notifications.php';
 $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php']);
 ?>
 <!DOCTYPE html>
@@ -152,17 +153,23 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
 
                         <!-- Menu Impostazioni a tendina -->
                         <li class="nav-item">
-                            <a class="nav-link <?php echo $is_settings_page ? '' : 'collapsed'; ?>" 
+                            <a class="nav-link <?php echo $is_settings_page || $is_notifications_page ? '' : 'collapsed'; ?>" 
                                data-bs-toggle="collapse" 
                                href="#settingsSubmenu" 
                                role="button" 
-                               aria-expanded="<?php echo $is_settings_page ? 'true' : 'false'; ?>" 
+                               aria-expanded="<?php echo $is_settings_page || $is_notifications_page ? 'true' : 'false'; ?>" 
                                aria-controls="settingsSubmenu">
                                 <i class="fas fa-cog me-2"></i> Impostazioni
                                 <i class="fas fa-chevron-down float-end mt-1"></i>
                             </a>
-                            <div class="collapse <?php echo $is_settings_page ? 'show' : ''; ?>" id="settingsSubmenu">
+                            <div class="collapse <?php echo $is_settings_page || $is_notifications_page ? 'show' : ''; ?>" id="settingsSubmenu">
                                 <ul class="nav flex-column ms-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo $is_notifications_page ? 'active' : ''; ?>" 
+                                           href="/infl/admin/notifications.php">
+                                            <i class="fas fa-bell me-2"></i> Notifiche
+                                        </a>
+                                    </li>
                                     <li class="nav-item">
                                         <a class="nav-link <?php echo $is_settings_page ? 'active' : ''; ?>" 
                                            href="/infl/admin/settings.php">
