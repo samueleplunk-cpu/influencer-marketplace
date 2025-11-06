@@ -175,6 +175,6 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
 
     <?php include '../includes/footer.php'; ?>
     
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- RIMOSSO: Bootstrap JS già incluso in footer.php -->
 </body>
 </html>
