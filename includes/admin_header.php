@@ -1,5 +1,11 @@
 <?php
+ob_start();
 // includes/admin_header.php - VERSIONE COMPLETA CON SISTEMA MANUTENZIONE
+
+// Inizia l'output buffering per prevenire problemi di redirect
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Percorso assoluto per config
 $config_file = dirname(__DIR__) . '/includes/config.php';
@@ -9,11 +15,6 @@ if (file_exists($config_file)) {
     require_once 'admin_functions.php';
 } else {
     die("Config file not found: " . $config_file);
-}
-
-// Verifica sessione
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
 }
 
 // INCLUSIONE SISTEMA MANUTENZIONE - AGGIUNTA IMPORTANTE
@@ -253,5 +254,3 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
-</body>
-</html>

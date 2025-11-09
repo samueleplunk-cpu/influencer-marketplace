@@ -453,16 +453,14 @@ require_once $header_file;
                 $is_pending = $request['status'] === 'pending';
                 $is_documents_uploaded = $request['status'] === 'documents_uploaded';
                 $is_under_review = $request['status'] === 'under_review';
-				$is_changes_requested = $request['status'] === 'changes_requested';
+                $is_changes_requested = $request['status'] === 'changes_requested';
                 $is_overdue = $request['deadline'] && strtotime($request['deadline']) < time();
                 ?>
                 <div class="border rounded p-3 mb-3 <?php echo $is_overdue && ($is_pending || $is_documents_uploaded || $is_under_review) ? 'border-danger' : 'border-warning'; ?>">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="mb-0">
+                            <!-- MODIFICA 1: Rimuovere "da admin" -->
                             Richiesta del <?php echo date('d/m/Y H:i', strtotime($request['created_at'])); ?>
-                            <?php if ($request['admin_name']): ?>
-                                <small class="text-muted">da <?php echo htmlspecialchars($request['admin_name']); ?></small>
-                            <?php endif; ?>
                         </h6>
                         <span class="badge bg-<?php 
     echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 
@@ -564,6 +562,20 @@ $is_changes_requested = $request['status'] === 'changes_requested';
     <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
         
+        <!-- MODIFICA 2: Riordinamento sezioni - Commento sopra Allega file -->
+        <div class="mb-3">
+            <!-- MODIFICA 2: Cambiare label da "Commento (opzionale)" a "Commento *" -->
+            <label class="form-label">Commento <span class="text-danger">*</span></label>
+            <textarea class="form-control" name="brand_comment" rows="3" 
+                      placeholder="Scrivi un commento..." required></textarea>
+            <div class="form-text">
+                Campo obbligatorio per l'invio delle informazioni
+                <?php if ($is_changes_requested): ?>
+                    <br><span class="text-warning">Stai rispondendo alla richiesta di modifiche dell'admin.</span>
+                <?php endif; ?>
+            </div>
+        </div>
+        
         <div class="mb-3">
             <label class="form-label">Allega file <?php if ($is_pending || $is_changes_requested): ?><span class="text-danger">*</span><?php endif; ?></label>
             <input type="file" class="form-control" name="document" 
@@ -576,21 +588,10 @@ $is_changes_requested = $request['status'] === 'changes_requested';
             </div>
         </div>
         
-        <div class="mb-3">
-            <label class="form-label">Commento (opzionale)</label>
-            <textarea class="form-control" name="brand_comment" rows="3" 
-                      placeholder="Aggiungi un commento per l'admin..."></textarea>
-            <div class="form-text">
-                Puoi aggiungere note o spiegazioni sui file caricati
-                <?php if ($is_changes_requested): ?>
-                    <br><span class="text-warning">Stai rispondendo alla richiesta di modifiche dell'admin.</span>
-                <?php endif; ?>
-            </div>
-        </div>
-        
+        <!-- MODIFICA 3: Cambiare label pulsante da "Allega File" a "Invia informazioni" -->
         <button type="submit" name="upload_document" class="btn btn-primary">
-            <i class="fas fa-upload me-1"></i> 
-            <?php echo $is_changes_requested ? 'Allega File Corretti' : (($is_documents_uploaded || $is_under_review) ? 'Allega File Aggiuntivo' : 'Allega File'); ?>
+            <i class="fas fa-paper-plane me-1"></i> 
+            Invia informazioni
         </button>
     </form>
 </div>
