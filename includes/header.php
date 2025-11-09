@@ -154,6 +154,9 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exi
                             <a class="nav-link" href="/infl/brands/dashboard.php">
                                 <i class="fas fa-tachometer-alt me-1"></i> Dashboard
                             </a>
+                            <a class="nav-link" href="/infl/brands/campaigns.php">
+                                <i class="fas fa-bullhorn me-1"></i> Campagne
+                            </a>
                             <a class="nav-link position-relative" href="/infl/brands/messages/conversation-list.php">
                                 <i class="fas fa-envelope me-1"></i> Messaggi
                                 <?php if ($unread_count > 0): ?>
@@ -166,16 +169,13 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exi
                             <a class="nav-link" href="/infl/brands/search-influencers.php">
                                 <i class="fas fa-search me-1"></i> Cerca Influencer
                             </a>
-                            <a class="nav-link" href="/infl/brands/campaigns.php">
-                                <i class="fas fa-bullhorn me-1"></i> Campagne
-                            </a>
-                            <a class="nav-link" href="/infl/brands/profile.php">
-                                <i class="fas fa-building me-1"></i> Profilo Brand
-                            </a>
                         <?php elseif ($_SESSION['user_type'] === 'influencer'): ?>
                             <!-- Menu Influencer -->
                             <a class="nav-link" href="/infl/influencers/dashboard.php">
                                 <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                            </a>
+                            <a class="nav-link" href="/infl/influencers/campaigns.php">
+                                <i class="fas fa-bullhorn me-1"></i> Campagne
                             </a>
                             <a class="nav-link position-relative" href="/infl/influencers/messages/conversation-list.php">
                                 <i class="fas fa-envelope me-1"></i> Messaggi
@@ -186,14 +186,8 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exi
                                     </span>
                                 <?php endif; ?>
                             </a>
-                            <a class="nav-link" href="/infl/influencers/campaigns.php">
-                                <i class="fas fa-bullhorn me-1"></i> Campagne
-                            </a>
                             <a class="nav-link" href="/infl/influencers/analytics.php">
                                 <i class="fas fa-chart-bar me-1"></i> Analytics
-                            </a>
-                            <a class="nav-link" href="/infl/influencers/profile.php">
-                                <i class="fas fa-user me-1"></i> Profilo
                             </a>
                         <?php endif; ?>
                         
@@ -245,7 +239,7 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exi
                         <div class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
                                 <i class="fas fa-user-circle me-1"></i> 
-                                <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Utente'); ?>
+                                <?php echo htmlspecialchars($_SESSION['user_name'] ?? 'Profilo'); ?>
                             </a>
                             <ul class="dropdown-menu">
                                 <?php if ($_SESSION['user_type'] === 'brand'): ?>
