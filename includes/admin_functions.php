@@ -315,6 +315,156 @@ function updateInfluencerStatus($id, $action, $suspension_end = null) {
 }
 
 /**
+ * Elimina completamente un influencer e tutti i dati correlati
+ */
+function deleteInfluencerCompletely($user_id) {
+    global $pdo;
+    
+    try {
+        $pdo->beginTransaction();
+        
+        // 1. Ottieni informazioni sull'influencer prima di eliminare
+        $stmt = $pdo->prepare("
+            SELECT u.id as user_id, u.avatar, i.id as influencer_id
+            FROM users u 
+            LEFT JOIN influencers i ON u.id = i.user_id 
+            WHERE u.id = ? AND u.user_type = 'influencer'
+        ");
+        $stmt->execute([$user_id]);
+        $influencer = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$influencer) {
+            throw new Exception("Influencer non trovato");
+        }
+        
+        $avatar = $influencer['avatar'];
+        $influencer_id = $influencer['influencer_id'];
+        
+        // 2. Elimina i file immagine dal filesystem
+        if (!empty($avatar)) {
+            deleteInfluencerImages($avatar);
+        }
+        
+        // 3. Elimina dalle tabelle correlate (in ordine per vincoli foreign key)
+        
+        if ($influencer_id) {
+            // a) Elimina dalle campagne (se esiste la tabella influencers)
+            try {
+                $stmt = $pdo->prepare("DELETE FROM campaign_influencers WHERE influencer_id = ?");
+                $stmt->execute([$influencer_id]);
+            } catch (Exception $e) {
+                // Tabella campaign_influencers potrebbe non esistere, ignora l'errore
+                error_log("Nota: Tabella campaign_influencers non trovata o errore: " . $e->getMessage());
+            }
+            
+            // b) Elimina matching (se esiste la tabella)
+            try {
+                $stmt = $pdo->prepare("DELETE FROM matching WHERE influencer_id = ?");
+                $stmt->execute([$influencer_id]);
+            } catch (Exception $e) {
+                // Tabella matching potrebbe non esistere, ignora l'errore
+                error_log("Nota: Tabella matching non trovata o errore: " . $e->getMessage());
+            }
+            
+            // c) Elimina l'influencer dalla tabella influencers
+            try {
+                $stmt = $pdo->prepare("DELETE FROM influencers WHERE id = ?");
+                $stmt->execute([$influencer_id]);
+            } catch (Exception $e) {
+                // Tabella influencers potrebbe non esistere, ignora l'errore
+                error_log("Nota: Tabella influencers non trovata o errore: " . $e->getMessage());
+            }
+        }
+        
+        // d) Elimina conversazioni e messaggi
+        try {
+            $stmt = $pdo->prepare("SELECT id FROM conversations WHERE influencer_id = ?");
+            $stmt->execute([$user_id]); // Nota: nelle conversazioni influencer_id potrebbe riferirsi a user_id
+            $conversations = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!empty($conversations)) {
+                $placeholders = str_repeat('?,', count($conversations) - 1) . '?';
+                $stmt = $pdo->prepare("DELETE FROM messages WHERE conversation_id IN ($placeholders)");
+                $stmt->execute($conversations);
+                
+                $stmt = $pdo->prepare("DELETE FROM conversations WHERE influencer_id = ?");
+                $stmt->execute([$user_id]);
+            }
+        } catch (Exception $e) {
+            // Tabelle conversazioni potrebbero non esistere, ignora l'errore
+            error_log("Nota: Tabelle conversazioni non trovate o errore: " . $e->getMessage());
+        }
+        
+        // e) Elimina l'utente associato (hard delete)
+        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        
+        $pdo->commit();
+        return true;
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Errore eliminazione completa influencer $user_id: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Elimina i file immagine dell'influencer dal filesystem
+ */
+function deleteInfluencerImages($avatar) {
+    if (empty($avatar)) {
+        return;
+    }
+    
+    $base_path = dirname(__DIR__) . '/';
+    
+    // Lista dei possibili percorsi dove potrebbe trovarsi l'immagine
+    $possible_paths = [
+        $base_path . 'uploads/influencers/' . $avatar,
+        $base_path . 'uploads/profiles/' . $avatar,
+        $base_path . 'influencers/uploads/' . $avatar,
+        $base_path . 'uploads/' . $avatar,
+        $base_path . $avatar
+    ];
+    
+    foreach ($possible_paths as $file_path) {
+        if (file_exists($file_path) && is_file($file_path)) {
+            try {
+                unlink($file_path);
+                error_log("Eliminato file: $file_path");
+            } catch (Exception $e) {
+                error_log("Errore eliminazione file $file_path: " . $e->getMessage());
+            }
+        }
+    }
+    
+    // Elimina anche le thumbnail se esistono
+    $filename = pathinfo($avatar, PATHINFO_FILENAME);
+    $extension = pathinfo($avatar, PATHINFO_EXTENSION);
+    
+    $thumbnail_patterns = [
+        $base_path . 'uploads/influencers/thumb_*' . $filename . '*',
+        $base_path . 'uploads/profiles/thumb_*' . $filename . '*',
+        $base_path . 'influencers/uploads/thumb_*' . $filename . '*',
+        $base_path . 'uploads/thumb_*' . $filename . '*'
+    ];
+    
+    foreach ($thumbnail_patterns as $pattern) {
+        foreach (glob($pattern) as $thumbnail) {
+            if (file_exists($thumbnail) && is_file($thumbnail)) {
+                try {
+                    unlink($thumbnail);
+                    error_log("Eliminata thumbnail: $thumbnail");
+                } catch (Exception $e) {
+                    error_log("Errore eliminazione thumbnail $thumbnail: " . $e->getMessage());
+                }
+            }
+        }
+    }
+}
+
+/**
  * Ottiene i brands con paginazione e filtri
  */
 function getBrands($page = 1, $per_page = 15, $filters = []) {

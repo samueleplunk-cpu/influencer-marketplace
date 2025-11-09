@@ -63,8 +63,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 break;
                 
             case 'delete':
-                updateInfluencerStatus($influencer_id, 'delete');
-                $message = '<div class="alert alert-info">Influencer eliminato</div>';
+                // Usa l'eliminazione completa invece del soft delete
+                $success = deleteInfluencerCompletely($influencer_id);
+                if ($success) {
+                    $message = '<div class="alert alert-info">Influencer eliminato completamente dal sistema</div>';
+                } else {
+                    $message = '<div class="alert alert-danger">Errore nell\'eliminazione dell\'influencer</div>';
+                }
                 break;
                 
             case 'restore':
@@ -270,8 +275,8 @@ if ($action === 'list') {
                                                                 <input type="hidden" name="influencer_id" value="<?php echo $influencer['id']; ?>">
                                                                 <input type="hidden" name="action_type" value="delete">
                                                                 <button type="submit" class="btn btn-outline-dark" 
-                                                                        onclick="return confirm('Sei sicuro di voler eliminare questo influencer?')"
-                                                                        title="Elimina">
+                                                                        onclick="return confirmDeleteInfluencer()"
+                                                                        title="Elimina completamente">
                                                                     <i class="fas fa-trash"></i>
                                                                 </button>
                                                             </form>
@@ -427,5 +432,14 @@ elseif ($action === 'add' || $action === 'edit') {
     <?php
 }
 
+// Script JavaScript per la conferma di eliminazione
+?>
+<script>
+function confirmDeleteInfluencer() {
+    return confirm('⚠️ ELIMINAZIONE DEFINITIVA ⚠️\n\nSei sicuro di voler eliminare PERMANENTEMENTE questo influencer?\n\nQuesta azione cancellerà:\n• Tutti i dati dell\'influencer\n• Le immagini del profilo\n• Le relazioni con le campagne\n• Tutte le conversazioni\n\n❌ Questa operazione NON può essere annullata!');
+}
+</script>
+
+<?php
 require_once '../includes/admin_footer.php';
 ?>
