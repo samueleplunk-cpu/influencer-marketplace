@@ -46,7 +46,7 @@ if (!$brand) {
 $brand_id = $brand['id'];
 
 // =============================================
-// RECUPERA CONVERSAZIONI
+// RECUPERA CONVERSAZIONI CON INFO MESSAGGI NON LETTI
 // =============================================
 $stmt = $pdo->prepare("
     SELECT c.*, 
@@ -54,12 +54,13 @@ $stmt = $pdo->prepare("
            inf.profile_image as influencer_image,
            camp.name as campaign_title,
            (SELECT message FROM messages WHERE conversation_id = c.id ORDER BY sent_at DESC LIMIT 1) as last_message,
-           (SELECT sent_at FROM messages WHERE conversation_id = c.id ORDER BY sent_at DESC LIMIT 1) as last_message_time
+           (SELECT sent_at FROM messages WHERE conversation_id = c.id ORDER BY sent_at DESC LIMIT 1) as last_message_time,
+           (SELECT COUNT(*) FROM messages WHERE conversation_id = c.id AND is_read = 0 AND sender_type = 'influencer') as unread_count
     FROM conversations c
     LEFT JOIN influencers inf ON c.influencer_id = inf.id
     LEFT JOIN campaigns camp ON c.campaign_id = camp.id
     WHERE c.brand_id = ?
-    ORDER BY c.created_at DESC  -- CORRETTO: specificato c.created_at
+    ORDER BY unread_count > 0 DESC, last_message_time DESC, c.created_at DESC
 ");
 $stmt->execute([$brand_id]);
 $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -99,9 +100,12 @@ require_once $header_file;
                     </div>
                 <?php else: ?>
                     <div class="list-group">
-                        <?php foreach ($conversations as $conversation): ?>
+                        <?php foreach ($conversations as $conversation): 
+                            $has_unread = isset($conversation['unread_count']) && $conversation['unread_count'] > 0;
+                            $bg_class = $has_unread ? 'bg-light' : '';
+                        ?>
                             <a href="conversation.php?id=<?php echo $conversation['id']; ?>" 
-                               class="list-group-item list-group-item-action">
+                               class="list-group-item list-group-item-action <?php echo $bg_class; ?>">
                                 <div class="d-flex w-100 justify-content-between">
                                     <div class="d-flex align-items-center">
                                         <!-- Immagine profilo influencer -->
@@ -140,7 +144,11 @@ require_once $header_file;
                                             </small>
                                         <?php endif; ?>
                                         <div class="mt-2">
-                                            <span class="badge bg-primary">Apri conversazione</span>
+                                            <?php if ($has_unread): ?>
+                                                <span class="badge bg-warning">Nuovo messaggio</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-primary">Leggi conversazione</span>
+                                            <?php endif; ?>
                                         </div>
                                     </div>
                                 </div>
@@ -158,6 +166,28 @@ require_once $header_file;
     background-color: #f8f9fa;
     transform: translateX(2px);
     transition: all 0.2s ease;
+}
+
+/* Sfondo per messaggi non letti */
+.list-group-item.bg-light {
+    background-color: #f8f9fa !important;
+    border-left: 3px solid #ffc107;
+}
+
+/* Miglioramenti per le immagini */
+.rounded-circle {
+    object-fit: cover;
+    border: 2px solid #e9ecef;
+}
+
+.list-group-item {
+    border: 1px solid rgba(0,0,0,0.125);
+    margin-bottom: 5px;
+    border-radius: 8px !important;
+}
+
+.list-group-item:hover {
+    border-color: #007bff;
 }
 </style>
 
