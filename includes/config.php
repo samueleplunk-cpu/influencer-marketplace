@@ -613,6 +613,45 @@ if (file_exists($notification_functions_file)) {
     require_once $notification_functions_file;
 }
 
+// === CONTROLLO AUTOMATICO SCADENZE CAMPAGNE ===
+function initializeCampaignExpirationCheck() {
+    global $pdo;
+    
+    // Esegui il controllo solo occasionalmente (1 volta su 10) per performance
+    if (mt_rand(1, 10) === 1) {
+        try {
+            // Verifica se la funzione esiste già
+            if (function_exists('checkExpiredPausedCampaigns')) {
+                checkExpiredPausedCampaigns();
+            } else {
+                // Fallback: esegui direttamente la query se la funzione non è disponibile
+                $query = "
+                    UPDATE campaigns 
+                    SET status = 'expired', 
+                        updated_at = NOW() 
+                    WHERE status = 'paused' 
+                    AND deadline_date IS NOT NULL 
+                    AND deadline_date < CURDATE()
+                ";
+                
+                $stmt = $pdo->prepare($query);
+                $stmt->execute();
+                
+                $expired_count = $stmt->rowCount();
+                if ($expired_count > 0) {
+                    error_log("Auto-expired $expired_count paused campaigns (fallback)");
+                }
+            }
+        } catch (Exception $e) {
+            // Silenzioso in produzione
+            error_log("Error in campaign expiration check: " . $e->getMessage());
+        }
+    }
+}
+
+// Inizializza il controllo scadenze
+initializeCampaignExpirationCheck();
+
 // === FUNZIONI UTILITY AGGIUNTIVE ===
 if (!function_exists('generate_secure_token')) {
     function generate_secure_token($length = 50) {

@@ -808,33 +808,36 @@ function saveCampaign($data, $id = null) {
         if ($id) {
             // Update
             $sql = "UPDATE campaigns SET 
-                    name = ?, description = ?, budget = ?, currency = ?, niche = ?, 
+                    brand_id = ?, name = ?, description = ?, budget = ?, currency = ?, niche = ?, 
                     platforms = ?, target_audience = ?, status = ?, start_date = ?, 
                     end_date = ?, requirements = ?, is_public = ?, allow_applications = ?, 
-                    updated_at = NOW() 
+                    deadline_date = ?, updated_at = NOW() 
                     WHERE id = ?";
             
             $stmt = $pdo->prepare($sql);
             $result = $stmt->execute([
-                $data['name'], $data['description'], $data['budget'], $data['currency'],
+                $data['brand_id'], $data['name'], $data['description'], $data['budget'], $data['currency'],
                 $data['niche'], $data['platforms'], $data['target_audience'], $data['status'],
                 $data['start_date'], $data['end_date'], $data['requirements'], 
-                $data['is_public'], $data['allow_applications'], $id
+                $data['is_public'], $data['allow_applications'], 
+                isset($data['deadline_date']) ? $data['deadline_date'] : null,
+                $id
             ]);
         } else {
             // Insert
             $sql = "INSERT INTO campaigns 
                     (brand_id, name, description, budget, currency, niche, platforms, 
                      target_audience, status, start_date, end_date, requirements, 
-                     is_public, allow_applications, created_at, updated_at) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+                     is_public, allow_applications, deadline_date, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
             
             $stmt = $pdo->prepare($sql);
             $result = $stmt->execute([
                 $data['brand_id'], $data['name'], $data['description'], $data['budget'],
                 $data['currency'], $data['niche'], $data['platforms'], $data['target_audience'],
                 $data['status'], $data['start_date'], $data['end_date'], $data['requirements'],
-                $data['is_public'], $data['allow_applications']
+                $data['is_public'], $data['allow_applications'],
+                isset($data['deadline_date']) ? $data['deadline_date'] : null
             ]);
         }
         
@@ -874,6 +877,55 @@ function getCampaignsCount($status = null) {
     }
     
     return $stmt->fetchColumn();
+}
+
+/**
+ * Controlla e aggiorna automaticamente le campagne in pausa scadute
+ */
+function checkExpiredPausedCampaigns() {
+    global $pdo;
+    
+    try {
+        $query = "
+            UPDATE campaigns 
+            SET status = 'expired', 
+                updated_at = NOW() 
+            WHERE status = 'paused' 
+            AND deadline_date IS NOT NULL 
+            AND deadline_date < CURDATE()
+        ";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->execute();
+        
+        $expired_count = $stmt->rowCount();
+        
+        if ($expired_count > 0) {
+            error_log("Auto-expired $expired_count paused campaigns");
+        }
+        
+        return $expired_count;
+        
+    } catch (PDOException $e) {
+        error_log("Error checking expired campaigns: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Aggiorna la scadenza di una campagna
+ */
+function updateCampaignDeadline($campaign_id, $deadline) {
+    global $pdo;
+    
+    try {
+        $query = "UPDATE campaigns SET deadline_date = ?, updated_at = NOW() WHERE id = ?";
+        $stmt = $pdo->prepare($query);
+        return $stmt->execute([$deadline, $campaign_id]);
+    } catch (PDOException $e) {
+        error_log("Error updating campaign deadline: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**

@@ -20,6 +20,11 @@ $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 $message = '';
 
+// Esegui controllo scadenze campagne in pausa (solo occasionalmente per performance)
+if (mt_rand(1, 10) === 1) {
+    checkExpiredPausedCampaigns();
+}
+
 // Gestione azioni POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['save_campaign'])) {
@@ -38,7 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'end_date' => isset($_POST['end_date']) ? trim($_POST['end_date']) : '',
             'requirements' => isset($_POST['requirements']) ? trim($_POST['requirements']) : '',
             'is_public' => isset($_POST['is_public']) ? 1 : 0,
-            'allow_applications' => isset($_POST['allow_applications']) ? 1 : 0
+            'allow_applications' => isset($_POST['allow_applications']) ? 1 : 0,
+            'deadline_date' => isset($_POST['deadline_date']) ? trim($_POST['deadline_date']) : null
         ];
         
         if (empty($data['name']) || empty($data['brand_id'])) {
@@ -63,33 +69,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         switch($action_type) {
             case 'pause':
-    // FIX: Prevenzione duplicazione - Verifica se esiste già una richiesta attiva
-    if (hasActivePauseRequest($campaign_id)) {
-        $message = '<div class="alert alert-warning">Esiste già una richiesta di integrazione attiva per questa campagna.</div>';
-        break;
-    }
-    
-    // Nuova gestione pausa con richiesta documenti
-    if (isset($_POST['pause_reason']) && !empty($_POST['pause_reason'])) {
-        $pause_data = [
-            'campaign_id' => $campaign_id,
-            'admin_id' => $_SESSION['admin_id'],
-            'pause_reason' => $_POST['pause_reason'],
-            'required_documents' => isset($_POST['required_documents']) ? $_POST['required_documents'] : '',
-            'deadline' => isset($_POST['deadline']) ? $_POST['deadline'] : null
-        ];
-        
-        $success = createPauseRequest($pause_data);
-        if ($success) {
-            updateCampaignStatus($campaign_id, 'paused');
-            $message = '<div class="alert alert-warning">Campagna messa in pausa con richiesta integrazioni</div>';
-        } else {
-            $message = '<div class="alert alert-danger">Errore nella creazione della richiesta di pausa</div>';
-        }
-    } else {
-        $message = '<div class="alert alert-danger">Motivo della pausa obbligatorio</div>';
-    }
-    break;
+                // FIX: Prevenzione duplicazione - Verifica se esiste già una richiesta attiva
+                if (hasActivePauseRequest($campaign_id)) {
+                    $message = '<div class="alert alert-warning">Esiste già una richiesta di integrazione attiva per questa campagna.</div>';
+                    break;
+                }
+                
+                // Nuova gestione pausa con richiesta documenti
+                if (isset($_POST['pause_reason']) && !empty($_POST['pause_reason'])) {
+                    $pause_data = [
+                        'campaign_id' => $campaign_id,
+                        'admin_id' => $_SESSION['admin_id'],
+                        'pause_reason' => $_POST['pause_reason'],
+                        'required_documents' => isset($_POST['required_documents']) ? $_POST['required_documents'] : '',
+                        'deadline' => isset($_POST['deadline']) ? $_POST['deadline'] : null
+                    ];
+                    
+                    $success = createPauseRequest($pause_data);
+                    if ($success) {
+                        // Aggiorna anche la campagna con la data di scadenza
+                        updateCampaignDeadline($campaign_id, $_POST['deadline']);
+                        updateCampaignStatus($campaign_id, 'paused');
+                        $message = '<div class="alert alert-warning">Campagna messa in pausa con richiesta integrazioni</div>';
+                    } else {
+                        $message = '<div class="alert alert-danger">Errore nella creazione della richiesta di pausa</div>';
+                    }
+                } else {
+                    $message = '<div class="alert alert-danger">Motivo della pausa obbligatorio</div>';
+                }
+                break;
                 
             case 'resume':
                 updateCampaignStatus($campaign_id, 'active');
@@ -101,6 +109,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             case 'complete':
                 updateCampaignStatus($campaign_id, 'completed');
                 $message = '<div class="alert alert-info">Campagna completata</div>';
+                break;
+
+            case 'reactivate':
+                // Riattiva una campagna scaduta
+                updateCampaignStatus($campaign_id, 'active');
+                $message = '<div class="alert alert-success">Campagna riattivata</div>';
                 break;
                 
             case 'delete':
@@ -136,64 +150,64 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-// Gestione approvazione documenti
-if (isset($_POST['review_action']) && isset($_POST['pause_request_id'])) {
-    $request_id = intval($_POST['pause_request_id']);
-    $review_action = $_POST['review_action'];
-    $admin_comment = isset($_POST['admin_comment']) ? trim($_POST['admin_comment']) : '';
-    
-    // Recupera campaign_id per il redirect
-    $campaign_id = getCampaignIdFromPauseRequest($request_id);
-    
-    switch($review_action) {
-        case 'mark_under_review':
-            $success = markPauseRequestUnderReview($request_id, $_SESSION['admin_id']);
-            if ($success) {
-                $_SESSION['admin_message'] = '<div class="alert alert-info">Richiesta messa in revisione</div>';
-            } else {
-                $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nell\'aggiornamento</div>';
-            }
-            break;
-            
-        case 'approve':
-    if (empty($admin_comment)) {
-        $message = '<div class="alert alert-danger">Il commento è obbligatorio per approvare i documenti</div>';
-    } else {
-        $success = updatePauseRequestStatus($request_id, 'approved', $admin_comment, $_SESSION['admin_id']);
-        if ($success) {
-            sendPauseRequestStatusNotification($request_id, 'approved', $admin_comment);
-            $_SESSION['admin_message'] = '<div class="alert alert-success">Documenti approvati con successo! La campagna è stata riattivata.</div>';
-        } else {
-            $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nell\'approvazione dei documenti</div>';
+    // Gestione approvazione documenti
+    if (isset($_POST['review_action']) && isset($_POST['pause_request_id'])) {
+        $request_id = intval($_POST['pause_request_id']);
+        $review_action = $_POST['review_action'];
+        $admin_comment = isset($_POST['admin_comment']) ? trim($_POST['admin_comment']) : '';
+        
+        // Recupera campaign_id per il redirect
+        $campaign_id = getCampaignIdFromPauseRequest($request_id);
+        
+        switch($review_action) {
+            case 'mark_under_review':
+                $success = markPauseRequestUnderReview($request_id, $_SESSION['admin_id']);
+                if ($success) {
+                    $_SESSION['admin_message'] = '<div class="alert alert-info">Richiesta messa in revisione</div>';
+                } else {
+                    $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nell\'aggiornamento</div>';
+                }
+                break;
+                
+            case 'approve':
+                if (empty($admin_comment)) {
+                    $message = '<div class="alert alert-danger">Il commento è obbligatorio per approvare i documenti</div>';
+                } else {
+                    $success = updatePauseRequestStatus($request_id, 'approved', $admin_comment, $_SESSION['admin_id']);
+                    if ($success) {
+                        sendPauseRequestStatusNotification($request_id, 'approved', $admin_comment);
+                        $_SESSION['admin_message'] = '<div class="alert alert-success">Documenti approvati con successo! La campagna è stata riattivata.</div>';
+                    } else {
+                        $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nell\'approvazione dei documenti</div>';
+                    }
+                }
+                break;
+                
+            case 'request_changes':
+                if (empty($admin_comment)) {
+                    $message = '<div class="alert alert-danger">Il commento è obbligatorio per richiedere modifiche</div>';
+                } else {
+                    $success = updatePauseRequestStatus($request_id, 'changes_requested', $admin_comment, $_SESSION['admin_id']);
+                    if ($success) {
+                        sendPauseRequestStatusNotification($request_id, 'changes_requested', $admin_comment);
+                        $_SESSION['admin_message'] = '<div class="alert alert-warning">Modifiche richieste al brand</div>';
+                    } else {
+                        $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nella richiesta di modifiche</div>';
+                    }
+                }
+                break;
         }
-    }
-    break;
-            
-        case 'request_changes':
-    if (empty($admin_comment)) {
-        $message = '<div class="alert alert-danger">Il commento è obbligatorio per richiedere modifiche</div>';
-    } else {
-        $success = updatePauseRequestStatus($request_id, 'changes_requested', $admin_comment, $_SESSION['admin_id']);
-        if ($success) {
-            sendPauseRequestStatusNotification($request_id, 'changes_requested', $admin_comment);
-            $_SESSION['admin_message'] = '<div class="alert alert-warning">Modifiche richieste al brand</div>';
+        
+        // === UNICO REDIRECT PER TUTTE LE AZIONI ===
+        if (isset($_GET['id']) && !empty($_GET['id'])) {
+            header("Location: brand-campaigns.php?action=edit&id=" . $_GET['id']);
+        } elseif ($campaign_id) {
+            header("Location: brand-campaigns.php?action=edit&id=" . $campaign_id);
         } else {
-            $_SESSION['admin_message'] = '<div class="alert alert-danger">Errore nella richiesta di modifiche</div>';
+            header("Location: brand-campaigns.php?action=list");
         }
+        exit;
     }
-    break;
-    }
-    
-    // === UNICO REDIRECT PER TUTTE LE AZIONI ===
-    if (isset($_GET['id']) && !empty($_GET['id'])) {
-        header("Location: brand-campaigns.php?action=edit&id=" . $_GET['id']);
-    } elseif ($campaign_id) {
-        header("Location: brand-campaigns.php?action=edit&id=" . $campaign_id);
-    } else {
-        header("Location: brand-campaigns.php?action=list");
-    }
-    exit;
-}
 }
 
 // All'inizio del file, dopo la gestione POST:
@@ -240,7 +254,7 @@ if ($action === 'list') {
                 
                 <!-- Statistiche Rapide -->
                 <div class="row mb-4">
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl-2 col-md-4">
                         <div class="card bg-primary text-white mb-4">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
@@ -255,7 +269,7 @@ if ($action === 'list') {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl-2 col-md-4">
                         <div class="card bg-warning text-white mb-4">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
@@ -270,7 +284,7 @@ if ($action === 'list') {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl-2 col-md-4">
                         <div class="card bg-success text-white mb-4">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
@@ -285,7 +299,37 @@ if ($action === 'list') {
                             </div>
                         </div>
                     </div>
-                    <div class="col-xl-3 col-md-6">
+                    <div class="col-xl-2 col-md-4">
+                        <div class="card bg-danger text-white mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('expired'); ?></div>
+                                        <div>Scadute</div>
+                                    </div>
+                                    <div class="align-self-center">
+                                        <i class="fas fa-clock fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-2 col-md-4">
+                        <div class="card bg-secondary text-white mb-4">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between">
+                                    <div>
+                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('draft'); ?></div>
+                                        <div>Bozze</div>
+                                    </div>
+                                    <div class="align-self-center">
+                                        <i class="fas fa-edit fa-2x"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xl-2 col-md-4">
                         <div class="card bg-info text-white mb-4">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between">
@@ -327,6 +371,7 @@ if ($action === 'list') {
                                     <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attive</option>
                                     <option value="paused" <?php echo $filters['status'] === 'paused' ? 'selected' : ''; ?>>In pausa</option>
                                     <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completate</option>
+                                    <option value="expired" <?php echo $filters['status'] === 'expired' ? 'selected' : ''; ?>>Scadute</option>
                                     <option value="draft" <?php echo $filters['status'] === 'draft' ? 'selected' : ''; ?>>Bozza</option>
                                 </select>
                             </div>
@@ -390,6 +435,7 @@ if ($action === 'list') {
                                             <th>Budget</th>
                                             <th>Stato</th>
                                             <th>Date</th>
+                                            <th>Scadenza</th>
                                             <th>Richieste Pausa</th>
                                             <th>Azioni</th>
                                         </tr>
@@ -400,6 +446,11 @@ if ($action === 'list') {
                                             $pending_requests = array_filter($pause_requests, function($req) {
                                                 return $req['status'] === 'pending';
                                             });
+                                            
+                                            // Controlla se la campagna è scaduta
+                                            $is_expired = $campaign['status'] === 'paused' && 
+                                                         $campaign['deadline_date'] && 
+                                                         strtotime($campaign['deadline_date']) < time();
                                         ?>
                                             <tr>
                                                 <td>
@@ -444,13 +495,20 @@ if ($action === 'list') {
                                                             $status_badge = '<span class="badge bg-success"><i class="fas fa-play me-1"></i> Attiva</span>';
                                                             break;
                                                         case 'paused':
-                                                            $status_badge = '<span class="badge bg-warning"><i class="fas fa-pause me-1"></i> In pausa</span>';
+                                                            if ($is_expired) {
+                                                                $status_badge = '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
+                                                            } else {
+                                                                $status_badge = '<span class="badge bg-warning"><i class="fas fa-pause me-1"></i> In pausa</span>';
+                                                            }
                                                             if (count($pending_requests) > 0) {
                                                                 $status_badge .= ' <span class="badge bg-danger" title="Richieste integrazioni pendenti"><i class="fas fa-exclamation-circle"></i></span>';
                                                             }
                                                             break;
                                                         case 'completed':
                                                             $status_badge = '<span class="badge bg-info"><i class="fas fa-check me-1"></i> Completata</span>';
+                                                            break;
+                                                        case 'expired':
+                                                            $status_badge = '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
                                                             break;
                                                         case 'draft':
                                                             $status_badge = '<span class="badge bg-secondary"><i class="fas fa-edit me-1"></i> Bozza</span>';
@@ -470,6 +528,18 @@ if ($action === 'list') {
                                                             <span class="text-muted">Nessuna fine</span>
                                                         <?php endif; ?>
                                                     </small>
+                                                </td>
+                                                <td>
+                                                    <?php if ($campaign['deadline_date']): ?>
+                                                        <small class="<?php echo strtotime($campaign['deadline_date']) < time() ? 'text-danger fw-bold' : 'text-muted'; ?>">
+                                                            <?php echo date('d/m/Y', strtotime($campaign['deadline_date'])); ?>
+                                                            <?php if (strtotime($campaign['deadline_date']) < time()): ?>
+                                                                <br><span class="badge bg-danger">Scaduta</span>
+                                                            <?php endif; ?>
+                                                        </small>
+                                                    <?php else: ?>
+                                                        <span class="text-muted small">Nessuna</span>
+                                                    <?php endif; ?>
                                                 </td>
                                                 <td>
                                                     <?php if (count($pause_requests) > 0): ?>
@@ -493,7 +563,7 @@ if ($action === 'list') {
                                                             <i class="fas fa-edit"></i>
                                                         </a>
                                                         
-                                                        <!-- Pausa/Riprendi -->
+                                                        <!-- Pausa/Riprendi/Riattiva -->
                                                         <?php if ($campaign['status'] === 'active'): ?>
                                                             <button type="button" class="btn btn-outline-warning" 
                                                                     data-bs-toggle="modal" 
@@ -501,7 +571,7 @@ if ($action === 'list') {
                                                                     title="Metti in pausa">
                                                                 <i class="fas fa-pause"></i>
                                                             </button>
-                                                        <?php elseif ($campaign['status'] === 'paused'): ?>
+                                                        <?php elseif ($campaign['status'] === 'paused' && !$is_expired): ?>
                                                             <form method="post" class="d-inline">
                                                                 <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
                                                                 <input type="hidden" name="action_type" value="resume">
@@ -511,10 +581,20 @@ if ($action === 'list') {
                                                                     <i class="fas fa-play"></i>
                                                                 </button>
                                                             </form>
+                                                        <?php elseif ($campaign['status'] === 'expired' || $is_expired): ?>
+                                                            <form method="post" class="d-inline">
+                                                                <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
+                                                                <input type="hidden" name="action_type" value="reactivate">
+                                                                <button type="submit" class="btn btn-outline-success" 
+                                                                        onclick="return confirm('Riattivare questa campagna scaduta?')"
+                                                                        title="Riattiva">
+                                                                    <i class="fas fa-redo"></i>
+                                                                </button>
+                                                            </form>
                                                         <?php endif; ?>
                                                         
                                                         <!-- Completa -->
-                                                        <?php if (in_array($campaign['status'], ['active', 'paused'])): ?>
+                                                        <?php if (in_array($campaign['status'], ['active', 'paused']) && !$is_expired): ?>
                                                             <form method="post" class="d-inline">
                                                                 <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
                                                                 <input type="hidden" name="action_type" value="complete">
@@ -541,45 +621,46 @@ if ($action === 'list') {
                                             </tr>
 
                                             <!-- Modal Pausa Campagna -->
-<div class="modal fade" id="pauseModal<?php echo $campaign['id']; ?>" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post">
-                <div class="modal-header">
-                    <h5 class="modal-title">Metti in Pausa Campagna</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
-                    <input type="hidden" name="action_type" value="pause">
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Motivo della pausa <span class="text-danger">*</span></label>
-                        <textarea class="form-control" name="pause_reason" rows="3" 
-                                  placeholder="Spiega al brand perché la campagna viene messa in pausa..." required></textarea>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Informazioni aggiuntive richieste <span class="text-danger">*</span></label>
-                        <textarea class="form-control" name="required_documents" rows="2" 
-                                  placeholder="Specifica quali informazioni aggiuntive sono richieste..." required></textarea>
-                        <div class="form-text">Es: Certificazioni, documenti fiscali, prove di conformità, etc.</div>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">Scadenza per l'invio <span class="text-danger">*</span></label>
-                        <input type="date" class="form-control" name="deadline" 
-                               min="<?php echo date('Y-m-d'); ?>" required>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                    <button type="submit" class="btn btn-warning">Conferma Pausa</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
+                                            <div class="modal fade" id="pauseModal<?php echo $campaign['id']; ?>" tabindex="-1">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <form method="post">
+                                                            <div class="modal-header">
+                                                                <h5 class="modal-title">Metti in Pausa Campagna</h5>
+                                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                            </div>
+                                                            <div class="modal-body">
+                                                                <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
+                                                                <input type="hidden" name="action_type" value="pause">
+                                                                
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Motivo della pausa <span class="text-danger">*</span></label>
+                                                                    <textarea class="form-control" name="pause_reason" rows="3" 
+                                                                              placeholder="Spiega al brand perché la campagna viene messa in pausa..." required></textarea>
+                                                                </div>
+                                                                
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Informazioni aggiuntive richieste <span class="text-danger">*</span></label>
+                                                                    <textarea class="form-control" name="required_documents" rows="2" 
+                                                                              placeholder="Specifica quali informazioni aggiuntive sono richieste..." required></textarea>
+                                                                    <div class="form-text">Es: Certificazioni, documenti fiscali, prove di conformità, etc.</div>
+                                                                </div>
+                                                                
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Scadenza per l'invio <span class="text-danger">*</span></label>
+                                                                    <input type="date" class="form-control" name="deadline" 
+                                                                           min="<?php echo date('Y-m-d'); ?>" required>
+                                                                    <div class="form-text">La campagna scadrà automaticamente se il brand non fornisce le informazioni entro questa data</div>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                                                                <button type="submit" class="btn btn-warning">Conferma Pausa</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         <?php endforeach; ?>
                                     </tbody>
                                 </table>
@@ -819,8 +900,18 @@ if ($action === 'list') {
                                                   rows="3"><?php echo htmlspecialchars($campaign['requirements'] ?? ''); ?></textarea>
                                         <div class="form-text">Specifica i requisiti per gli influencer (minimo follower, engagement rate, etc.)</div>
                                     </div>
-                                    
+
+                                    <!-- Campo Scadenza -->
                                     <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label for="deadline_date" class="form-label">Scadenza</label>
+                                                <input type="date" class="form-control" id="deadline_date" name="deadline_date" 
+                                                       value="<?php echo htmlspecialchars($campaign['deadline_date'] ?? ''); ?>">
+                                                <div class="form-text">Data di scadenza per le campagne in pausa</div>
+                                            </div>
+                                        </div>
+                                        
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label for="status" class="form-label">Stato</label>
@@ -829,6 +920,7 @@ if ($action === 'list') {
                                                     <option value="active" <?php echo ($campaign['status'] ?? '') === 'active' ? 'selected' : ''; ?>>Attiva</option>
                                                     <option value="paused" <?php echo ($campaign['status'] ?? '') === 'paused' ? 'selected' : ''; ?>>In pausa</option>
                                                     <option value="completed" <?php echo ($campaign['status'] ?? '') === 'completed' ? 'selected' : ''; ?>>Completata</option>
+                                                    <option value="expired" <?php echo ($campaign['status'] ?? '') === 'expired' ? 'selected' : ''; ?>>Scaduta</option>
                                                 </select>
                                             </div>
                                         </div>
@@ -841,8 +933,10 @@ if ($action === 'list') {
                                                 <div class="form-text">Visibile agli influencer</div>
                                             </div>
                                         </div>
-                                        
-                                        <div class="col-md-4">
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
                                             <div class="mb-3 form-check form-switch">
                                                 <input type="checkbox" class="form-check-input" id="allow_applications" name="allow_applications" 
                                                        <?php echo ($campaign['allow_applications'] ?? 1) ? 'checked' : ''; ?>>
