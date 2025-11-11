@@ -34,6 +34,11 @@ $brand = null;
 $campaigns = [];
 $error = '';
 
+// Parametri di filtro
+$search_name = $_GET['search_name'] ?? '';
+$filter_category = $_GET['filter_category'] ?? '';
+$filter_status = $_GET['filter_status'] ?? '';
+
 try {
     // Recupera brand
     $stmt = $pdo->prepare("SELECT * FROM brands WHERE user_id = ?");
@@ -45,8 +50,8 @@ try {
         exit();
     }
     
-    // Recupera campagne
-    $stmt = $pdo->prepare("
+    // Query base per campagne
+    $query = "
     SELECT c.*, 
            COUNT(ci.id) as influencer_count,
            COUNT(CASE WHEN ci.status = 'accepted' THEN 1 END) as accepted_count,
@@ -54,11 +59,41 @@ try {
     FROM campaigns c 
     LEFT JOIN campaign_influencers ci ON c.id = ci.campaign_id
     WHERE c.brand_id = ? AND c.deleted_at IS NULL
-    GROUP BY c.id
-    ORDER BY c.created_at DESC
-");
-    $stmt->execute([$brand['id']]);
+    ";
+    
+    $params = [$brand['id']];
+    
+    // Applica filtri
+    if (!empty($search_name)) {
+        $query .= " AND c.name LIKE ?";
+        $params[] = "%$search_name%";
+    }
+    
+    if (!empty($filter_category)) {
+        $query .= " AND c.niche = ?";
+        $params[] = $filter_category;
+    }
+    
+    if (!empty($filter_status)) {
+        if ($filter_status === 'expired') {
+            $query .= " AND (c.status = 'expired' OR (c.status = 'paused' AND c.deadline_date IS NOT NULL AND c.deadline_date < CURDATE()))";
+        } else {
+            $query .= " AND c.status = ?";
+            $params[] = $filter_status;
+        }
+    }
+    
+    $query .= " GROUP BY c.id ORDER BY c.created_at DESC";
+    
+    // Recupera campagne con filtri applicati
+    $stmt = $pdo->prepare($query);
+    $stmt->execute($params);
     $campaigns = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Recupera categorie disponibili per il dropdown
+    $stmt_categories = $pdo->prepare("SELECT DISTINCT niche FROM campaigns WHERE brand_id = ? AND niche IS NOT NULL ORDER BY niche");
+    $stmt_categories->execute([$brand['id']]);
+    $categories = $stmt_categories->fetchAll(PDO::FETCH_COLUMN);
     
 } catch (PDOException $e) {
     $error = "Errore nel caricamento delle campagne: " . $e->getMessage();
@@ -180,6 +215,101 @@ require_once $header_file;
             </div>
         </div>
 
+        <!-- Barra Filtri -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-filter me-2"></i>Filtri Campagne
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="GET" action="" class="row g-3 align-items-end">
+                    <!-- Filtro Nome Campagna -->
+                    <div class="col-md-4">
+                        <label for="search_name" class="form-label">Nome Campagna</label>
+                        <input type="text" 
+                               class="form-control" 
+                               id="search_name" 
+                               name="search_name" 
+                               placeholder="Cerca per nome campagna..."
+                               value="<?php echo htmlspecialchars($search_name); ?>">
+                    </div>
+                    
+                    <!-- Filtro Categoria -->
+                    <div class="col-md-3">
+                        <label for="filter_category" class="form-label">Categoria</label>
+                        <select class="form-select" id="filter_category" name="filter_category">
+                            <option value="">Tutte le categorie</option>
+                            <?php foreach ($categories as $category): ?>
+                                <option value="<?php echo htmlspecialchars($category); ?>" 
+                                    <?php echo $filter_category === $category ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($category); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <!-- Filtro Stato -->
+                    <div class="col-md-3">
+                        <label for="filter_status" class="form-label">Stato</label>
+                        <select class="form-select" id="filter_status" name="filter_status">
+                            <option value="">Tutti gli stati</option>
+                            <option value="draft" <?php echo $filter_status === 'draft' ? 'selected' : ''; ?>>Bozza</option>
+                            <option value="active" <?php echo $filter_status === 'active' ? 'selected' : ''; ?>>Attiva</option>
+                            <option value="paused" <?php echo $filter_status === 'paused' ? 'selected' : ''; ?>>In Pausa</option>
+                            <option value="completed" <?php echo $filter_status === 'completed' ? 'selected' : ''; ?>>Completata</option>
+                            <option value="expired" <?php echo $filter_status === 'expired' ? 'selected' : ''; ?>>Scaduta</option>
+                            <option value="cancelled" <?php echo $filter_status === 'cancelled' ? 'selected' : ''; ?>>Cancellata</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Pulsanti -->
+                    <div class="col-md-2">
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-1"></i>Applica Filtri
+                            </button>
+                            <a href="campaigns.php" class="btn btn-outline-secondary">
+                                <i class="fas fa-undo me-1"></i>Reset
+                            </a>
+                        </div>
+                    </div>
+                </form>
+                
+                <!-- Indicatore filtri attivi -->
+                <?php if (!empty($search_name) || !empty($filter_category) || !empty($filter_status)): ?>
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Filtri attivi: 
+                            <?php 
+                            $active_filters = [];
+                            if (!empty($search_name)) {
+                                $active_filters[] = "Nome: \"$search_name\"";
+                            }
+                            if (!empty($filter_category)) {
+                                $active_filters[] = "Categoria: \"$filter_category\"";
+                            }
+                            if (!empty($filter_status)) {
+                                $status_labels = [
+                                    'draft' => 'Bozza',
+                                    'active' => 'Attiva',
+                                    'paused' => 'In Pausa',
+                                    'completed' => 'Completata',
+                                    'expired' => 'Scaduta',
+                                    'cancelled' => 'Cancellata'
+                                ];
+                                $active_filters[] = "Stato: \"{$status_labels[$filter_status]}\"";
+                            }
+                            echo implode(', ', $active_filters);
+                            ?>
+                            - <strong><?php echo count($campaigns); ?></strong> campagne trovate
+                        </small>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </div>
+
         <!-- Lista Campagne -->
         <div class="card">
             <div class="card-header">
@@ -188,9 +318,19 @@ require_once $header_file;
             <div class="card-body">
                 <?php if (empty($campaigns)): ?>
                     <div class="text-center py-4">
-                        <h4>Nessuna campagna creata</h4>
-                        <p class="text-muted">Inizia creando la tua prima campagna per trovare influencer</p>
-                        <a href="create-campaign.php" class="btn btn-primary">Crea Prima Campagna</a>
+                        <h4>Nessuna campagna trovata</h4>
+                        <p class="text-muted">
+                            <?php if (!empty($search_name) || !empty($filter_category) || !empty($filter_status)): ?>
+                                Prova a modificare i filtri di ricerca
+                            <?php else: ?>
+                                Inizia creando la tua prima campagna per trovare influencer
+                            <?php endif; ?>
+                        </p>
+                        <?php if (empty($search_name) && empty($filter_category) && empty($filter_status)): ?>
+                            <a href="create-campaign.php" class="btn btn-primary">Crea Prima Campagna</a>
+                        <?php else: ?>
+                            <a href="campaigns.php" class="btn btn-outline-primary">Azzera Filtri</a>
+                        <?php endif; ?>
                     </div>
                 <?php else: ?>
                     <div class="table-responsive">
