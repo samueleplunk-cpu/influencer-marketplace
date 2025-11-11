@@ -203,7 +203,6 @@ require_once $header_file;
                                     <th>Stato</th>
                                     <th>Scadenza</th>
                                     <th>Influencer</th>
-                                    <th>Data Creazione</th>
                                     <th>Azioni</th>
                                 </tr>
                             </thead>
@@ -218,7 +217,7 @@ require_once $header_file;
                                     // Stato effettivo per visualizzazione
                                     $effective_status = $is_expired ? 'expired' : $campaign['status'];
                                 ?>
-                                    <tr class="<?php echo $is_expired ? 'table-danger' : ''; ?>">
+                                    <tr>
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="me-2">
@@ -232,9 +231,6 @@ require_once $header_file;
                                                     <strong><?php echo htmlspecialchars($campaign['name']); ?></strong>
                                                     <?php if ($campaign['status'] === 'draft'): ?>
                                                         <span class="badge bg-secondary ms-1">Bozza</span>
-                                                    <?php endif; ?>
-                                                    <?php if ($is_expired): ?>
-                                                        <span class="badge bg-danger ms-1">Scaduta</span>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
@@ -290,32 +286,29 @@ require_once $header_file;
                                             </small>
                                         </td>
                                         <td>
-                                            <?php echo date('d/m/Y', strtotime($campaign['created_at'])); ?>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
-                                                <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
-                                                   class="btn btn-outline-primary" title="Dettagli campagna">
-                                                    <i class="fas fa-eye"></i>
-                                                </a>
-                                                
-                                                <?php if ($campaign['status'] === 'draft'): ?>
-                                                    <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
-                                                       class="btn btn-outline-secondary" title="Modifica campagna">
-                                                        <i class="fas fa-edit"></i>
-                                                    </a>
-                                                <?php endif; ?>
-                                                
-                                                <?php if ($is_expired): ?>
-                                                    <button type="button" class="btn btn-outline-warning" 
-                                                            data-bs-toggle="modal" 
-                                                            data-bs-target="#reactivateModal<?php echo $campaign['id']; ?>"
-                                                            title="Richiedi riattivazione">
-                                                        <i class="fas fa-redo"></i>
-                                                    </button>
-                                                <?php endif; ?>
-                                            </div>
-                                        </td>
+    <div class="btn-group btn-group-sm">
+        <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
+           class="btn btn-outline-primary me-2" title="Dettagli campagna">
+            <i class="fas fa-eye"></i>
+        </a>
+        
+        <?php if ($campaign['status'] === 'draft'): ?>
+            <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
+               class="btn btn-outline-secondary me-1" title="Modifica campagna">
+                <i class="fas fa-edit"></i>
+            </a>
+        <?php endif; ?>
+        
+        <?php if ($is_expired): ?>
+            <button type="button" class="btn btn-outline-primary" 
+                    data-bs-toggle="modal" 
+                    data-bs-target="#reactivateModal<?php echo $campaign['id']; ?>"
+                    title="Richiedi riattivazione">
+                <i class="fas fa-redo"></i>
+            </button>
+        <?php endif; ?>
+    </div>
+</td>
                                     </tr>
 
                                     <!-- Modal Richiesta Riattivazione per Campagne Scadute -->
@@ -361,31 +354,6 @@ require_once $header_file;
                             </tbody>
                         </table>
                     </div>
-
-                    <!-- Informazioni sulle campagne scadute -->
-                    <?php 
-                    $expired_campaigns = array_filter($campaigns, function($c) { 
-                        return $c['status'] === 'expired' || 
-                              ($c['status'] === 'paused' && $c['deadline_date'] && strtotime($c['deadline_date']) < time()); 
-                    }); 
-                    ?>
-                    
-                    <?php if (count($expired_campaigns) > 0): ?>
-                    <div class="mt-4">
-                        <div class="alert alert-warning">
-                            <h6 class="alert-heading">
-                                <i class="fas fa-exclamation-triangle me-2"></i>Campagne Scadute
-                            </h6>
-                            <p class="mb-2">
-                                Le campagne contrassegnate in <strong class="text-danger">rosso</strong> sono scadute per mancata risposta alle richieste di integrazione informazioni.
-                            </p>
-                            <p class="mb-0">
-                                Per riattivare una campagna scaduta, contatta l'amministratore tramite il pulsante 
-                                <i class="fas fa-redo text-warning"></i> e fornisci le informazioni richieste.
-                            </p>
-                        </div>
-                    </div>
-                    <?php endif; ?>
                     
                 <?php endif; ?>
             </div>
@@ -394,14 +362,6 @@ require_once $header_file;
 </div>
 
 <style>
-.table-danger {
-    background-color: rgba(220, 53, 69, 0.05) !important;
-}
-
-.table-danger:hover {
-    background-color: rgba(220, 53, 69, 0.1) !important;
-}
-
 .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
     font-size: 0.875rem;
