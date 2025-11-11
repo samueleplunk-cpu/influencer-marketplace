@@ -144,12 +144,20 @@ require_once $header_file;
                                             </small>
                                         <?php endif; ?>
                                         <div class="mt-2">
-                                            <?php if ($has_unread): ?>
-                                                <span class="badge bg-warning">Nuovo messaggio</span>
-                                            <?php else: ?>
-                                                <span class="badge bg-primary">Leggi conversazione</span>
-                                            <?php endif; ?>
-                                        </div>
+    <?php if ($has_unread): ?>
+        <span class="badge bg-warning">
+            <?php 
+            if ($conversation['unread_count'] == 1) {
+                echo "1 nuovo messaggio";
+            } else {
+                echo $conversation['unread_count'] . " nuovi messaggi";
+            }
+            ?>
+        </span>
+    <?php else: ?>
+        <span class="badge bg-primary">Leggi conversazione</span>
+    <?php endif; ?>
+</div>
                                     </div>
                                 </div>
                             </a>
