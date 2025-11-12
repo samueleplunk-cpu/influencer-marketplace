@@ -212,7 +212,7 @@ function check_maintenance_mode($pdo) {
 
 /**
  * Mostra la pagina di manutenzione
- * MODIFICA: Rimossi badge lampeggiante e aggiornamento automatico
+ * MODIFICA: Mostra solo l'immagine full screen senza testo
  */
 function show_maintenance_page() {
     // Percorsi per l'immagine di manutenzione
@@ -254,7 +254,7 @@ function show_maintenance_page() {
         header('Expires: 0');
     }
     
-    // HTML della pagina di manutenzione
+    // HTML della pagina di manutenzione - SOLO IMMAGINE FULL SCREEN
     echo '<!DOCTYPE html>
     <html lang="it">
     <head>
@@ -270,203 +270,58 @@ function show_maintenance_page() {
             }
             
             body {
-                font-family: "Arial", sans-serif;
-                line-height: 1.6;
-                color: #333;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                min-height: 100vh;
+                margin: 0;
+                padding: 0;
+                background: #000;
+                height: 100vh;
+                overflow: hidden;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                padding: 20px;
             }
             
-            .maintenance-container {
-                text-align: center;
-                background: white;
-                padding: 3rem;
-                border-radius: 15px;
-                box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-                max-width: 600px;
-                width: 100%;
-                animation: fadeIn 0.8s ease-out;
+            .maintenance-image-container {
+                width: 100vw;
+                height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
             
             .maintenance-image {
-                max-width: 100%;
-                height: auto;
-                border-radius: 10px;
-                margin-bottom: 2rem;
-                max-height: 300px;
+                width: 100%;
+                height: 100%;
                 object-fit: cover;
-                border: 3px solid #f8f9fa;
+                object-position: center;
             }
             
-            .maintenance-title {
-                color: #333;
-                font-size: 2.5rem;
-                margin-bottom: 1rem;
-                font-weight: 700;
-            }
-            
-            .maintenance-message {
-                color: #666;
-                font-size: 1.2rem;
-                line-height: 1.6;
-                margin-bottom: 2rem;
-            }
-            
-            .maintenance-info {
-                background: #f8f9fa;
-                padding: 1.5rem;
-                border-radius: 8px;
-                border-left: 4px solid #667eea;
-                text-align: left;
-                margin-bottom: 2rem;
-            }
-            
-            .maintenance-info strong {
-                color: #333;
-                display: block;
-                margin-bottom: 0.5rem;
-                font-size: 1.1rem;
-            }
-            
-            .maintenance-info ul {
-                list-style: none;
-                padding: 0;
-            }
-            
-            .maintenance-info li {
-                padding: 0.3rem 0;
-                color: #555;
-            }
-            
-            .maintenance-info li:before {
-                content: "•";
-                color: #667eea;
-                font-weight: bold;
-                display: inline-block;
-                width: 1em;
-                margin-left: -1em;
-            }
-            
-            .admin-login-link {
-                display: inline-block;
-                background: #667eea;
+            .fallback-maintenance {
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 color: white;
-                padding: 0.8rem 1.5rem;
-                border-radius: 5px;
-                text-decoration: none;
-                font-weight: 500;
-                transition: all 0.3s ease;
-                border: 2px solid #667eea;
-            }
-            
-            .admin-login-link:hover {
-                background: transparent;
-                color: #667eea;
-            }
-            
-            /* RIMOSSO: .refresh-notice - sezione aggiornamento automatico */
-            
-            @keyframes fadeIn {
-                from {
-                    opacity: 0;
-                    transform: translateY(20px);
-                }
-                to {
-                    opacity: 1;
-                    transform: translateY(0);
-                }
-            }
-            
-            @media (max-width: 768px) {
-                .maintenance-container {
-                    padding: 2rem 1.5rem;
-                    margin: 1rem;
-                }
-                
-                .maintenance-title {
-                    font-size: 2rem;
-                }
-                
-                .maintenance-message {
-                    font-size: 1.1rem;
-                }
-                
-                body {
-                    padding: 10px;
-                }
-            }
-            
-            @media (max-width: 480px) {
-                .maintenance-container {
-                    padding: 1.5rem 1rem;
-                }
-                
-                .maintenance-title {
-                    font-size: 1.8rem;
-                }
-                
-                .maintenance-info {
-                    padding: 1rem;
-                }
+                font-family: Arial, sans-serif;
+                font-size: 2rem;
             }
         </style>
     </head>
     <body>
-        <div class="maintenance-container">
-            ';
+        <div class="maintenance-image-container">';
             
     // Gestione dell'immagine
     if (strpos($final_image, 'data:image/svg+xml') === 0) {
-        echo '<div style="background: #667eea; color: white; padding: 2rem; border-radius: 10px; margin-bottom: 2rem;">
-                <div style="font-size: 4rem; margin-bottom: 1rem;">🛠️</div>
-                <h2 style="margin: 0; font-size: 1.5rem;">Sito in Manutenzione</h2>
+        echo '<div class="fallback-maintenance">
+                <div>🛠️ Sito in Manutenzione</div>
               </div>';
     } else {
         echo '<img src="' . $final_image . '" alt="Sito in Manutenzione" class="maintenance-image">';
     }
     
     echo '
-            <h1 class="maintenance-title">🛠️ Sito in Manutenzione</h1>
-            <div class="maintenance-message">
-                Stiamo lavorando per migliorare la tua esperienza. Il sito tornerà presto online!
-            </div>
-            
-            <div class="maintenance-info">
-                <strong>Informazioni:</strong>
-                <ul>
-                    <li>Stiamo effettuando aggiornamenti di sistema</li>
-                    <li>Tutti i dati sono al sicuro</li>
-                    <li>Torneremo online al più presto</li>
-                    <li>Per urgenze, contatta l\'amministrazione</li>
-                </ul>
-            </div>
-            
-            <!-- RIMOSSO: Sezione refresh-notice e countdown -->
         </div>
-        
-        <script>
-            // RIMOSSO: Aggiornamento automatico ogni 5 minuti
-            // RIMOSSO: Countdown e timer di aggiornamento
-            // RIMOSSO: Badge lampeggiante "MANUTENZIONE"
-            
-            // Mantenuto solo il controllo periodico dello stato ogni 30 secondi
-            setInterval(function() {
-                fetch(window.location.href, { 
-                    method: "HEAD",
-                    cache: "no-cache"
-                }).then(function(response) {
-                    if (response.status !== 503) {
-                        window.location.reload();
-                    }
-                }).catch(function() {
-                    // Ignora errori di fetch
-                });
-            }, 30000);
-        </script>
     </body>
     </html>';
     

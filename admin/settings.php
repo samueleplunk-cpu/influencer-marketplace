@@ -245,7 +245,7 @@ $is_maintenance_mode = is_maintenance_mode($pdo);
 
 <script>
 function testMaintenanceView() {
-    // Mostra anteprima completa della pagina di manutenzione
+    // Mostra anteprima completa della pagina di manutenzione (solo immagine)
     const previewHtml = `
         <!DOCTYPE html>
         <html lang="it">
@@ -254,41 +254,45 @@ function testMaintenanceView() {
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
             <title>Anteprima Manutenzione</title>
             <style>
+                * {
+                    margin: 0;
+                    padding: 0;
+                    box-sizing: border-box;
+                }
+                
                 body {
                     margin: 0;
                     padding: 0;
-                    font-family: Arial, sans-serif;
-                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    background: #000;
+                    height: 100vh;
+                    overflow: hidden;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                
+                .maintenance-image-container {
+                    width: 100vw;
                     height: 100vh;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                 }
-                .maintenance-container {
-                    text-align: center;
-                    background: white;
-                    padding: 3rem;
-                    border-radius: 15px;
-                    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-                    max-width: 600px;
-                    margin: 2rem;
-                }
+                
                 .maintenance-image {
-                    max-width: 100%;
-                    height: auto;
-                    border-radius: 10px;
-                    margin-bottom: 2rem;
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    object-position: center;
                 }
             </style>
         </head>
         <body>
-            <div class="maintenance-container">
+            <div class="maintenance-image-container">
                 <img src="<?php echo $maintenance_image; ?>" 
                      alt="Sito in Manutenzione" 
                      class="maintenance-image"
                      onerror="this.src='/infl/assets/img/maintenance-placeholder.png'">
-                <h1>🛠️ Sito in Manutenzione</h1>
-                <p>Stiamo lavorando per migliorare la tua esperienza. Il sito tornerà presto online!</p>
             </div>
         </body>
         </html>

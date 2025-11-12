@@ -81,6 +81,26 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
         .sidebar .nav .nav-link {
             padding-left: 2rem;
         }
+        /* Stili aggiuntivi per il banner manutenzione permanente */
+        .maintenance-banner {
+            box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+            position: relative;
+        }
+        .maintenance-banner::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #ffc107;
+            border-radius: 2px;
+        }
+        .maintenance-status-badge {
+            font-size: 0.875rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body>
@@ -206,14 +226,20 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
                     <?php unset($_SESSION['error_message']); ?>
                 <?php endif; ?>
 
-                <!-- Banner Manutenzione (solo se attiva) -->
+                <!-- Banner Manutenzione (solo se attiva) - MODIFICATO: Rimosso alert e reso permanente -->
                 <?php if (is_maintenance_mode($pdo)): ?>
-                <div class="alert alert-warning d-flex align-items-center mb-4">
-                    <i class="fas fa-tools fa-2x me-3"></i>
-                    <div>
-                        <h5 class="alert-heading mb-1">Modalità Manutenzione Attiva</h5>
-                        <p class="mb-0">Il frontend del sito è temporaneamente non disponibile per gli utenti regolari. 
-                        <a href="/infl/admin/settings.php" class="alert-link">Gestisci impostazioni</a></p>
+                <div class="maintenance-banner bg-warning text-dark p-3 mb-4 border border-warning rounded">
+                    <div class="d-flex align-items-center">
+                        <i class="fas fa-tools fa-2x me-3"></i>
+                        <div class="flex-grow-1">
+                            <h5 class="mb-1 fw-bold">🛠️ Modalità Manutenzione Attiva</h5>
+                            <p class="mb-0">Il frontend del sito è temporaneamente non disponibile per gli utenti regolari. 
+                            <a href="/infl/admin/settings.php" class="fw-bold text-dark text-decoration-underline">Gestisci impostazioni</a></p>
+                        </div>
+                        <div class="maintenance-status-badge bg-dark text-warning px-3 py-2 rounded">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            MANUTENZIONE ATTIVA
+                        </div>
                     </div>
                 </div>
                 <?php endif; ?>
