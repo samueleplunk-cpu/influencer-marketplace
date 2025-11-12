@@ -33,6 +33,7 @@ check_admin_session_timeout();
 $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
 $is_notifications_page = basename($_SERVER['PHP_SELF']) == 'notifications.php';
 $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php']);
+$is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php'; // NUOVA VARIABILE
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -172,19 +173,26 @@ $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php'
                             </div>
                         </li>
 
-                        <!-- Menu Impostazioni a tendina -->
+                        <!-- Menu Impostazioni a tendina - MODIFICATO: Aggiunta Pagine e Menu -->
                         <li class="nav-item">
-                            <a class="nav-link <?php echo $is_settings_page || $is_notifications_page ? '' : 'collapsed'; ?>" 
+                            <a class="nav-link <?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page ? '' : 'collapsed'; ?>" 
                                data-bs-toggle="collapse" 
                                href="#settingsSubmenu" 
                                role="button" 
-                               aria-expanded="<?php echo $is_settings_page || $is_notifications_page ? 'true' : 'false'; ?>" 
+                               aria-expanded="<?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page ? 'true' : 'false'; ?>" 
                                aria-controls="settingsSubmenu">
                                 <i class="fas fa-cog me-2"></i> Impostazioni
                                 <i class="fas fa-chevron-down float-end mt-1"></i>
                             </a>
-                            <div class="collapse <?php echo $is_settings_page || $is_notifications_page ? 'show' : ''; ?>" id="settingsSubmenu">
+                            <div class="collapse <?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page ? 'show' : ''; ?>" id="settingsSubmenu">
                                 <ul class="nav flex-column ms-3">
+                                    <!-- NUOVA VOCE PAGINE E MENU -->
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo $is_pages_menu_page ? 'active' : ''; ?>" 
+                                           href="/infl/admin/pages-menu.php">
+                                            <i class="fas fa-file-alt me-2"></i> Pagine e Menu
+                                        </a>
+                                    </li>
                                     <li class="nav-item">
                                         <a class="nav-link <?php echo $is_notifications_page ? 'active' : ''; ?>" 
                                            href="/infl/admin/notifications.php">

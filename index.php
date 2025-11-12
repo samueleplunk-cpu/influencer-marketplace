@@ -33,7 +33,9 @@ if (isset($_SESSION['user_type'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Influencer Marketplace - Connetti Brand e Influencer</title>
+    <title>Kibbiz - Connetti Brand e Influencer</title>
+    <!-- Aggiungi Font Awesome per le icone social -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -304,10 +306,10 @@ if (isset($_SESSION['user_type'])) {
         }
 
         .footer-content {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 2rem;
-            margin-bottom: 2rem;
+         display: grid;
+         grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+         gap: 2rem;
+         margin-bottom: 2rem;
         }
 
         .footer-section h3 {
@@ -334,6 +336,23 @@ if (isset($_SESSION['user_type'])) {
             color: #ccc;
         }
 
+        /* Footer - Stili per le icone social */
+        .social-icons {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .social-link {
+            color: #ccc;
+            font-size: 1.5rem;
+            transition: color 0.3s ease;
+        }
+
+        .social-link:hover {
+            color: #667eea;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .nav-container {
@@ -353,6 +372,10 @@ if (isset($_SESSION['user_type'])) {
             .hero-buttons {
                 flex-direction: column;
                 align-items: center;
+            }
+
+            .social-icons {
+                justify-content: center;
             }
         }
 
@@ -382,7 +405,7 @@ if (isset($_SESSION['user_type'])) {
     <!-- Navigation -->
     <nav class="navbar" style="<?php echo (is_user_admin() && is_maintenance_mode($pdo)) ? 'margin-top: 40px;' : ''; ?>">
         <div class="nav-container">
-            <a href="/infl/" class="logo">InfluencerMarket</a>
+            <a href="/infl/" class="logo">Kibbiz</a>
             <div class="nav-links">
                 <a href="#features">Funzionalità</a>
                 <a href="#how-it-works">Come Funziona</a>
@@ -490,35 +513,73 @@ if (isset($_SESSION['user_type'])) {
         </div>
     </section>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h3>InfluencerMarket</h3>
-                    <p>La piattaforma leader per connettere brand e influencer in modo autentico ed efficace.</p>
+    <!-- Footer Dinamico -->
+    <?php
+    // Includi le funzioni per le pagine - controlla se il file esiste
+    $page_functions_file = __DIR__ . '/includes/page_functions.php';
+    if (file_exists($page_functions_file)) {
+        require_once $page_functions_file;
+        
+        // Verifica che la funzione esista prima di chiamarla
+        if (function_exists('render_dynamic_footer')) {
+            echo render_dynamic_footer();
+        } else {
+            // Fallback al footer statico se la funzione non esiste
+            render_static_footer_fallback();
+        }
+    } else {
+        // Fallback al footer statico se il file non esiste
+        render_static_footer_fallback();
+    }
+    
+    // Funzione di fallback per il footer statico
+    function render_static_footer_fallback() {
+        ?>
+        <footer class="footer">
+            <div class="container">
+                <div class="footer-content">
+                    <div class="footer-section">
+                        <h3>Kibbiz</h3>
+                        <p>Uniamo Brand e Influencer per crescere insieme.</p>
+                    </div>
+                    <div class="footer-section">
+                        <h3>Link Veloci</h3>
+                        <a href="/infl/">Home</a>
+                        <a href="#features">Funzionalità</a>
+                        <a href="#how-it-works">Come Funziona</a>
+                        <a href="/infl/auth/login.php">Login</a>
+                        <a href="/infl/auth/register.php">Registrati</a>
+                    </div>
+                    <div class="footer-section">
+                        <h3>Supporto</h3>
+                        <a href="#">Contattaci</a>
+                        <a href="#">FAQ</a>
+                        <a href="#">Privacy Policy</a>
+                        <a href="#">Termini di Servizio</a>
+                    </div>
+                    <div class="footer-section">
+                        <h3>Seguici su</h3>
+                        <div class="social-icons">
+                            <a href="#" class="social-link" aria-label="Instagram">
+                                <i class="fab fa-instagram"></i>
+                            </a>
+                            <a href="#" class="social-link" aria-label="TikTok">
+                                <i class="fab fa-tiktok"></i>
+                            </a>
+                            <a href="#" class="social-link" aria-label="LinkedIn">
+                                <i class="fab fa-linkedin"></i>
+                            </a>
+                        </div>
+                    </div>
                 </div>
-                <div class="footer-section">
-                    <h3>Link Veloci</h3>
-                    <a href="/infl/">Home</a>
-                    <a href="#features">Funzionalità</a>
-                    <a href="#how-it-works">Come Funziona</a>
-                    <a href="/infl/auth/login.php">Login</a>
-                    <a href="/infl/auth/register.php">Registrati</a>
-                </div>
-                <div class="footer-section">
-                    <h3>Supporto</h3>
-                    <a href="#">Contattaci</a>
-                    <a href="#">FAQ</a>
-                    <a href="#">Privacy Policy</a>
-                    <a href="#">Termini di Servizio</a>
+                <div class="footer-bottom">
+                    <p>&copy; Kibbiz <?php echo date('Y'); ?>. Tutti i diritti riservati.</p>
                 </div>
             </div>
-            <div class="footer-bottom">
-                <p>&copy; 2024 InfluencerMarket. Tutti i diritti riservati.</p>
-            </div>
-        </div>
-    </footer>
+        </footer>
+        <?php
+    }
+    ?>
 
     <script>
         // Smooth scroll per i link interni
