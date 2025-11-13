@@ -179,6 +179,93 @@ function save_header_settings($data, $files = []) {
 }
 
 /**
+ * Salva le impostazioni dell'header brands nel database
+ */
+function save_header_brands_settings($data) {
+    global $pdo;
+    
+    try {
+        // Prepara i dati per il salvataggio
+        $header_brands_settings = [
+            'main_menus' => [],
+            'profile_menus' => []
+        ];
+        
+        // Processa i menu principali
+        if (isset($data['main_menus']) && is_array($data['main_menus'])) {
+            foreach ($data['main_menus'] as $menu) {
+                if (!empty(trim($menu['label'])) && !empty(trim($menu['url']))) {
+                    $header_brands_settings['main_menus'][] = [
+                        'label' => trim($menu['label']),
+                        'url' => trim($menu['url']),
+                        'target_blank' => !empty($menu['target_blank']),
+                        'order' => intval($menu['order'])
+                    ];
+                }
+            }
+            
+            // Ordina i menu per ordine
+            usort($header_brands_settings['main_menus'], function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
+        
+        // Processa i menu profilo
+        if (isset($data['profile_menus']) && is_array($data['profile_menus'])) {
+            foreach ($data['profile_menus'] as $menu) {
+                if (!empty(trim($menu['label'])) && !empty(trim($menu['url']))) {
+                    $header_brands_settings['profile_menus'][] = [
+                        'label' => trim($menu['label']),
+                        'url' => trim($menu['url']),
+                        'target_blank' => !empty($menu['target_blank']),
+                        'order' => intval($menu['order'])
+                    ];
+                }
+            }
+            
+            // Ordina i menu profilo per ordine
+            usort($header_brands_settings['profile_menus'], function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
+        
+        // Verifica se esiste già un record
+        $check_stmt = $pdo->prepare("SELECT id FROM page_settings WHERE setting_type = 'header_brands'");
+        $check_stmt->execute();
+        $existing = $check_stmt->fetch();
+        
+        if ($existing) {
+            // Aggiorna record esistente
+            $stmt = $pdo->prepare("
+                UPDATE page_settings 
+                SET setting_value = ?, updated_at = NOW() 
+                WHERE setting_type = 'header_brands'
+            ");
+        } else {
+            // Crea nuovo record
+            $stmt = $pdo->prepare("
+                INSERT INTO page_settings (setting_type, setting_value, created_at, updated_at)
+                VALUES ('header_brands', ?, NOW(), NOW())
+            ");
+        }
+        
+        $stmt->execute([json_encode($header_brands_settings, JSON_UNESCAPED_UNICODE)]);
+        
+        return [
+            'success' => true,
+            'message' => 'Impostazioni header brands salvate con successo!'
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Errore salvataggio header brands settings: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Errore durante il salvataggio: ' . $e->getMessage()
+        ];
+    }
+}
+
+/**
  * Gestisce l'upload del logo footer
  */
 function handle_footer_logo_upload($files, $remove_logo = false) {
@@ -395,6 +482,69 @@ function get_header_settings() {
             ['label' => 'Funzionalità', 'url' => '#features', 'target_blank' => false],
             ['label' => 'Come Funziona', 'url' => '#how-it-works', 'target_blank' => false],
             ['label' => 'Chi Siamo', 'url' => '#about', 'target_blank' => false]
+        ]
+    ];
+}
+
+/**
+ * Recupera le impostazioni dell'header brands dal database
+ */
+function get_header_brands_settings() {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM page_settings WHERE setting_type = 'header_brands'");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && $result['setting_value']) {
+            return json_decode($result['setting_value'], true);
+        }
+    } catch (Exception $e) {
+        error_log("Errore recupero header brands settings: " . $e->getMessage());
+    }
+    
+    // Valori di default
+    return [
+        'main_menus' => [
+            [
+                'label' => 'Dashboard',
+                'url' => '/infl/brands/dashboard.php',
+                'target_blank' => false,
+                'order' => 1
+            ],
+            [
+                'label' => 'Campagne', 
+                'url' => '/infl/brands/campaigns.php',
+                'target_blank' => false,
+                'order' => 2
+            ],
+            [
+                'label' => 'Messaggi',
+                'url' => '/infl/brands/messages/conversation-list.php',
+                'target_blank' => false,
+                'order' => 3
+            ],
+            [
+                'label' => 'Cerca Influencer',
+                'url' => '/infl/brands/search-influencers.php',
+                'target_blank' => false,
+                'order' => 4
+            ]
+        ],
+        'profile_menus' => [
+            [
+                'label' => 'Impostazioni',
+                'url' => '/infl/brands/settings.php',
+                'target_blank' => false,
+                'order' => 1
+            ],
+            [
+                'label' => 'Logout',
+                'url' => '/infl/auth/logout.php',
+                'target_blank' => false,
+                'order' => 2
+            ]
         ]
     ];
 }

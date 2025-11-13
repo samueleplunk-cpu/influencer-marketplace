@@ -16,6 +16,12 @@ if (file_exists($notification_functions_file)) {
     require_once $notification_functions_file;
 }
 
+// Includi funzioni per le pagine
+$page_functions_file = dirname(__DIR__) . '/includes/page_functions.php';
+if (file_exists($page_functions_file)) {
+    require_once $page_functions_file;
+}
+
 // Verifica sessione
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -85,6 +91,16 @@ $unread_notifications_count = 0;
 if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exists('count_unread_notifications')) {
     $unread_notifications_count = count_unread_notifications($pdo, $_SESSION['user_id'], $_SESSION['user_type']);
 }
+
+// Carica le impostazioni del menu brand se l'utente è loggato come brand
+$header_brands_settings = [];
+$main_menus = [];
+$profile_menus = [];
+if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && function_exists('get_header_brands_settings')) {
+    $header_brands_settings = get_header_brands_settings();
+    $main_menus = $header_brands_settings['main_menus'] ?? [];
+    $profile_menus = $header_brands_settings['profile_menus'] ?? [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -150,25 +166,61 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exi
                 <div class="navbar-nav ms-auto">
                     <?php if (isset($_SESSION['user_id'])): ?>
                         <?php if ($_SESSION['user_type'] === 'brand'): ?>
-                            <!-- Menu Brand -->
-                            <a class="nav-link" href="/infl/brands/dashboard.php">
-                                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
-                            </a>
-                            <a class="nav-link" href="/infl/brands/campaigns.php">
-                                <i class="fas fa-bullhorn me-1"></i> Campagne
-                            </a>
-                            <a class="nav-link position-relative" href="/infl/brands/messages/conversation-list.php">
-                                <i class="fas fa-envelope me-1"></i> Messaggi
-                                <?php if ($unread_count > 0): ?>
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger message-badge">
-                                        <?php echo $unread_count; ?>
-                                        <span class="visually-hidden">messaggi non letti</span>
-                                    </span>
-                                <?php endif; ?>
-                            </a>
-                            <a class="nav-link" href="/infl/brands/search-influencers.php">
-                                <i class="fas fa-search me-1"></i> Cerca Influencer
-                            </a>
+                            <!-- Menu Brand Dinamico -->
+                            <?php if (!empty($main_menus)): ?>
+                                <?php foreach ($main_menus as $menu): ?>
+                                    <a class="nav-link <?php echo strtolower($menu['label']) === 'messaggi' ? 'position-relative' : ''; ?>" 
+                                       href="<?php echo htmlspecialchars($menu['url']); ?>"
+                                       <?php echo !empty($menu['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                                        <?php 
+                                        // Aggiungi icone per le voci di menu comuni
+                                        $icon = '';
+                                        $label_lower = strtolower($menu['label']);
+                                        if (strpos($label_lower, 'dashboard') !== false) {
+                                            $icon = 'fas fa-tachometer-alt';
+                                        } elseif (strpos($label_lower, 'campagne') !== false) {
+                                            $icon = 'fas fa-bullhorn';
+                                        } elseif (strpos($label_lower, 'messaggi') !== false) {
+                                            $icon = 'fas fa-envelope';
+                                        } elseif (strpos($label_lower, 'cerca') !== false || strpos($label_lower, 'search') !== false) {
+                                            $icon = 'fas fa-search';
+                                        }
+                                        ?>
+                                        <?php if ($icon): ?>
+                                            <i class="<?php echo $icon; ?> me-1"></i>
+                                        <?php endif; ?>
+                                        <?php echo htmlspecialchars($menu['label']); ?>
+                                        
+                                        <?php if (strtolower($menu['label']) === 'messaggi' && $unread_count > 0): ?>
+                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger message-badge">
+                                                <?php echo $unread_count; ?>
+                                                <span class="visually-hidden">messaggi non letti</span>
+                                            </span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <!-- Fallback al menu statico se non ci sono impostazioni dinamiche -->
+                                <a class="nav-link" href="/infl/brands/dashboard.php">
+                                    <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                                </a>
+                                <a class="nav-link" href="/infl/brands/campaigns.php">
+                                    <i class="fas fa-bullhorn me-1"></i> Campagne
+                                </a>
+                                <a class="nav-link position-relative" href="/infl/brands/messages/conversation-list.php">
+                                    <i class="fas fa-envelope me-1"></i> Messaggi
+                                    <?php if ($unread_count > 0): ?>
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger message-badge">
+                                            <?php echo $unread_count; ?>
+                                            <span class="visually-hidden">messaggi non letti</span>
+                                        </span>
+                                    <?php endif; ?>
+                                </a>
+                                <a class="nav-link" href="/infl/brands/search-influencers.php">
+                                    <i class="fas fa-search me-1"></i> Cerca Influencer
+                                </a>
+                            <?php endif; ?>
+
                         <?php elseif ($_SESSION['user_type'] === 'influencer'): ?>
                             <!-- Menu Influencer -->
                             <a class="nav-link" href="/infl/influencers/dashboard.php">
@@ -243,18 +295,50 @@ if (isset($_SESSION['user_id']) && isset($_SESSION['user_type']) && function_exi
                             </a>
                             <ul class="dropdown-menu">
                                 <?php if ($_SESSION['user_type'] === 'brand'): ?>
-                                    <li><a class="dropdown-item" href="/infl/brands/settings.php">
-                                        <i class="fas fa-cog me-2"></i>Impostazioni
-                                    </a></li>
+                                    <?php if (!empty($profile_menus)): ?>
+                                        <!-- Menu profilo dinamico per brand -->
+                                        <?php foreach ($profile_menus as $menu): ?>
+                                            <li>
+                                                <a class="dropdown-item" href="<?php echo htmlspecialchars($menu['url']); ?>"
+                                                   <?php echo !empty($menu['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                                                    <?php 
+                                                    // Aggiungi icone per le voci di menu comuni
+                                                    $icon = '';
+                                                    $label_lower = strtolower($menu['label']);
+                                                    if (strpos($label_lower, 'impostazioni') !== false || strpos($label_lower, 'settings') !== false) {
+                                                        $icon = 'fas fa-cog';
+                                                    } elseif (strpos($label_lower, 'logout') !== false) {
+                                                        $icon = 'fas fa-sign-out-alt';
+                                                    } elseif (strpos($label_lower, 'profilo') !== false || strpos($label_lower, 'profile') !== false) {
+                                                        $icon = 'fas fa-user';
+                                                    }
+                                                    ?>
+                                                    <?php if ($icon): ?>
+                                                        <i class="<?php echo $icon; ?> me-2"></i>
+                                                    <?php endif; ?>
+                                                    <?php echo htmlspecialchars($menu['label']); ?>
+                                                </a>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <!-- Fallback al menu profilo statico -->
+                                        <li><a class="dropdown-item" href="/infl/brands/settings.php">
+                                            <i class="fas fa-cog me-2"></i>Impostazioni
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="/infl/auth/logout.php">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                        </a></li>
+                                    <?php endif; ?>
                                 <?php elseif ($_SESSION['user_type'] === 'influencer'): ?>
                                     <li><a class="dropdown-item" href="/infl/influencers/settings.php">
                                         <i class="fas fa-cog me-2"></i>Impostazioni
                                     </a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="/infl/auth/logout.php">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                    </a></li>
                                 <?php endif; ?>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="/infl/auth/logout.php">
-                                    <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                </a></li>
                             </ul>
                         </div>
                     <?php else: ?>

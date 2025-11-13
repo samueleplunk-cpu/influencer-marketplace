@@ -16,6 +16,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = save_footer_settings($_POST, $_FILES);
     } elseif ($action === 'save_header_settings') {
         $result = save_header_settings($_POST, $_FILES);
+    } elseif ($action === 'save_header_brands_settings') {
+        $result = save_header_brands_settings($_POST);
     }
     
     if (isset($result) && $result['success']) {
@@ -32,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Carica le impostazioni correnti
 $footer_settings = get_footer_settings();
 $header_settings = get_header_settings();
+$header_brands_settings = get_header_brands_settings();
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -92,6 +95,11 @@ $header_settings = get_header_settings();
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="footer-tab" data-bs-toggle="tab" data-bs-target="#footer" type="button" role="tab" aria-controls="footer" aria-selected="false">
                     <i class="fas fa-shoe-prints me-2"></i>Footer Homepage
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="header-brands-tab" data-bs-toggle="tab" data-bs-target="#header-brands" type="button" role="tab" aria-controls="header-brands" aria-selected="false">
+                    <i class="fas fa-users me-2"></i>Header Brands
                 </button>
             </li>
         </ul>
@@ -461,6 +469,154 @@ $header_settings = get_header_settings();
                     </div>
                 </form>
             </div>
+
+            <!-- Tab Header Brands -->
+            <div class="tab-pane fade" id="header-brands" role="tabpanel" aria-labelledby="header-brands-tab">
+                <form method="POST" id="headerBrandsForm">
+                    <input type="hidden" name="action" value="save_header_brands_settings">
+                    
+                    <!-- Sezione Menu Principale Brands -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-bars me-2"></i>Menu Principale Brands
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Gestisci le voci del menu principale che i brand visualizzano dopo il login.</p>
+                            <div id="mainMenuContainer">
+                                <?php
+                                $main_menus = $header_brands_settings['main_menus'] ?? [
+                                    ['label' => 'Dashboard', 'url' => '/infl/brands/dashboard.php', 'target_blank' => false, 'order' => 1],
+                                    ['label' => 'Campagne', 'url' => '/infl/brands/campaigns.php', 'target_blank' => false, 'order' => 2],
+                                    ['label' => 'Messaggi', 'url' => '/infl/brands/messages/conversation-list.php', 'target_blank' => false, 'order' => 3],
+                                    ['label' => 'Cerca Influencer', 'url' => '/infl/brands/search-influencers.php', 'target_blank' => false, 'order' => 4]
+                                ];
+                                
+                                foreach ($main_menus as $index => $menu): ?>
+                                    <div class="main-menu-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="main_menus[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($menu['label']); ?>" 
+                                                           placeholder="Nome del menu" required>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="main_menus[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($menu['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Ordine</label>
+                                                    <input type="number" class="form-control" name="main_menus[<?php echo $index; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($menu['order']); ?>" 
+                                                           min="1" required>
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="main_menus[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($menu['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Apri in nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-main-menu" 
+                                                            data-item-type="main-menu" data-item-label="<?php echo htmlspecialchars($menu['label']); ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addMainMenuItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Voce Menu Principale
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Menu Profilo Brands -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-user-circle me-2"></i>Menu Profilo Brands
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Gestisci le voci del menu a tendina del profilo per i brand.</p>
+                            <div id="profileMenuContainer">
+                                <?php
+                                $profile_menus = $header_brands_settings['profile_menus'] ?? [
+                                    ['label' => 'Impostazioni', 'url' => '/infl/brands/settings.php', 'target_blank' => false, 'order' => 1],
+                                    ['label' => 'Logout', 'url' => '/infl/auth/logout.php', 'target_blank' => false, 'order' => 2]
+                                ];
+                                
+                                foreach ($profile_menus as $index => $menu): ?>
+                                    <div class="profile-menu-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="profile_menus[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($menu['label']); ?>" 
+                                                           placeholder="Nome del menu" required>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="profile_menus[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($menu['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Ordine</label>
+                                                    <input type="number" class="form-control" name="profile_menus[<?php echo $index; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($menu['order']); ?>" 
+                                                           min="1" required>
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="profile_menus[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($menu['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Apri in nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-profile-menu" 
+                                                            data-item-type="profile-menu" data-item-label="<?php echo htmlspecialchars($menu['label']); ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addProfileMenuItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Voce Menu Profilo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pulsanti di salvataggio -->
+                    <div class="row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Salva Impostazioni Header Brands
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -470,6 +626,8 @@ let socialCounter = <?php echo count($footer_settings['social_links'] ?? []); ?>
 let quickLinkCounter = <?php echo count($footer_settings['quick_links'] ?? []); ?>;
 let supportLinkCounter = <?php echo count($footer_settings['support_links'] ?? []); ?>;
 let navMenuCounter = <?php echo count($header_settings['nav_menus'] ?? []); ?>;
+let mainMenuCounter = <?php echo count($header_brands_settings['main_menus'] ?? []); ?>;
+let profileMenuCounter = <?php echo count($header_brands_settings['profile_menus'] ?? []); ?>;
 
 // Variabili per gestire il modal di conferma
 let currentDeleteButton = null;
@@ -482,7 +640,9 @@ document.addEventListener('DOMContentLoaded', function() {
         if (e.target.closest('.remove-nav-menu') || 
             e.target.closest('.remove-quick-link') || 
             e.target.closest('.remove-support-link') || 
-            e.target.closest('.remove-social')) {
+            e.target.closest('.remove-social') ||
+            e.target.closest('.remove-main-menu') ||
+            e.target.closest('.remove-profile-menu')) {
             
             const button = e.target.closest('button');
             currentDeleteButton = button;
@@ -511,6 +671,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 case 'social':
                     removeSocialItem(currentDeleteButton);
+                    break;
+                case 'main-menu':
+                    removeMainMenuItem(currentDeleteButton);
+                    break;
+                case 'profile-menu':
+                    removeProfileMenuItem(currentDeleteButton);
                     break;
             }
             
@@ -724,6 +890,104 @@ function removeSocialItem(button) {
     } else {
         alert('Deve esserci almeno un social network!');
     }
+}
+
+// Funzioni per Menu Principale Brands
+function addMainMenuItem() {
+    mainMenuCounter++;
+    const container = document.getElementById('mainMenuContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'main-menu-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="main_menus[${mainMenuCounter}][label]" 
+                           placeholder="Nome del menu" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="main_menus[${mainMenuCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Ordine</label>
+                    <input type="number" class="form-control" name="main_menus[${mainMenuCounter}][order]" 
+                           value="${mainMenuCounter + 1}" min="1" required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="main_menus[${mainMenuCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Apri in nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-main-menu" 
+                            data-item-type="main-menu" data-item-label="Nuova voce menu">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeMainMenuItem(button) {
+    const item = button.closest('.main-menu-item');
+    item.remove();
+}
+
+// Funzioni per Menu Profilo Brands
+function addProfileMenuItem() {
+    profileMenuCounter++;
+    const container = document.getElementById('profileMenuContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'profile-menu-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="profile_menus[${profileMenuCounter}][label]" 
+                           placeholder="Nome del menu" required>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="profile_menus[${profileMenuCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Ordine</label>
+                    <input type="number" class="form-control" name="profile_menus[${profileMenuCounter}][order]" 
+                           value="${profileMenuCounter + 1}" min="1" required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="profile_menus[${profileMenuCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Apri in nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-profile-menu" 
+                            data-item-type="profile-menu" data-item-label="Nuova voce menu">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeProfileMenuItem(button) {
+    const item = button.closest('.profile-menu-item');
+    item.remove();
 }
 
 // Aggiorna dinamicamente le icone quando cambia la piattaforma
