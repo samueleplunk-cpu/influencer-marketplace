@@ -10,11 +10,17 @@ $active_menu = "pages-menu";
 
 // Gestione form di salvataggio
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $result = save_footer_settings($_POST, $_FILES);
+    $action = $_POST['action'] ?? '';
     
-    if ($result['success']) {
+    if ($action === 'save_footer_settings') {
+        $result = save_footer_settings($_POST, $_FILES);
+    } elseif ($action === 'save_header_settings') {
+        $result = save_header_settings($_POST, $_FILES);
+    }
+    
+    if (isset($result) && $result['success']) {
         $_SESSION['success_message'] = $result['message'];
-    } else {
+    } elseif (isset($result)) {
         $_SESSION['error_message'] = $result['message'];
     }
     
@@ -25,6 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Carica le impostazioni correnti
 $footer_settings = get_footer_settings();
+$header_settings = get_header_settings();
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -59,21 +66,135 @@ $footer_settings = get_footer_settings();
         <!-- Nav tabs -->
         <ul class="nav nav-tabs" id="pagesMenuTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="footer-tab" data-bs-toggle="tab" data-bs-target="#footer" type="button" role="tab" aria-controls="footer" aria-selected="true">
-                    <i class="fas fa-shoe-prints me-2"></i>Footer Homepage
+                <button class="nav-link active" id="header-tab" data-bs-toggle="tab" data-bs-target="#header" type="button" role="tab" aria-controls="header" aria-selected="true">
+                    <i class="fas fa-heading me-2"></i>Header Homepage
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link" id="headers-tab" data-bs-toggle="tab" data-bs-target="#headers" type="button" role="tab" aria-controls="headers" aria-selected="false">
-                    <i class="fas fa-heading me-2"></i>Headers (Prossimamente)
+                <button class="nav-link" id="footer-tab" data-bs-toggle="tab" data-bs-target="#footer" type="button" role="tab" aria-controls="footer" aria-selected="false">
+                    <i class="fas fa-shoe-prints me-2"></i>Footer Homepage
                 </button>
             </li>
         </ul>
 
         <!-- Tab panes -->
         <div class="tab-content p-4 border border-top-0 rounded-bottom">
+            <!-- Tab Header -->
+            <div class="tab-pane fade show active" id="header" role="tabpanel" aria-labelledby="header-tab">
+                <form method="POST" id="headerForm" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="save_header_settings">
+                    
+                    <!-- Sezione Logo -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-image me-2"></i>Logo Header
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="header_logo_text" class="form-label">Testo Logo (Fallback)</label>
+                                    <input type="text" class="form-control" id="header_logo_text" name="header_logo_text" 
+                                           value="<?php echo htmlspecialchars($header_settings['logo_text'] ?? 'Kibbiz'); ?>" 
+                                           placeholder="Inserisci il testo del logo" required>
+                                    <div class="form-text">Questo testo verrà mostrato se non viene caricata un'immagine logo</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="header_logo" class="form-label">Immagine Logo</label>
+                                    <input type="file" class="form-control" id="header_logo" name="header_logo" 
+                                           accept="image/*">
+                                    <div class="form-text">
+                                        Carica un'immagine per il logo. Dimensioni consigliate: 150x50px. 
+                                        Formati supportati: JPG, PNG, GIF, WebP.
+                                        <?php if (!empty($header_settings['logo_url'])): ?>
+                                            <br>
+                                            <strong>Logo attuale:</strong>
+                                            <img src="<?php echo htmlspecialchars($header_settings['logo_url']); ?>" 
+                                                 alt="Logo Header" style="max-height: 50px; margin-left: 10px;">
+                                            <br>
+                                            <label class="mt-2">
+                                                <input type="checkbox" name="remove_header_logo" value="1">
+                                                Rimuovi logo attuale
+                                            </label>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Menu di Navigazione -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-bars me-2"></i>Menu di Navigazione
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="navMenuContainer">
+                                <?php
+                                $nav_menus = $header_settings['nav_menus'] ?? [
+                                    ['label' => 'Funzionalità', 'url' => '#features', 'target_blank' => false],
+                                    ['label' => 'Come Funziona', 'url' => '#how-it-works', 'target_blank' => false],
+                                    ['label' => 'Chi Siamo', 'url' => '#about', 'target_blank' => false]
+                                ];
+                                
+                                foreach ($nav_menus as $index => $menu): ?>
+                                    <div class="nav-menu-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="nav_menus[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($menu['label']); ?>" 
+                                                           placeholder="Nome del menu" required>
+                                                </div>
+                                                <div class="col-md-5 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="nav_menus[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($menu['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="nav_menus[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($menu['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Apri in nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-nav-menu" onclick="removeNavMenuItem(this)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addNavMenuItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Voce Menu
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pulsanti di salvataggio -->
+                    <div class="row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Salva Impostazioni Header
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
             <!-- Tab Footer -->
-            <div class="tab-pane fade show active" id="footer" role="tabpanel" aria-labelledby="footer-tab">
+            <div class="tab-pane fade" id="footer" role="tabpanel" aria-labelledby="footer-tab">
                 <form method="POST" id="footerForm" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="save_footer_settings">
                     
@@ -311,19 +432,11 @@ $footer_settings = get_footer_settings();
                     <div class="row">
                         <div class="col-12">
                             <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save me-2"></i>Salva Impostazioni
+                                <i class="fas fa-save me-2"></i>Salva Impostazioni Footer
                             </button>
                         </div>
                     </div>
                 </form>
-            </div>
-
-            <!-- Tab Headers -->
-            <div class="tab-pane fade" id="headers" role="tabpanel" aria-labelledby="headers-tab">
-                <div class="alert alert-info">
-                    <h5><i class="fas fa-info-circle me-2"></i>Funzionalità in Sviluppo</h5>
-                    <p class="mb-0">La gestione degli header e footer delle altre pagine sarà disponibile prossimamente.</p>
-                </div>
             </div>
         </div>
     </div>
@@ -333,6 +446,54 @@ $footer_settings = get_footer_settings();
 let socialCounter = <?php echo count($footer_settings['social_links'] ?? []); ?>;
 let quickLinkCounter = <?php echo count($footer_settings['quick_links'] ?? []); ?>;
 let supportLinkCounter = <?php echo count($footer_settings['support_links'] ?? []); ?>;
+let navMenuCounter = <?php echo count($header_settings['nav_menus'] ?? []); ?>;
+
+// Funzioni per Menu di Navigazione
+function addNavMenuItem() {
+    navMenuCounter++;
+    const container = document.getElementById('navMenuContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'nav-menu-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="nav_menus[${navMenuCounter}][label]" 
+                           placeholder="Nome del menu" required>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="nav_menus[${navMenuCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="nav_menus[${navMenuCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Apri in nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-nav-menu" onclick="removeNavMenuItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeNavMenuItem(button) {
+    const item = button.closest('.nav-menu-item');
+    if (document.querySelectorAll('.nav-menu-item').length > 1) {
+        item.remove();
+    } else {
+        alert('Deve esserci almeno una voce menu!');
+    }
+}
 
 // Funzioni per Link Veloci
 function addQuickLinkItem() {
@@ -428,7 +589,7 @@ function removeSupportLinkItem(button) {
     }
 }
 
-// Funzioni per Social Media (esistenti)
+// Funzioni per Social Media
 function addSocialItem() {
     socialCounter++;
     const container = document.getElementById('socialMediaContainer');

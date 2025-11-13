@@ -402,8 +402,42 @@ if (isset($_SESSION['user_type'])) {
     }
     ?>
 
+    <!-- Header Dinamico -->
+<?php
+// Includi le funzioni per le pagine - controlla se il file esiste
+$page_functions_file = __DIR__ . '/includes/page_functions.php';
+if (file_exists($page_functions_file)) {
+    require_once $page_functions_file;
+    
+    // Verifica che la funzione esista prima di chiamarla
+    if (function_exists('render_dynamic_header')) {
+        echo render_dynamic_header();
+    } else {
+        // Fallback all'header statico se la funzione non esiste
+        render_static_header_fallback();
+    }
+} else {
+    // Fallback all'header statico se il file non esiste
+    render_static_header_fallback();
+}
+
+// Funzione di fallback per l'header statico
+function render_static_header_fallback() {
+    $is_logged_in = is_logged_in();
+    $user_name = $is_logged_in ? ($_SESSION['user_name'] ?? 'Utente') : '';
+    
+    // Determina il percorso della dashboard in base al tipo di utente
+    $dashboard_url = "/infl/influencers/dashboard.php"; // default
+    if (isset($_SESSION['user_type'])) {
+        if ($_SESSION['user_type'] === 'brand') {
+            $dashboard_url = "/infl/brands/dashboard.php";
+        } elseif ($_SESSION['user_type'] === 'admin') {
+            $dashboard_url = "/infl/admin/dashboard.php";
+        }
+    }
+    ?>
     <!-- Navigation -->
-    <nav class="navbar" style="<?php echo (is_user_admin() && is_maintenance_mode($pdo)) ? 'margin-top: 40px;' : ''; ?>">
+    <nav class="navbar" style="<?php echo (is_user_admin() && is_maintenance_mode($GLOBALS['pdo'])) ? 'margin-top: 40px;' : ''; ?>">
         <div class="nav-container">
             <a href="/infl/" class="logo">Kibbiz</a>
             <div class="nav-links">
@@ -426,6 +460,9 @@ if (isset($_SESSION['user_type'])) {
             </div>
         </div>
     </nav>
+    <?php
+}
+?>
 
     <!-- Hero Section -->
     <section class="hero">
