@@ -106,14 +106,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                 </div>
                 
-                <!-- Credenziali di default -->
-                <div class="mt-3 p-3 bg-light rounded text-center">
-                    <small class="text-muted">
-                        <strong>Demo Access:</strong><br>
-                        Username: admin<br>
-                        Password: admin123
-                    </small>
-                </div>
             </div>
         </div>
     </div>

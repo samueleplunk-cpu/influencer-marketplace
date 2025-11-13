@@ -61,6 +61,25 @@ $header_settings = get_header_settings();
     <?php unset($_SESSION['error_message']); ?>
 <?php endif; ?>
 
+<!-- Modal di Conferma Eliminazione -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Conferma Eliminazione</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Sei sicuro di voler eliminare questo collegamento?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Conferma Eliminazione</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     <div class="col-12">
         <!-- Nav tabs -->
@@ -166,7 +185,8 @@ $header_settings = get_header_settings();
                                                     </div>
                                                 </div>
                                                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-danger btn-sm remove-nav-menu" onclick="removeNavMenuItem(this)">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-nav-menu" 
+                                                            data-item-type="nav-menu" data-item-label="<?php echo htmlspecialchars($menu['label']); ?>">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -288,7 +308,8 @@ $header_settings = get_header_settings();
                                                     </div>
                                                 </div>
                                                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-danger btn-sm remove-quick-link" onclick="removeQuickLinkItem(this)">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-quick-link" 
+                                                            data-item-type="quick-link" data-item-label="<?php echo htmlspecialchars($link['label']); ?>">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -347,7 +368,8 @@ $header_settings = get_header_settings();
                                                     </div>
                                                 </div>
                                                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-danger btn-sm remove-support-link" onclick="removeSupportLinkItem(this)">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-support-link" 
+                                                            data-item-type="support-link" data-item-label="<?php echo htmlspecialchars($link['label']); ?>">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -412,7 +434,8 @@ $header_settings = get_header_settings();
                                                            placeholder="https://...">
                                                 </div>
                                                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-danger btn-sm remove-social" onclick="removeSocialItem(this)">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-social" 
+                                                            data-item-type="social" data-item-label="<?php echo htmlspecialchars($social['platform']); ?>">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
@@ -448,6 +471,60 @@ let quickLinkCounter = <?php echo count($footer_settings['quick_links'] ?? []); 
 let supportLinkCounter = <?php echo count($footer_settings['support_links'] ?? []); ?>;
 let navMenuCounter = <?php echo count($header_settings['nav_menus'] ?? []); ?>;
 
+// Variabili per gestire il modal di conferma
+let currentDeleteButton = null;
+let currentItemType = null;
+
+// Inizializzazione event listeners per i pulsanti elimina
+document.addEventListener('DOMContentLoaded', function() {
+    // Aggiungi event listener per tutti i pulsanti elimina
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-nav-menu') || 
+            e.target.closest('.remove-quick-link') || 
+            e.target.closest('.remove-support-link') || 
+            e.target.closest('.remove-social')) {
+            
+            const button = e.target.closest('button');
+            currentDeleteButton = button;
+            currentItemType = button.getAttribute('data-item-type');
+            const itemLabel = button.getAttribute('data-item-label');
+            
+            // Mostra il modal di conferma
+            const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
+            modal.show();
+        }
+    });
+    
+    // Gestione conferma eliminazione
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (currentDeleteButton && currentItemType) {
+            // Chiama la funzione appropriata in base al tipo di elemento
+            switch(currentItemType) {
+                case 'nav-menu':
+                    removeNavMenuItem(currentDeleteButton);
+                    break;
+                case 'quick-link':
+                    removeQuickLinkItem(currentDeleteButton);
+                    break;
+                case 'support-link':
+                    removeSupportLinkItem(currentDeleteButton);
+                    break;
+                case 'social':
+                    removeSocialItem(currentDeleteButton);
+                    break;
+            }
+            
+            // Chiudi il modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
+            modal.hide();
+            
+            // Reset delle variabili
+            currentDeleteButton = null;
+            currentItemType = null;
+        }
+    });
+});
+
 // Funzioni per Menu di Navigazione
 function addNavMenuItem() {
     navMenuCounter++;
@@ -476,7 +553,8 @@ function addNavMenuItem() {
                     </div>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-nav-menu" onclick="removeNavMenuItem(this)">
+                    <button type="button" class="btn btn-danger btn-sm remove-nav-menu" 
+                            data-item-type="nav-menu" data-item-label="Nuova voce menu">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -523,7 +601,8 @@ function addQuickLinkItem() {
                     </div>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-quick-link" onclick="removeQuickLinkItem(this)">
+                    <button type="button" class="btn btn-danger btn-sm remove-quick-link" 
+                            data-item-type="quick-link" data-item-label="Nuovo link veloce">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -570,7 +649,8 @@ function addSupportLinkItem() {
                     </div>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-support-link" onclick="removeSupportLinkItem(this)">
+                    <button type="button" class="btn btn-danger btn-sm remove-support-link" 
+                            data-item-type="support-link" data-item-label="Nuovo link supporto">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -626,7 +706,8 @@ function addSocialItem() {
                            placeholder="https://..." required>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-social" onclick="removeSocialItem(this)">
+                    <button type="button" class="btn btn-danger btn-sm remove-social" 
+                            data-item-type="social" data-item-label="Nuovo social">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
