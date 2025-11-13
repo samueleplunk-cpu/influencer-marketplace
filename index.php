@@ -513,7 +513,7 @@ if (isset($_SESSION['user_type'])) {
         </div>
     </section>
 
-    <!-- Footer Dinamico -->
+     <!-- Footer Dinamico -->
     <?php
     // Includi le funzioni per le pagine - controlla se il file esiste
     $page_functions_file = __DIR__ . '/includes/page_functions.php';
@@ -573,7 +573,7 @@ if (isset($_SESSION['user_type'])) {
                     </div>
                 </div>
                 <div class="footer-bottom">
-                    <p>&copy; Kibbiz <?php echo date('Y'); ?>. Tutti i diritti riservati.</p>
+                    <p>&copy; Kibbiz <?php echo date('Y'); ?>. All Rights Reserved.</p>
                 </div>
             </div>
         </footer>

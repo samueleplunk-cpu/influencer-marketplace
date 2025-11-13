@@ -10,7 +10,7 @@ $active_menu = "pages-menu";
 
 // Gestione form di salvataggio
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $result = save_footer_settings($_POST);
+    $result = save_footer_settings($_POST, $_FILES);
     
     if ($result['success']) {
         $_SESSION['success_message'] = $result['message'];
@@ -74,7 +74,7 @@ $footer_settings = get_footer_settings();
         <div class="tab-content p-4 border border-top-0 rounded-bottom">
             <!-- Tab Footer -->
             <div class="tab-pane fade show active" id="footer" role="tabpanel" aria-labelledby="footer-tab">
-                <form method="POST" id="footerForm">
+                <form method="POST" id="footerForm" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="save_footer_settings">
                     
                     <!-- Sezione Titolo e Descrizione -->
@@ -99,6 +99,26 @@ $footer_settings = get_footer_settings();
                                               rows="3" placeholder="Inserisci la descrizione del footer"><?php echo htmlspecialchars($footer_settings['description'] ?? 'Uniamo Brand e Influencer per crescere insieme.'); ?></textarea>
                                     <div class="form-text">Breve descrizione sotto il titolo</div>
                                 </div>
+                                <div class="col-md-12 mb-3">
+                                    <label for="footer_logo" class="form-label">Logo Footer</label>
+                                    <input type="file" class="form-control" id="footer_logo" name="footer_logo" 
+                                           accept="image/*">
+                                    <div class="form-text">
+                                        Carica un'immagine per il logo. Dimensioni consigliate: 150x50px. 
+                                        Formati supportati: JPG, PNG, GIF, WebP.
+                                        <?php if (!empty($footer_settings['logo_url'])): ?>
+                                            <br>
+                                            <strong>Logo attuale:</strong>
+                                            <img src="<?php echo htmlspecialchars($footer_settings['logo_url']); ?>" 
+                                                 alt="Logo Footer" style="max-height: 50px; margin-left: 10px;">
+                                            <br>
+                                            <label class="mt-2">
+                                                <input type="checkbox" name="remove_logo" value="1">
+                                                Rimuovi logo attuale
+                                            </label>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -111,62 +131,55 @@ $footer_settings = get_footer_settings();
                             </h5>
                         </div>
                         <div class="card-body">
-                            <div class="row">
+                            <div id="quickLinksContainer">
                                 <?php
                                 $quick_links = $footer_settings['quick_links'] ?? [
-                                    'home' => ['label' => 'Home', 'url' => '/infl/'],
-                                    'features' => ['label' => 'Funzionalità', 'url' => '#features'],
-                                    'how_it_works' => ['label' => 'Come Funziona', 'url' => '#how-it-works'],
-                                    'login' => ['label' => 'Login', 'url' => '/infl/auth/login.php'],
-                                    'register' => ['label' => 'Registrati', 'url' => '/infl/auth/register.php']
+                                    ['label' => 'Home', 'url' => '/infl/', 'target_blank' => false],
+                                    ['label' => 'Funzionalità', 'url' => '#features', 'target_blank' => false],
+                                    ['label' => 'Come Funziona', 'url' => '#how-it-works', 'target_blank' => false],
+                                    ['label' => 'Login', 'url' => '/infl/auth/login.php', 'target_blank' => false],
+                                    ['label' => 'Registrati', 'url' => '/infl/auth/register.php', 'target_blank' => false]
                                 ];
-                                ?>
                                 
-                                <div class="col-md-6 mb-3">
-                                    <label for="quick_link_home" class="form-label">Home</label>
-                                    <input type="text" class="form-control" id="quick_link_home" name="quick_links[home][label]" 
-                                           value="<?php echo htmlspecialchars($quick_links['home']['label'] ?? 'Home'); ?>">
-                                    <input type="text" class="form-control mt-2" name="quick_links[home][url]" 
-                                           value="<?php echo htmlspecialchars($quick_links['home']['url'] ?? '/infl/'); ?>" 
-                                           placeholder="URL">
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="quick_link_features" class="form-label">Funzionalità</label>
-                                    <input type="text" class="form-control" id="quick_link_features" name="quick_links[features][label]" 
-                                           value="<?php echo htmlspecialchars($quick_links['features']['label'] ?? 'Funzionalità'); ?>">
-                                    <input type="text" class="form-control mt-2" name="quick_links[features][url]" 
-                                           value="<?php echo htmlspecialchars($quick_links['features']['url'] ?? '#features'); ?>" 
-                                           placeholder="URL">
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="quick_link_how_it_works" class="form-label">Come Funziona</label>
-                                    <input type="text" class="form-control" id="quick_link_how_it_works" name="quick_links[how_it_works][label]" 
-                                           value="<?php echo htmlspecialchars($quick_links['how_it_works']['label'] ?? 'Come Funziona'); ?>">
-                                    <input type="text" class="form-control mt-2" name="quick_links[how_it_works][url]" 
-                                           value="<?php echo htmlspecialchars($quick_links['how_it_works']['url'] ?? '#how-it-works'); ?>" 
-                                           placeholder="URL">
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="quick_link_login" class="form-label">Login</label>
-                                    <input type="text" class="form-control" id="quick_link_login" name="quick_links[login][label]" 
-                                           value="<?php echo htmlspecialchars($quick_links['login']['label'] ?? 'Login'); ?>">
-                                    <input type="text" class="form-control mt-2" name="quick_links[login][url]" 
-                                           value="<?php echo htmlspecialchars($quick_links['login']['url'] ?? '/infl/auth/login.php'); ?>" 
-                                           placeholder="URL">
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="quick_link_register" class="form-label">Registrati</label>
-                                    <input type="text" class="form-control" id="quick_link_register" name="quick_links[register][label]" 
-                                           value="<?php echo htmlspecialchars($quick_links['register']['label'] ?? 'Registrati'); ?>">
-                                    <input type="text" class="form-control mt-2" name="quick_links[register][url]" 
-                                           value="<?php echo htmlspecialchars($quick_links['register']['url'] ?? '/infl/auth/register.php'); ?>" 
-                                           placeholder="URL">
-                                </div>
+                                foreach ($quick_links as $index => $link): ?>
+                                    <div class="quick-link-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="quick_links[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($link['label']); ?>" 
+                                                           placeholder="Nome del link" required>
+                                                </div>
+                                                <div class="col-md-5 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="quick_links[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($link['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="quick_links[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($link['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Apri in nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-quick-link" onclick="removeQuickLinkItem(this)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addQuickLinkItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Link Veloce
+                            </button>
                         </div>
                     </div>
 
@@ -178,52 +191,54 @@ $footer_settings = get_footer_settings();
                             </h5>
                         </div>
                         <div class="card-body">
-                            <div class="row">
+                            <div id="supportLinksContainer">
                                 <?php
                                 $support_links = $footer_settings['support_links'] ?? [
-                                    'contact' => ['label' => 'Contattaci', 'url' => '#'],
-                                    'faq' => ['label' => 'FAQ', 'url' => '#'],
-                                    'privacy' => ['label' => 'Privacy Policy', 'url' => '#'],
-                                    'terms' => ['label' => 'Termini di Servizio', 'url' => '#']
+                                    ['label' => 'Contattaci', 'url' => '#', 'target_blank' => false],
+                                    ['label' => 'FAQ', 'url' => '#', 'target_blank' => false],
+                                    ['label' => 'Privacy Policy', 'url' => '#', 'target_blank' => false],
+                                    ['label' => 'Termini di Servizio', 'url' => '#', 'target_blank' => false]
                                 ];
-                                ?>
                                 
-                                <div class="col-md-6 mb-3">
-                                    <label for="support_link_contact" class="form-label">Contattaci</label>
-                                    <input type="text" class="form-control" id="support_link_contact" name="support_links[contact][label]" 
-                                           value="<?php echo htmlspecialchars($support_links['contact']['label'] ?? 'Contattaci'); ?>">
-                                    <input type="text" class="form-control mt-2" name="support_links[contact][url]" 
-                                           value="<?php echo htmlspecialchars($support_links['contact']['url'] ?? '#'); ?>" 
-                                           placeholder="URL">
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="support_link_faq" class="form-label">FAQ</label>
-                                    <input type="text" class="form-control" id="support_link_faq" name="support_links[faq][label]" 
-                                           value="<?php echo htmlspecialchars($support_links['faq']['label'] ?? 'FAQ'); ?>">
-                                    <input type="text" class="form-control mt-2" name="support_links[faq][url]" 
-                                           value="<?php echo htmlspecialchars($support_links['faq']['url'] ?? '#'); ?>" 
-                                           placeholder="URL">
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="support_link_privacy" class="form-label">Privacy Policy</label>
-                                    <input type="text" class="form-control" id="support_link_privacy" name="support_links[privacy][label]" 
-                                           value="<?php echo htmlspecialchars($support_links['privacy']['label'] ?? 'Privacy Policy'); ?>">
-                                    <input type="text" class="form-control mt-2" name="support_links[privacy][url]" 
-                                           value="<?php echo htmlspecialchars($support_links['privacy']['url'] ?? '#'); ?>" 
-                                           placeholder="URL">
-                                </div>
-                                
-                                <div class="col-md-6 mb-3">
-                                    <label for="support_link_terms" class="form-label">Termini di Servizio</label>
-                                    <input type="text" class="form-control" id="support_link_terms" name="support_links[terms][label]" 
-                                           value="<?php echo htmlspecialchars($support_links['terms']['label'] ?? 'Termini di Servizio'); ?>">
-                                    <input type="text" class="form-control mt-2" name="support_links[terms][url]" 
-                                           value="<?php echo htmlspecialchars($support_links['terms']['url'] ?? '#'); ?>" 
-                                           placeholder="URL">
-                                </div>
+                                foreach ($support_links as $index => $link): ?>
+                                    <div class="support-link-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="support_links[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($link['label']); ?>" 
+                                                           placeholder="Nome del link" required>
+                                                </div>
+                                                <div class="col-md-5 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="support_links[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($link['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-2 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="support_links[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($link['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Apri in nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-support-link" onclick="removeSupportLinkItem(this)">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
                             </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addSupportLinkItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Link Supporto
+                            </button>
                         </div>
                     </div>
 
@@ -238,18 +253,18 @@ $footer_settings = get_footer_settings();
                             <div id="socialMediaContainer">
                                 <?php
                                 $social_links = $footer_settings['social_links'] ?? [
-                                    'instagram' => ['platform' => 'instagram', 'url' => '#', 'icon' => 'fab fa-instagram'],
-                                    'tiktok' => ['platform' => 'tiktok', 'url' => '#', 'icon' => 'fab fa-tiktok'],
-                                    'linkedin' => ['platform' => 'linkedin', 'url' => '#', 'icon' => 'fab fa-linkedin']
+                                    ['platform' => 'instagram', 'url' => '#', 'icon' => 'fab fa-instagram'],
+                                    ['platform' => 'tiktok', 'url' => '#', 'icon' => 'fab fa-tiktok'],
+                                    ['platform' => 'linkedin', 'url' => '#', 'icon' => 'fab fa-linkedin']
                                 ];
                                 
-                                foreach ($social_links as $key => $social): ?>
+                                foreach ($social_links as $index => $social): ?>
                                     <div class="social-media-item card mb-3">
                                         <div class="card-body">
                                             <div class="row">
                                                 <div class="col-md-3 mb-3">
                                                     <label class="form-label">Piattaforma</label>
-                                                    <select class="form-select social-platform" name="social_links[<?php echo $key; ?>][platform]">
+                                                    <select class="form-select social-platform" name="social_links[<?php echo $index; ?>][platform]">
                                                         <option value="instagram" <?php echo ($social['platform'] === 'instagram') ? 'selected' : ''; ?>>Instagram</option>
                                                         <option value="tiktok" <?php echo ($social['platform'] === 'tiktok') ? 'selected' : ''; ?>>TikTok</option>
                                                         <option value="linkedin" <?php echo ($social['platform'] === 'linkedin') ? 'selected' : ''; ?>>LinkedIn</option>
@@ -260,7 +275,7 @@ $footer_settings = get_footer_settings();
                                                 </div>
                                                 <div class="col-md-3 mb-3">
                                                     <label class="form-label">Icona</label>
-                                                    <select class="form-select social-icon" name="social_links[<?php echo $key; ?>][icon]">
+                                                    <select class="form-select social-icon" name="social_links[<?php echo $index; ?>][icon]">
                                                         <option value="fab fa-instagram" <?php echo ($social['icon'] === 'fab fa-instagram') ? 'selected' : ''; ?>>Instagram</option>
                                                         <option value="fab fa-tiktok" <?php echo ($social['icon'] === 'fab fa-tiktok') ? 'selected' : ''; ?>>TikTok</option>
                                                         <option value="fab fa-linkedin" <?php echo ($social['icon'] === 'fab fa-linkedin') ? 'selected' : ''; ?>>LinkedIn</option>
@@ -271,7 +286,7 @@ $footer_settings = get_footer_settings();
                                                 </div>
                                                 <div class="col-md-5 mb-3">
                                                     <label class="form-label">URL Profilo</label>
-                                                    <input type="url" class="form-control" name="social_links[<?php echo $key; ?>][url]" 
+                                                    <input type="url" class="form-control" name="social_links[<?php echo $index; ?>][url]" 
                                                            value="<?php echo htmlspecialchars($social['url']); ?>" 
                                                            placeholder="https://...">
                                                 </div>
@@ -298,9 +313,6 @@ $footer_settings = get_footer_settings();
                             <button type="submit" class="btn btn-primary">
                                 <i class="fas fa-save me-2"></i>Salva Impostazioni
                             </button>
-                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
-                                <i class="fas fa-undo me-2"></i>Ripristina Default
-                            </button>
                         </div>
                     </div>
                 </form>
@@ -319,7 +331,104 @@ $footer_settings = get_footer_settings();
 
 <script>
 let socialCounter = <?php echo count($footer_settings['social_links'] ?? []); ?>;
+let quickLinkCounter = <?php echo count($footer_settings['quick_links'] ?? []); ?>;
+let supportLinkCounter = <?php echo count($footer_settings['support_links'] ?? []); ?>;
 
+// Funzioni per Link Veloci
+function addQuickLinkItem() {
+    quickLinkCounter++;
+    const container = document.getElementById('quickLinksContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'quick-link-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="quick_links[${quickLinkCounter}][label]" 
+                           placeholder="Nome del link" required>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="quick_links[${quickLinkCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="quick_links[${quickLinkCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Apri in nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-quick-link" onclick="removeQuickLinkItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeQuickLinkItem(button) {
+    const item = button.closest('.quick-link-item');
+    if (document.querySelectorAll('.quick-link-item').length > 1) {
+        item.remove();
+    } else {
+        alert('Deve esserci almeno un link veloce!');
+    }
+}
+
+// Funzioni per Link Supporto
+function addSupportLinkItem() {
+    supportLinkCounter++;
+    const container = document.getElementById('supportLinksContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'support-link-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="support_links[${supportLinkCounter}][label]" 
+                           placeholder="Nome del link" required>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="support_links[${supportLinkCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="support_links[${supportLinkCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Apri in nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-support-link" onclick="removeSupportLinkItem(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeSupportLinkItem(button) {
+    const item = button.closest('.support-link-item');
+    if (document.querySelectorAll('.support-link-item').length > 1) {
+        item.remove();
+    } else {
+        alert('Deve esserci almeno un link di supporto!');
+    }
+}
+
+// Funzioni per Social Media (esistenti)
 function addSocialItem() {
     socialCounter++;
     const container = document.getElementById('socialMediaContainer');
@@ -372,12 +481,6 @@ function removeSocialItem(button) {
         item.remove();
     } else {
         alert('Deve esserci almeno un social network!');
-    }
-}
-
-function resetForm() {
-    if (confirm('Sei sicuro di voler ripristinare le impostazioni predefinite? I dati attuali andranno persi.')) {
-        document.getElementById('footerForm').reset();
     }
 }
 

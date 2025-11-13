@@ -6,7 +6,7 @@
 /**
  * Salva le impostazioni del footer nel database
  */
-function save_footer_settings($data) {
+function save_footer_settings($data, $files = []) {
     global $pdo;
     
     try {
@@ -14,19 +14,55 @@ function save_footer_settings($data) {
         $footer_settings = [
             'title' => trim($data['footer_title'] ?? 'Kibbiz'),
             'description' => trim($data['footer_description'] ?? 'Uniamo Brand e Influencer per crescere insieme.'),
-            'quick_links' => $data['quick_links'] ?? [],
-            'support_links' => $data['support_links'] ?? [],
+            'quick_links' => [],
+            'support_links' => [],
             'social_links' => []
         ];
         
+        // Gestione upload logo
+        $logo_url = handle_logo_upload($files, $data['remove_logo'] ?? false);
+        if ($logo_url !== null) {
+            $footer_settings['logo_url'] = $logo_url;
+        } elseif (isset($data['remove_logo']) && $data['remove_logo']) {
+            $footer_settings['logo_url'] = '';
+        }
+        
+        // Processa i quick links
+        if (isset($data['quick_links']) && is_array($data['quick_links'])) {
+            foreach ($data['quick_links'] as $link) {
+                if (!empty(trim($link['label'])) && !empty(trim($link['url']))) {
+                    $footer_settings['quick_links'][] = [
+                        'label' => trim($link['label']),
+                        'url' => trim($link['url']),
+                        'target_blank' => !empty($link['target_blank'])
+                    ];
+                }
+            }
+        }
+        
+        // Processa i support links
+        if (isset($data['support_links']) && is_array($data['support_links'])) {
+            foreach ($data['support_links'] as $link) {
+                if (!empty(trim($link['label'])) && !empty(trim($link['url']))) {
+                    $footer_settings['support_links'][] = [
+                        'label' => trim($link['label']),
+                        'url' => trim($link['url']),
+                        'target_blank' => !empty($link['target_blank'])
+                    ];
+                }
+            }
+        }
+        
         // Processa i social links
-        foreach ($data['social_links'] as $key => $social) {
-            if (!empty(trim($social['url']))) {
-                $footer_settings['social_links'][$key] = [
-                    'platform' => trim($social['platform']),
-                    'url' => trim($social['url']),
-                    'icon' => trim($social['icon'])
-                ];
+        if (isset($data['social_links']) && is_array($data['social_links'])) {
+            foreach ($data['social_links'] as $social) {
+                if (!empty(trim($social['url']))) {
+                    $footer_settings['social_links'][] = [
+                        'platform' => trim($social['platform']),
+                        'url' => trim($social['url']),
+                        'icon' => trim($social['icon'])
+                    ];
+                }
             }
         }
         
@@ -67,6 +103,72 @@ function save_footer_settings($data) {
 }
 
 /**
+ * Gestisce l'upload del logo
+ */
+function handle_logo_upload($files, $remove_logo = false) {
+    // Se richiesta rimozione logo
+    if ($remove_logo) {
+        // Elimina il file logo esistente se presente
+        $current_settings = get_footer_settings();
+        if (!empty($current_settings['logo_url'])) {
+            $logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
+            if (file_exists($logo_path)) {
+                unlink($logo_path);
+            }
+        }
+        return '';
+    }
+    
+    // Gestione upload nuovo logo
+    if (isset($files['footer_logo']) && $files['footer_logo']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = '/infl/uploads/logos/';
+        $absolute_upload_dir = $_SERVER['DOCUMENT_ROOT'] . $upload_dir;
+        
+        // Crea la directory se non esiste
+        if (!file_exists($absolute_upload_dir)) {
+            mkdir($absolute_upload_dir, 0755, true);
+        }
+        
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($file_info, $files['footer_logo']['tmp_name']);
+        finfo_close($file_info);
+        
+        if (!in_array($mime_type, $allowed_types)) {
+            throw new Exception('Tipo file non supportato. Usa JPG, PNG, GIF o WebP.');
+        }
+        
+        // Verifica dimensioni (max 2MB)
+        if ($files['footer_logo']['size'] > 2 * 1024 * 1024) {
+            throw new Exception('Il file è troppo grande. Dimensione massima: 2MB.');
+        }
+        
+        // Genera nome file univoco
+        $file_extension = pathinfo($files['footer_logo']['name'], PATHINFO_EXTENSION);
+        $filename = 'footer_logo_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $destination = $absolute_upload_dir . $filename;
+        
+        // Sposta il file
+        if (move_uploaded_file($files['footer_logo']['tmp_name'], $destination)) {
+            // Elimina il vecchio logo se esiste
+            $current_settings = get_footer_settings();
+            if (!empty($current_settings['logo_url'])) {
+                $old_logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
+                if (file_exists($old_logo_path) && is_file($old_logo_path)) {
+                    unlink($old_logo_path);
+                }
+            }
+            
+            return $upload_dir . $filename;
+        } else {
+            throw new Exception('Errore durante il caricamento del file.');
+        }
+    }
+    
+    return null; // Nessun nuovo upload
+}
+
+/**
  * Recupera le impostazioni del footer dal database
  */
 function get_footer_settings() {
@@ -89,22 +191,22 @@ function get_footer_settings() {
         'title' => 'Kibbiz',
         'description' => 'Uniamo Brand e Influencer per crescere insieme.',
         'quick_links' => [
-            'home' => ['label' => 'Home', 'url' => '/infl/'],
-            'features' => ['label' => 'Funzionalità', 'url' => '#features'],
-            'how_it_works' => ['label' => 'Come Funziona', 'url' => '#how-it-works'],
-            'login' => ['label' => 'Login', 'url' => '/infl/auth/login.php'],
-            'register' => ['label' => 'Registrati', 'url' => '/infl/auth/register.php']
+            ['label' => 'Home', 'url' => '/infl/', 'target_blank' => false],
+            ['label' => 'Funzionalità', 'url' => '#features', 'target_blank' => false],
+            ['label' => 'Come Funziona', 'url' => '#how-it-works', 'target_blank' => false],
+            ['label' => 'Login', 'url' => '/infl/auth/login.php', 'target_blank' => false],
+            ['label' => 'Registrati', 'url' => '/infl/auth/register.php', 'target_blank' => false]
         ],
         'support_links' => [
-            'contact' => ['label' => 'Contattaci', 'url' => '#'],
-            'faq' => ['label' => 'FAQ', 'url' => '#'],
-            'privacy' => ['label' => 'Privacy Policy', 'url' => '#'],
-            'terms' => ['label' => 'Termini di Servizio', 'url' => '#']
+            ['label' => 'Contattaci', 'url' => '#', 'target_blank' => false],
+            ['label' => 'FAQ', 'url' => '#', 'target_blank' => false],
+            ['label' => 'Privacy Policy', 'url' => '#', 'target_blank' => false],
+            ['label' => 'Termini di Servizio', 'url' => '#', 'target_blank' => false]
         ],
         'social_links' => [
-            'instagram' => ['platform' => 'instagram', 'url' => '#', 'icon' => 'fab fa-instagram'],
-            'tiktok' => ['platform' => 'tiktok', 'url' => '#', 'icon' => 'fab fa-tiktok'],
-            'linkedin' => ['platform' => 'linkedin', 'url' => '#', 'icon' => 'fab fa-linkedin']
+            ['platform' => 'instagram', 'url' => '#', 'icon' => 'fab fa-instagram'],
+            ['platform' => 'tiktok', 'url' => '#', 'icon' => 'fab fa-tiktok'],
+            ['platform' => 'linkedin', 'url' => '#', 'icon' => 'fab fa-linkedin']
         ]
     ];
 }
@@ -121,13 +223,20 @@ function render_dynamic_footer() {
         <div class="container">
             <div class="footer-content">
                 <div class="footer-section">
-                    <h3><?php echo htmlspecialchars($settings['title']); ?></h3>
+                    <?php if (!empty($settings['logo_url'])): ?>
+                        <img src="<?php echo htmlspecialchars($settings['logo_url']); ?>" 
+                             alt="<?php echo htmlspecialchars($settings['title']); ?>" 
+                             class="footer-logo" style="max-height: 50px; margin-bottom: 15px;">
+                    <?php else: ?>
+                        <h3><?php echo htmlspecialchars($settings['title']); ?></h3>
+                    <?php endif; ?>
                     <p><?php echo htmlspecialchars($settings['description']); ?></p>
                 </div>
                 <div class="footer-section">
                     <h3>Link Veloci</h3>
                     <?php foreach ($settings['quick_links'] as $link): ?>
-                        <a href="<?php echo htmlspecialchars($link['url']); ?>">
+                        <a href="<?php echo htmlspecialchars($link['url']); ?>" 
+                           <?php echo !empty($link['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
                             <?php echo htmlspecialchars($link['label']); ?>
                         </a>
                     <?php endforeach; ?>
@@ -135,7 +244,8 @@ function render_dynamic_footer() {
                 <div class="footer-section">
                     <h3>Supporto</h3>
                     <?php foreach ($settings['support_links'] as $link): ?>
-                        <a href="<?php echo htmlspecialchars($link['url']); ?>">
+                        <a href="<?php echo htmlspecialchars($link['url']); ?>" 
+                           <?php echo !empty($link['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
                             <?php echo htmlspecialchars($link['label']); ?>
                         </a>
                     <?php endforeach; ?>
