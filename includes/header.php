@@ -154,8 +154,17 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
+            <!-- Logo Dinamico per Brand -->
             <a class="navbar-brand" href="/infl">
-                <i class="fas fa-store me-2"></i>Influencer Marketplace
+                <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && !empty($header_brands_settings['logo_url'])): ?>
+                    <img src="<?php echo htmlspecialchars($header_brands_settings['logo_url']); ?>" 
+                         alt="<?php echo htmlspecialchars($header_brands_settings['logo_text'] ?? 'Kibbiz'); ?>" 
+                         style="max-height: 30px;">
+                <?php elseif (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand'): ?>
+                    <?php echo htmlspecialchars($header_brands_settings['logo_text'] ?? 'Kibbiz'); ?>
+                <?php else: ?>
+                    <i class="fas fa-store me-2"></i>Influencer Marketplace
+                <?php endif; ?>
             </a>
             
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -172,22 +181,8 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
                                     <a class="nav-link <?php echo strtolower($menu['label']) === 'messaggi' ? 'position-relative' : ''; ?>" 
                                        href="<?php echo htmlspecialchars($menu['url']); ?>"
                                        <?php echo !empty($menu['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
-                                        <?php 
-                                        // Aggiungi icone per le voci di menu comuni
-                                        $icon = '';
-                                        $label_lower = strtolower($menu['label']);
-                                        if (strpos($label_lower, 'dashboard') !== false) {
-                                            $icon = 'fas fa-tachometer-alt';
-                                        } elseif (strpos($label_lower, 'campagne') !== false) {
-                                            $icon = 'fas fa-bullhorn';
-                                        } elseif (strpos($label_lower, 'messaggi') !== false) {
-                                            $icon = 'fas fa-envelope';
-                                        } elseif (strpos($label_lower, 'cerca') !== false || strpos($label_lower, 'search') !== false) {
-                                            $icon = 'fas fa-search';
-                                        }
-                                        ?>
-                                        <?php if ($icon): ?>
-                                            <i class="<?php echo $icon; ?> me-1"></i>
+                                        <?php if (!empty($menu['icon'])): ?>
+                                            <i class="<?php echo htmlspecialchars($menu['icon']); ?> me-1"></i>
                                         <?php endif; ?>
                                         <?php echo htmlspecialchars($menu['label']); ?>
                                         
@@ -301,20 +296,8 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
                                             <li>
                                                 <a class="dropdown-item" href="<?php echo htmlspecialchars($menu['url']); ?>"
                                                    <?php echo !empty($menu['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
-                                                    <?php 
-                                                    // Aggiungi icone per le voci di menu comuni
-                                                    $icon = '';
-                                                    $label_lower = strtolower($menu['label']);
-                                                    if (strpos($label_lower, 'impostazioni') !== false || strpos($label_lower, 'settings') !== false) {
-                                                        $icon = 'fas fa-cog';
-                                                    } elseif (strpos($label_lower, 'logout') !== false) {
-                                                        $icon = 'fas fa-sign-out-alt';
-                                                    } elseif (strpos($label_lower, 'profilo') !== false || strpos($label_lower, 'profile') !== false) {
-                                                        $icon = 'fas fa-user';
-                                                    }
-                                                    ?>
-                                                    <?php if ($icon): ?>
-                                                        <i class="<?php echo $icon; ?> me-2"></i>
+                                                    <?php if (!empty($menu['icon'])): ?>
+                                                        <i class="<?php echo htmlspecialchars($menu['icon']); ?> me-2"></i>
                                                     <?php endif; ?>
                                                     <?php echo htmlspecialchars($menu['label']); ?>
                                                 </a>

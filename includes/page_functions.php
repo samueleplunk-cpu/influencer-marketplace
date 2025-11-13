@@ -181,15 +181,30 @@ function save_header_settings($data, $files = []) {
 /**
  * Salva le impostazioni dell'header brands nel database
  */
-function save_header_brands_settings($data) {
+function save_header_brands_settings($data, $files = []) {
     global $pdo;
     
     try {
         // Prepara i dati per il salvataggio
         $header_brands_settings = [
+            'logo_text' => trim($data['header_brands_logo_text'] ?? 'Kibbiz'),
             'main_menus' => [],
             'profile_menus' => []
         ];
+        
+        // Gestione upload logo header brands
+        $logo_url = handle_header_brands_logo_upload($files, $data['remove_header_brands_logo'] ?? false);
+        
+        if ($logo_url !== null) {
+            // Se c'è un nuovo upload o rimozione esplicita
+            $header_brands_settings['logo_url'] = $logo_url;
+        } else {
+            // Se non c'è nuovo upload, mantieni il logo esistente
+            $current_settings = get_header_brands_settings();
+            if (!empty($current_settings['logo_url']) && !isset($data['remove_header_brands_logo'])) {
+                $header_brands_settings['logo_url'] = $current_settings['logo_url'];
+            }
+        }
         
         // Processa i menu principali
         if (isset($data['main_menus']) && is_array($data['main_menus'])) {
@@ -199,7 +214,8 @@ function save_header_brands_settings($data) {
                         'label' => trim($menu['label']),
                         'url' => trim($menu['url']),
                         'target_blank' => !empty($menu['target_blank']),
-                        'order' => intval($menu['order'])
+                        'order' => intval($menu['order']),
+                        'icon' => trim($menu['icon'] ?? '')
                     ];
                 }
             }
@@ -218,7 +234,8 @@ function save_header_brands_settings($data) {
                         'label' => trim($menu['label']),
                         'url' => trim($menu['url']),
                         'target_blank' => !empty($menu['target_blank']),
-                        'order' => intval($menu['order'])
+                        'order' => intval($menu['order']),
+                        'icon' => trim($menu['icon'] ?? '')
                     ];
                 }
             }
@@ -322,6 +339,72 @@ function handle_header_logo_upload($files, $remove_logo = false) {
         if (move_uploaded_file($files['header_logo']['tmp_name'], $destination)) {
             // Elimina il vecchio logo se esiste
             $current_settings = get_header_settings();
+            if (!empty($current_settings['logo_url'])) {
+                $old_logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
+                if (file_exists($old_logo_path) && is_file($old_logo_path)) {
+                    unlink($old_logo_path);
+                }
+            }
+            
+            return $upload_dir . $filename;
+        } else {
+            throw new Exception('Errore durante il caricamento del file.');
+        }
+    }
+    
+    return null; // Nessun nuovo upload e nessuna rimozione richiesta
+}
+
+/**
+ * Gestisce l'upload del logo header brands
+ */
+function handle_header_brands_logo_upload($files, $remove_logo = false) {
+    // Se richiesta rimozione logo esplicita
+    if ($remove_logo) {
+        // Elimina il file logo esistente se presente
+        $current_settings = get_header_brands_settings();
+        if (!empty($current_settings['logo_url'])) {
+            $logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
+            if (file_exists($logo_path)) {
+                unlink($logo_path);
+            }
+        }
+        return ''; // Logo rimosso
+    }
+    
+    // Gestione upload nuovo logo
+    if (isset($files['header_brands_logo']) && $files['header_brands_logo']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = '/infl/uploads/logos/';
+        $absolute_upload_dir = $_SERVER['DOCUMENT_ROOT'] . $upload_dir;
+        
+        // Crea la directory se non esiste
+        if (!file_exists($absolute_upload_dir)) {
+            mkdir($absolute_upload_dir, 0755, true);
+        }
+        
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($file_info, $files['header_brands_logo']['tmp_name']);
+        finfo_close($file_info);
+        
+        if (!in_array($mime_type, $allowed_types)) {
+            throw new Exception('Tipo file non supportato. Usa JPG, PNG, GIF o WebP.');
+        }
+        
+        // Verifica dimensioni (max 2MB)
+        if ($files['header_brands_logo']['size'] > 2 * 1024 * 1024) {
+            throw new Exception('Il file è troppo grande. Dimensione massima: 2MB.');
+        }
+        
+        // Genera nome file univoco
+        $file_extension = pathinfo($files['header_brands_logo']['name'], PATHINFO_EXTENSION);
+        $filename = 'header_brands_logo_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $destination = $absolute_upload_dir . $filename;
+        
+        // Sposta il file
+        if (move_uploaded_file($files['header_brands_logo']['tmp_name'], $destination)) {
+            // Elimina il vecchio logo se esiste
+            $current_settings = get_header_brands_settings();
             if (!empty($current_settings['logo_url'])) {
                 $old_logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
                 if (file_exists($old_logo_path) && is_file($old_logo_path)) {
@@ -506,30 +589,35 @@ function get_header_brands_settings() {
     
     // Valori di default
     return [
+        'logo_text' => 'Kibbiz',
         'main_menus' => [
             [
                 'label' => 'Dashboard',
                 'url' => '/infl/brands/dashboard.php',
                 'target_blank' => false,
-                'order' => 1
+                'order' => 1,
+                'icon' => 'fas fa-tachometer-alt'
             ],
             [
                 'label' => 'Campagne', 
                 'url' => '/infl/brands/campaigns.php',
                 'target_blank' => false,
-                'order' => 2
+                'order' => 2,
+                'icon' => 'fas fa-bullhorn'
             ],
             [
                 'label' => 'Messaggi',
                 'url' => '/infl/brands/messages/conversation-list.php',
                 'target_blank' => false,
-                'order' => 3
+                'order' => 3,
+                'icon' => 'fas fa-envelope'
             ],
             [
                 'label' => 'Cerca Influencer',
                 'url' => '/infl/brands/search-influencers.php',
                 'target_blank' => false,
-                'order' => 4
+                'order' => 4,
+                'icon' => 'fas fa-search'
             ]
         ],
         'profile_menus' => [
@@ -537,13 +625,15 @@ function get_header_brands_settings() {
                 'label' => 'Impostazioni',
                 'url' => '/infl/brands/settings.php',
                 'target_blank' => false,
-                'order' => 1
+                'order' => 1,
+                'icon' => 'fas fa-cog'
             ],
             [
                 'label' => 'Logout',
                 'url' => '/infl/auth/logout.php',
                 'target_blank' => false,
-                'order' => 2
+                'order' => 2,
+                'icon' => 'fas fa-sign-out-alt'
             ]
         ]
     ];

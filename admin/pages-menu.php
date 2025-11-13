@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'save_header_settings') {
         $result = save_header_settings($_POST, $_FILES);
     } elseif ($action === 'save_header_brands_settings') {
-        $result = save_header_brands_settings($_POST);
+        $result = save_header_brands_settings($_POST, $_FILES);
     }
     
     if (isset($result) && $result['success']) {
@@ -472,12 +472,52 @@ $header_brands_settings = get_header_brands_settings();
 
             <!-- Tab Header Brands -->
             <div class="tab-pane fade" id="header-brands" role="tabpanel" aria-labelledby="header-brands-tab">
-                <form method="POST" id="headerBrandsForm">
+                <form method="POST" id="headerBrandsForm" enctype="multipart/form-data">
                     <input type="hidden" name="action" value="save_header_brands_settings">
                     
-                    <!-- Sezione Menu Principale Brands -->
+                    <!-- Sezione Logo Header Brands - NUOVA SEZIONE -->
                     <div class="card mb-4">
                         <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-image me-2"></i>Logo Header Brands
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="header_brands_logo_text" class="form-label">Testo Logo (Fallback)</label>
+                                    <input type="text" class="form-control" id="header_brands_logo_text" name="header_brands_logo_text" 
+                                           value="<?php echo htmlspecialchars($header_brands_settings['logo_text'] ?? 'Kibbiz'); ?>" 
+                                           placeholder="Inserisci il testo del logo" required>
+                                    <div class="form-text">Questo testo verrà mostrato se non viene caricata un'immagine logo</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="header_brands_logo" class="form-label">Immagine Logo</label>
+                                    <input type="file" class="form-control" id="header_brands_logo" name="header_brands_logo" 
+                                           accept="image/*">
+                                    <div class="form-text">
+                                        Carica un'immagine per il logo. Dimensioni consigliate: 150x50px. 
+                                        Formati supportati: JPG, PNG, GIF, WebP.
+                                        <?php if (!empty($header_brands_settings['logo_url'])): ?>
+                                            <br>
+                                            <strong>Logo attuale:</strong>
+                                            <img src="<?php echo htmlspecialchars($header_brands_settings['logo_url']); ?>" 
+                                                 alt="Logo Header Brands" style="max-height: 50px; margin-left: 10px;">
+                                            <br>
+                                            <label class="mt-2">
+                                                <input type="checkbox" name="remove_header_brands_logo" value="1">
+                                                Rimuovi logo attuale
+                                            </label>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Menu Principale Brands -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-bars me-2"></i>Menu Principale Brands
                             </h5>
@@ -487,10 +527,10 @@ $header_brands_settings = get_header_brands_settings();
                             <div id="mainMenuContainer">
                                 <?php
                                 $main_menus = $header_brands_settings['main_menus'] ?? [
-                                    ['label' => 'Dashboard', 'url' => '/infl/brands/dashboard.php', 'target_blank' => false, 'order' => 1],
-                                    ['label' => 'Campagne', 'url' => '/infl/brands/campaigns.php', 'target_blank' => false, 'order' => 2],
-                                    ['label' => 'Messaggi', 'url' => '/infl/brands/messages/conversation-list.php', 'target_blank' => false, 'order' => 3],
-                                    ['label' => 'Cerca Influencer', 'url' => '/infl/brands/search-influencers.php', 'target_blank' => false, 'order' => 4]
+                                    ['label' => 'Dashboard', 'url' => '/infl/brands/dashboard.php', 'target_blank' => false, 'order' => 1, 'icon' => 'fas fa-tachometer-alt'],
+                                    ['label' => 'Campagne', 'url' => '/infl/brands/campaigns.php', 'target_blank' => false, 'order' => 2, 'icon' => 'fas fa-bullhorn'],
+                                    ['label' => 'Messaggi', 'url' => '/infl/brands/messages/conversation-list.php', 'target_blank' => false, 'order' => 3, 'icon' => 'fas fa-envelope'],
+                                    ['label' => 'Cerca Influencer', 'url' => '/infl/brands/search-influencers.php', 'target_blank' => false, 'order' => 4, 'icon' => 'fas fa-search']
                                 ];
                                 
                                 foreach ($main_menus as $index => $menu): ?>
@@ -503,25 +543,43 @@ $header_brands_settings = get_header_brands_settings();
                                                            value="<?php echo htmlspecialchars($menu['label']); ?>" 
                                                            placeholder="Nome del menu" required>
                                                 </div>
-                                                <div class="col-md-4 mb-3">
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Icona</label>
+                                                    <select class="form-select" name="main_menus[<?php echo $index; ?>][icon]">
+                                                        <option value="">Nessuna icona</option>
+                                                        <option value="fas fa-tachometer-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-tachometer-alt' ? 'selected' : ''; ?>>Dashboard</option>
+                                                        <option value="fas fa-bullhorn" <?php echo ($menu['icon'] ?? '') === 'fas fa-bullhorn' ? 'selected' : ''; ?>>Campagne</option>
+                                                        <option value="fas fa-envelope" <?php echo ($menu['icon'] ?? '') === 'fas fa-envelope' ? 'selected' : ''; ?>>Messaggi</option>
+                                                        <option value="fas fa-search" <?php echo ($menu['icon'] ?? '') === 'fas fa-search' ? 'selected' : ''; ?>>Cerca</option>
+                                                        <option value="fas fa-chart-bar" <?php echo ($menu['icon'] ?? '') === 'fas fa-chart-bar' ? 'selected' : ''; ?>>Analytics</option>
+                                                        <option value="fas fa-users" <?php echo ($menu['icon'] ?? '') === 'fas fa-users' ? 'selected' : ''; ?>>Utenti</option>
+                                                        <option value="fas fa-cog" <?php echo ($menu['icon'] ?? '') === 'fas fa-cog' ? 'selected' : ''; ?>>Impostazioni</option>
+                                                        <option value="fas fa-home" <?php echo ($menu['icon'] ?? '') === 'fas fa-home' ? 'selected' : ''; ?>>Home</option>
+                                                        <option value="fas fa-bell" <?php echo ($menu['icon'] ?? '') === 'fas fa-bell' ? 'selected' : ''; ?>>Notifiche</option>
+                                                        <option value="fas fa-user" <?php echo ($menu['icon'] ?? '') === 'fas fa-user' ? 'selected' : ''; ?>>Profilo</option>
+                                                        <option value="fas fa-sign-out-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-sign-out-alt' ? 'selected' : ''; ?>>Logout</option>
+                                                    </select>
+                                                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
                                                     <label class="form-label">URL</label>
                                                     <input type="text" class="form-control" name="main_menus[<?php echo $index; ?>][url]" 
                                                            value="<?php echo htmlspecialchars($menu['url']); ?>" 
                                                            placeholder="https://..." required>
                                                 </div>
-                                                <div class="col-md-2 mb-3">
+                                                <div class="col-md-1 mb-3">
                                                     <label class="form-label">Ordine</label>
                                                     <input type="number" class="form-control" name="main_menus[<?php echo $index; ?>][order]" 
                                                            value="<?php echo htmlspecialchars($menu['order']); ?>" 
                                                            min="1" required>
                                                 </div>
-                                                <div class="col-md-2 mb-3">
+                                                <div class="col-md-1 mb-3">
                                                     <label class="form-label">Target</label>
                                                     <div class="form-check mt-2">
                                                         <input type="checkbox" class="form-check-input" 
                                                                name="main_menus[<?php echo $index; ?>][target_blank]" 
                                                                value="1" <?php echo !empty($menu['target_blank']) ? 'checked' : ''; ?>>
-                                                        <label class="form-check-label">Apri in nuova pagina</label>
+                                                        <label class="form-check-label">Nuova pagina</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-1 mb-3 d-flex align-items-end">
@@ -544,7 +602,7 @@ $header_brands_settings = get_header_brands_settings();
 
                     <!-- Sezione Menu Profilo Brands -->
                     <div class="card mb-4">
-                        <div class="card-header bg-success text-white">
+                        <div class="card-header bg-info text-white">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-user-circle me-2"></i>Menu Profilo Brands
                             </h5>
@@ -554,8 +612,8 @@ $header_brands_settings = get_header_brands_settings();
                             <div id="profileMenuContainer">
                                 <?php
                                 $profile_menus = $header_brands_settings['profile_menus'] ?? [
-                                    ['label' => 'Impostazioni', 'url' => '/infl/brands/settings.php', 'target_blank' => false, 'order' => 1],
-                                    ['label' => 'Logout', 'url' => '/infl/auth/logout.php', 'target_blank' => false, 'order' => 2]
+                                    ['label' => 'Impostazioni', 'url' => '/infl/brands/settings.php', 'target_blank' => false, 'order' => 1, 'icon' => 'fas fa-cog'],
+                                    ['label' => 'Logout', 'url' => '/infl/auth/logout.php', 'target_blank' => false, 'order' => 2, 'icon' => 'fas fa-sign-out-alt']
                                 ];
                                 
                                 foreach ($profile_menus as $index => $menu): ?>
@@ -568,25 +626,43 @@ $header_brands_settings = get_header_brands_settings();
                                                            value="<?php echo htmlspecialchars($menu['label']); ?>" 
                                                            placeholder="Nome del menu" required>
                                                 </div>
-                                                <div class="col-md-4 mb-3">
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Icona</label>
+                                                    <select class="form-select" name="profile_menus[<?php echo $index; ?>][icon]">
+                                                        <option value="">Nessuna icona</option>
+                                                        <option value="fas fa-tachometer-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-tachometer-alt' ? 'selected' : ''; ?>>Dashboard</option>
+                                                        <option value="fas fa-bullhorn" <?php echo ($menu['icon'] ?? '') === 'fas fa-bullhorn' ? 'selected' : ''; ?>>Campagne</option>
+                                                        <option value="fas fa-envelope" <?php echo ($menu['icon'] ?? '') === 'fas fa-envelope' ? 'selected' : ''; ?>>Messaggi</option>
+                                                        <option value="fas fa-search" <?php echo ($menu['icon'] ?? '') === 'fas fa-search' ? 'selected' : ''; ?>>Cerca</option>
+                                                        <option value="fas fa-chart-bar" <?php echo ($menu['icon'] ?? '') === 'fas fa-chart-bar' ? 'selected' : ''; ?>>Analytics</option>
+                                                        <option value="fas fa-users" <?php echo ($menu['icon'] ?? '') === 'fas fa-users' ? 'selected' : ''; ?>>Utenti</option>
+                                                        <option value="fas fa-cog" <?php echo ($menu['icon'] ?? '') === 'fas fa-cog' ? 'selected' : ''; ?>>Impostazioni</option>
+                                                        <option value="fas fa-home" <?php echo ($menu['icon'] ?? '') === 'fas fa-home' ? 'selected' : ''; ?>>Home</option>
+                                                        <option value="fas fa-bell" <?php echo ($menu['icon'] ?? '') === 'fas fa-bell' ? 'selected' : ''; ?>>Notifiche</option>
+                                                        <option value="fas fa-user" <?php echo ($menu['icon'] ?? '') === 'fas fa-user' ? 'selected' : ''; ?>>Profilo</option>
+                                                        <option value="fas fa-sign-out-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-sign-out-alt' ? 'selected' : ''; ?>>Logout</option>
+                                                    </select>
+                                                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
                                                     <label class="form-label">URL</label>
                                                     <input type="text" class="form-control" name="profile_menus[<?php echo $index; ?>][url]" 
                                                            value="<?php echo htmlspecialchars($menu['url']); ?>" 
                                                            placeholder="https://..." required>
                                                 </div>
-                                                <div class="col-md-2 mb-3">
+                                                <div class="col-md-1 mb-3">
                                                     <label class="form-label">Ordine</label>
                                                     <input type="number" class="form-control" name="profile_menus[<?php echo $index; ?>][order]" 
                                                            value="<?php echo htmlspecialchars($menu['order']); ?>" 
                                                            min="1" required>
                                                 </div>
-                                                <div class="col-md-2 mb-3">
+                                                <div class="col-md-1 mb-3">
                                                     <label class="form-label">Target</label>
                                                     <div class="form-check mt-2">
                                                         <input type="checkbox" class="form-check-input" 
                                                                name="profile_menus[<?php echo $index; ?>][target_blank]" 
                                                                value="1" <?php echo !empty($menu['target_blank']) ? 'checked' : ''; ?>>
-                                                        <label class="form-check-label">Apri in nuova pagina</label>
+                                                        <label class="form-check-label">Nuova pagina</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-1 mb-3 d-flex align-items-end">
@@ -906,22 +982,40 @@ function addMainMenuItem() {
                     <input type="text" class="form-control" name="main_menus[${mainMenuCounter}][label]" 
                            placeholder="Nome del menu" required>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Icona</label>
+                    <select class="form-select" name="main_menus[${mainMenuCounter}][icon]">
+                        <option value="">Nessuna icona</option>
+                        <option value="fas fa-tachometer-alt">Dashboard</option>
+                        <option value="fas fa-bullhorn">Campagne</option>
+                        <option value="fas fa-envelope">Messaggi</option>
+                        <option value="fas fa-search">Cerca</option>
+                        <option value="fas fa-chart-bar">Analytics</option>
+                        <option value="fas fa-users">Utenti</option>
+                        <option value="fas fa-cog">Impostazioni</option>
+                        <option value="fas fa-home">Home</option>
+                        <option value="fas fa-bell">Notifiche</option>
+                        <option value="fas fa-user">Profilo</option>
+                        <option value="fas fa-sign-out-alt">Logout</option>
+                    </select>
+                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                </div>
+                <div class="col-md-3 mb-3">
                     <label class="form-label">URL</label>
                     <input type="text" class="form-control" name="main_menus[${mainMenuCounter}][url]" 
                            placeholder="https://..." required>
                 </div>
-                <div class="col-md-2 mb-3">
+                <div class="col-md-1 mb-3">
                     <label class="form-label">Ordine</label>
                     <input type="number" class="form-control" name="main_menus[${mainMenuCounter}][order]" 
                            value="${mainMenuCounter + 1}" min="1" required>
                 </div>
-                <div class="col-md-2 mb-3">
+                <div class="col-md-1 mb-3">
                     <label class="form-label">Target</label>
                     <div class="form-check mt-2">
                         <input type="checkbox" class="form-check-input" 
                                name="main_menus[${mainMenuCounter}][target_blank]" value="1">
-                        <label class="form-check-label">Apri in nuova pagina</label>
+                        <label class="form-check-label">Nuova pagina</label>
                     </div>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
@@ -955,22 +1049,40 @@ function addProfileMenuItem() {
                     <input type="text" class="form-control" name="profile_menus[${profileMenuCounter}][label]" 
                            placeholder="Nome del menu" required>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Icona</label>
+                    <select class="form-select" name="profile_menus[${profileMenuCounter}][icon]">
+                        <option value="">Nessuna icona</option>
+                        <option value="fas fa-tachometer-alt">Dashboard</option>
+                        <option value="fas fa-bullhorn">Campagne</option>
+                        <option value="fas fa-envelope">Messaggi</option>
+                        <option value="fas fa-search">Cerca</option>
+                        <option value="fas fa-chart-bar">Analytics</option>
+                        <option value="fas fa-users">Utenti</option>
+                        <option value="fas fa-cog">Impostazioni</option>
+                        <option value="fas fa-home">Home</option>
+                        <option value="fas fa-bell">Notifiche</option>
+                        <option value="fas fa-user">Profilo</option>
+                        <option value="fas fa-sign-out-alt">Logout</option>
+                    </select>
+                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                </div>
+                <div class="col-md-3 mb-3">
                     <label class="form-label">URL</label>
                     <input type="text" class="form-control" name="profile_menus[${profileMenuCounter}][url]" 
                            placeholder="https://..." required>
                 </div>
-                <div class="col-md-2 mb-3">
+                <div class="col-md-1 mb-3">
                     <label class="form-label">Ordine</label>
                     <input type="number" class="form-control" name="profile_menus[${profileMenuCounter}][order]" 
                            value="${profileMenuCounter + 1}" min="1" required>
                 </div>
-                <div class="col-md-2 mb-3">
+                <div class="col-md-1 mb-3">
                     <label class="form-label">Target</label>
                     <div class="form-check mt-2">
                         <input type="checkbox" class="form-check-input" 
                                name="profile_menus[${profileMenuCounter}][target_blank]" value="1">
-                        <label class="form-check-label">Apri in nuova pagina</label>
+                        <label class="form-check-label">Nuova pagina</label>
                     </div>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
