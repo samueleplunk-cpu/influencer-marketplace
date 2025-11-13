@@ -18,6 +18,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = save_header_settings($_POST, $_FILES);
     } elseif ($action === 'save_header_brands_settings') {
         $result = save_header_brands_settings($_POST, $_FILES);
+    } elseif ($action === 'save_header_influencers_settings') {
+        $result = save_header_influencers_settings($_POST, $_FILES);
     }
     
     if (isset($result) && $result['success']) {
@@ -35,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $footer_settings = get_footer_settings();
 $header_settings = get_header_settings();
 $header_brands_settings = get_header_brands_settings();
+$header_influencers_settings = get_header_influencers_settings();
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -100,6 +103,11 @@ $header_brands_settings = get_header_brands_settings();
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="header-brands-tab" data-bs-toggle="tab" data-bs-target="#header-brands" type="button" role="tab" aria-controls="header-brands" aria-selected="false">
                     <i class="fas fa-users me-2"></i>Header Brands
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="header-influencers-tab" data-bs-toggle="tab" data-bs-target="#header-influencers" type="button" role="tab" aria-controls="header-influencers" aria-selected="false">
+                    <i class="fas fa-user-friends me-2"></i>Header Influencers
                 </button>
             </li>
         </ul>
@@ -693,6 +701,230 @@ $header_brands_settings = get_header_brands_settings();
                     </div>
                 </form>
             </div>
+
+            <!-- Tab Header Influencers -->
+            <div class="tab-pane fade" id="header-influencers" role="tabpanel" aria-labelledby="header-influencers-tab">
+                <form method="POST" id="headerInfluencersForm" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="save_header_influencers_settings">
+                    
+                    <!-- Sezione Logo Header Influencers -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-image me-2"></i>Logo Header Influencers
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="header_influencers_logo_text" class="form-label">Testo Logo (Fallback)</label>
+                                    <input type="text" class="form-control" id="header_influencers_logo_text" name="header_influencers_logo_text" 
+                                           value="<?php echo htmlspecialchars($header_influencers_settings['logo_text'] ?? 'Kibbiz'); ?>" 
+                                           placeholder="Inserisci il testo del logo" required>
+                                    <div class="form-text">Questo testo verrà mostrato se non viene caricata un'immagine logo</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="header_influencers_logo" class="form-label">Immagine Logo</label>
+                                    <input type="file" class="form-control" id="header_influencers_logo" name="header_influencers_logo" 
+                                           accept="image/*">
+                                    <div class="form-text">
+                                        Carica un'immagine per il logo. Dimensioni consigliate: 150x50px. 
+                                        Formati supportati: JPG, PNG, GIF, WebP.
+                                        <?php if (!empty($header_influencers_settings['logo_url'])): ?>
+                                            <br>
+                                            <strong>Logo attuale:</strong>
+                                            <img src="<?php echo htmlspecialchars($header_influencers_settings['logo_url']); ?>" 
+                                                 alt="Logo Header Influencers" style="max-height: 50px; margin-left: 10px;">
+                                            <br>
+                                            <label class="mt-2">
+                                                <input type="checkbox" name="remove_header_influencers_logo" value="1">
+                                                Rimuovi logo attuale
+                                            </label>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Menu Principale Influencers -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-bars me-2"></i>Menu Principale Influencers
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Gestisci le voci del menu principale che gli influencer visualizzano dopo il login.</p>
+                            <div id="mainMenuInfluencersContainer">
+                                <?php
+                                $main_menus_influencers = $header_influencers_settings['main_menus'] ?? [
+                                    ['label' => 'Dashboard', 'url' => '/infl/influencers/dashboard.php', 'target_blank' => false, 'order' => 1, 'icon' => 'fas fa-tachometer-alt'],
+                                    ['label' => 'Campagne', 'url' => '/infl/influencers/campaigns.php', 'target_blank' => false, 'order' => 2, 'icon' => 'fas fa-bullhorn'],
+                                    ['label' => 'Messaggi', 'url' => '/infl/influencers/messages/conversation-list.php', 'target_blank' => false, 'order' => 3, 'icon' => 'fas fa-envelope'],
+                                    ['label' => 'Analytics', 'url' => '/infl/influencers/analytics.php', 'target_blank' => false, 'order' => 4, 'icon' => 'fas fa-chart-bar']
+                                ];
+                                
+                                foreach ($main_menus_influencers as $index => $menu): ?>
+                                    <div class="main-menu-influencers-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="main_menus[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($menu['label']); ?>" 
+                                                           placeholder="Nome del menu" required>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Icona</label>
+                                                    <select class="form-select" name="main_menus[<?php echo $index; ?>][icon]">
+                                                        <option value="">Nessuna icona</option>
+                                                        <option value="fas fa-tachometer-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-tachometer-alt' ? 'selected' : ''; ?>>Dashboard</option>
+                                                        <option value="fas fa-bullhorn" <?php echo ($menu['icon'] ?? '') === 'fas fa-bullhorn' ? 'selected' : ''; ?>>Campagne</option>
+                                                        <option value="fas fa-envelope" <?php echo ($menu['icon'] ?? '') === 'fas fa-envelope' ? 'selected' : ''; ?>>Messaggi</option>
+                                                        <option value="fas fa-search" <?php echo ($menu['icon'] ?? '') === 'fas fa-search' ? 'selected' : ''; ?>>Cerca</option>
+                                                        <option value="fas fa-chart-bar" <?php echo ($menu['icon'] ?? '') === 'fas fa-chart-bar' ? 'selected' : ''; ?>>Analytics</option>
+                                                        <option value="fas fa-users" <?php echo ($menu['icon'] ?? '') === 'fas fa-users' ? 'selected' : ''; ?>>Utenti</option>
+                                                        <option value="fas fa-cog" <?php echo ($menu['icon'] ?? '') === 'fas fa-cog' ? 'selected' : ''; ?>>Impostazioni</option>
+                                                        <option value="fas fa-home" <?php echo ($menu['icon'] ?? '') === 'fas fa-home' ? 'selected' : ''; ?>>Home</option>
+                                                        <option value="fas fa-bell" <?php echo ($menu['icon'] ?? '') === 'fas fa-bell' ? 'selected' : ''; ?>>Notifiche</option>
+                                                        <option value="fas fa-user" <?php echo ($menu['icon'] ?? '') === 'fas fa-user' ? 'selected' : ''; ?>>Profilo</option>
+                                                        <option value="fas fa-sign-out-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-sign-out-alt' ? 'selected' : ''; ?>>Logout</option>
+                                                    </select>
+                                                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="main_menus[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($menu['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Ordine</label>
+                                                    <input type="number" class="form-control" name="main_menus[<?php echo $index; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($menu['order']); ?>" 
+                                                           min="1" required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="main_menus[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($menu['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-main-menu-influencers" 
+                                                            data-item-type="main-menu-influencers" data-item-label="<?php echo htmlspecialchars($menu['label']); ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addMainMenuInfluencersItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Voce Menu Principale
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Menu Profilo Influencers -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-user-circle me-2"></i>Menu Profilo Influencers
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Gestisci le voci del menu a tendina del profilo per gli influencer.</p>
+                            <div id="profileMenuInfluencersContainer">
+                                <?php
+                                $profile_menus_influencers = $header_influencers_settings['profile_menus'] ?? [
+                                    ['label' => 'Impostazioni', 'url' => '/infl/influencers/settings.php', 'target_blank' => false, 'order' => 1, 'icon' => 'fas fa-cog'],
+                                    ['label' => 'Logout', 'url' => '/infl/auth/logout.php', 'target_blank' => false, 'order' => 2, 'icon' => 'fas fa-sign-out-alt']
+                                ];
+                                
+                                foreach ($profile_menus_influencers as $index => $menu): ?>
+                                    <div class="profile-menu-influencers-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="profile_menus[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($menu['label']); ?>" 
+                                                           placeholder="Nome del menu" required>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Icona</label>
+                                                    <select class="form-select" name="profile_menus[<?php echo $index; ?>][icon]">
+                                                        <option value="">Nessuna icona</option>
+                                                        <option value="fas fa-tachometer-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-tachometer-alt' ? 'selected' : ''; ?>>Dashboard</option>
+                                                        <option value="fas fa-bullhorn" <?php echo ($menu['icon'] ?? '') === 'fas fa-bullhorn' ? 'selected' : ''; ?>>Campagne</option>
+                                                        <option value="fas fa-envelope" <?php echo ($menu['icon'] ?? '') === 'fas fa-envelope' ? 'selected' : ''; ?>>Messaggi</option>
+                                                        <option value="fas fa-search" <?php echo ($menu['icon'] ?? '') === 'fas fa-search' ? 'selected' : ''; ?>>Cerca</option>
+                                                        <option value="fas fa-chart-bar" <?php echo ($menu['icon'] ?? '') === 'fas fa-chart-bar' ? 'selected' : ''; ?>>Analytics</option>
+                                                        <option value="fas fa-users" <?php echo ($menu['icon'] ?? '') === 'fas fa-users' ? 'selected' : ''; ?>>Utenti</option>
+                                                        <option value="fas fa-cog" <?php echo ($menu['icon'] ?? '') === 'fas fa-cog' ? 'selected' : ''; ?>>Impostazioni</option>
+                                                        <option value="fas fa-home" <?php echo ($menu['icon'] ?? '') === 'fas fa-home' ? 'selected' : ''; ?>>Home</option>
+                                                        <option value="fas fa-bell" <?php echo ($menu['icon'] ?? '') === 'fas fa-bell' ? 'selected' : ''; ?>>Notifiche</option>
+                                                        <option value="fas fa-user" <?php echo ($menu['icon'] ?? '') === 'fas fa-user' ? 'selected' : ''; ?>>Profilo</option>
+                                                        <option value="fas fa-sign-out-alt" <?php echo ($menu['icon'] ?? '') === 'fas fa-sign-out-alt' ? 'selected' : ''; ?>>Logout</option>
+                                                    </select>
+                                                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="profile_menus[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($menu['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Ordine</label>
+                                                    <input type="number" class="form-control" name="profile_menus[<?php echo $index; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($menu['order']); ?>" 
+                                                           min="1" required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="profile_menus[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($menu['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-profile-menu-influencers" 
+                                                            data-item-type="profile-menu-influencers" data-item-label="<?php echo htmlspecialchars($menu['label']); ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addProfileMenuInfluencersItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Voce Menu Profilo
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Pulsanti di salvataggio -->
+                    <div class="row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Salva Impostazioni Header Influencers
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -704,6 +936,8 @@ let supportLinkCounter = <?php echo count($footer_settings['support_links'] ?? [
 let navMenuCounter = <?php echo count($header_settings['nav_menus'] ?? []); ?>;
 let mainMenuCounter = <?php echo count($header_brands_settings['main_menus'] ?? []); ?>;
 let profileMenuCounter = <?php echo count($header_brands_settings['profile_menus'] ?? []); ?>;
+let mainMenuInfluencersCounter = <?php echo count($header_influencers_settings['main_menus'] ?? []); ?>;
+let profileMenuInfluencersCounter = <?php echo count($header_influencers_settings['profile_menus'] ?? []); ?>;
 
 // Variabili per gestire il modal di conferma
 let currentDeleteButton = null;
@@ -718,7 +952,9 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.closest('.remove-support-link') || 
             e.target.closest('.remove-social') ||
             e.target.closest('.remove-main-menu') ||
-            e.target.closest('.remove-profile-menu')) {
+            e.target.closest('.remove-profile-menu') ||
+            e.target.closest('.remove-main-menu-influencers') ||
+            e.target.closest('.remove-profile-menu-influencers')) {
             
             const button = e.target.closest('button');
             currentDeleteButton = button;
@@ -753,6 +989,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 case 'profile-menu':
                     removeProfileMenuItem(currentDeleteButton);
+                    break;
+                case 'main-menu-influencers':
+                    removeMainMenuInfluencersItem(currentDeleteButton);
+                    break;
+                case 'profile-menu-influencers':
+                    removeProfileMenuInfluencersItem(currentDeleteButton);
                     break;
             }
             
@@ -1099,6 +1341,140 @@ function addProfileMenuItem() {
 
 function removeProfileMenuItem(button) {
     const item = button.closest('.profile-menu-item');
+    item.remove();
+}
+
+// Funzioni per Menu Principale Influencers
+function addMainMenuInfluencersItem() {
+    mainMenuInfluencersCounter++;
+    const container = document.getElementById('mainMenuInfluencersContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'main-menu-influencers-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="main_menus[${mainMenuInfluencersCounter}][label]" 
+                           placeholder="Nome del menu" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Icona</label>
+                    <select class="form-select" name="main_menus[${mainMenuInfluencersCounter}][icon]">
+                        <option value="">Nessuna icona</option>
+                        <option value="fas fa-tachometer-alt">Dashboard</option>
+                        <option value="fas fa-bullhorn">Campagne</option>
+                        <option value="fas fa-envelope">Messaggi</option>
+                        <option value="fas fa-search">Cerca</option>
+                        <option value="fas fa-chart-bar">Analytics</option>
+                        <option value="fas fa-users">Utenti</option>
+                        <option value="fas fa-cog">Impostazioni</option>
+                        <option value="fas fa-home">Home</option>
+                        <option value="fas fa-bell">Notifiche</option>
+                        <option value="fas fa-user">Profilo</option>
+                        <option value="fas fa-sign-out-alt">Logout</option>
+                    </select>
+                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="main_menus[${mainMenuInfluencersCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Ordine</label>
+                    <input type="number" class="form-control" name="main_menus[${mainMenuInfluencersCounter}][order]" 
+                           value="${mainMenuInfluencersCounter + 1}" min="1" required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="main_menus[${mainMenuInfluencersCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-main-menu-influencers" 
+                            data-item-type="main-menu-influencers" data-item-label="Nuova voce menu">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeMainMenuInfluencersItem(button) {
+    const item = button.closest('.main-menu-influencers-item');
+    item.remove();
+}
+
+// Funzioni per Menu Profilo Influencers
+function addProfileMenuInfluencersItem() {
+    profileMenuInfluencersCounter++;
+    const container = document.getElementById('profileMenuInfluencersContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'profile-menu-influencers-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="profile_menus[${profileMenuInfluencersCounter}][label]" 
+                           placeholder="Nome del menu" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Icona</label>
+                    <select class="form-select" name="profile_menus[${profileMenuInfluencersCounter}][icon]">
+                        <option value="">Nessuna icona</option>
+                        <option value="fas fa-tachometer-alt">Dashboard</option>
+                        <option value="fas fa-bullhorn">Campagne</option>
+                        <option value="fas fa-envelope">Messaggi</option>
+                        <option value="fas fa-search">Cerca</option>
+                        <option value="fas fa-chart-bar">Analytics</option>
+                        <option value="fas fa-users">Utenti</option>
+                        <option value="fas fa-cog">Impostazioni</option>
+                        <option value="fas fa-home">Home</option>
+                        <option value="fas fa-bell">Notifiche</option>
+                        <option value="fas fa-user">Profilo</option>
+                        <option value="fas fa-sign-out-alt">Logout</option>
+                    </select>
+                    <div class="form-text">Seleziona un'icona per questa voce menu</div>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="profile_menus[${profileMenuInfluencersCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Ordine</label>
+                    <input type="number" class="form-control" name="profile_menus[${profileMenuInfluencersCounter}][order]" 
+                           value="${profileMenuInfluencersCounter + 1}" min="1" required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="profile_menus[${profileMenuInfluencersCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-profile-menu-influencers" 
+                            data-item-type="profile-menu-influencers" data-item-label="Nuova voce menu">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeProfileMenuInfluencersItem(button) {
+    const item = button.closest('.profile-menu-influencers-item');
     item.remove();
 }
 

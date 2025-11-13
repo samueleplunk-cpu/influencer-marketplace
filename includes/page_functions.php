@@ -283,6 +283,110 @@ function save_header_brands_settings($data, $files = []) {
 }
 
 /**
+ * Salva le impostazioni dell'header influencers nel database
+ */
+function save_header_influencers_settings($data, $files = []) {
+    global $pdo;
+    
+    try {
+        // Prepara i dati per il salvataggio
+        $header_influencers_settings = [
+            'logo_text' => trim($data['header_influencers_logo_text'] ?? 'Kibbiz'),
+            'main_menus' => [],
+            'profile_menus' => []
+        ];
+        
+        // Gestione upload logo header influencers
+        $logo_url = handle_header_influencers_logo_upload($files, $data['remove_header_influencers_logo'] ?? false);
+        
+        if ($logo_url !== null) {
+            // Se c'è un nuovo upload o rimozione esplicita
+            $header_influencers_settings['logo_url'] = $logo_url;
+        } else {
+            // Se non c'è nuovo upload, mantieni il logo esistente
+            $current_settings = get_header_influencers_settings();
+            if (!empty($current_settings['logo_url']) && !isset($data['remove_header_influencers_logo'])) {
+                $header_influencers_settings['logo_url'] = $current_settings['logo_url'];
+            }
+        }
+        
+        // Processa i menu principali
+        if (isset($data['main_menus']) && is_array($data['main_menus'])) {
+            foreach ($data['main_menus'] as $menu) {
+                if (!empty(trim($menu['label'])) && !empty(trim($menu['url']))) {
+                    $header_influencers_settings['main_menus'][] = [
+                        'label' => trim($menu['label']),
+                        'url' => trim($menu['url']),
+                        'target_blank' => !empty($menu['target_blank']),
+                        'order' => intval($menu['order']),
+                        'icon' => trim($menu['icon'] ?? '')
+                    ];
+                }
+            }
+            
+            // Ordina i menu per ordine
+            usort($header_influencers_settings['main_menus'], function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
+        
+        // Processa i menu profilo
+        if (isset($data['profile_menus']) && is_array($data['profile_menus'])) {
+            foreach ($data['profile_menus'] as $menu) {
+                if (!empty(trim($menu['label'])) && !empty(trim($menu['url']))) {
+                    $header_influencers_settings['profile_menus'][] = [
+                        'label' => trim($menu['label']),
+                        'url' => trim($menu['url']),
+                        'target_blank' => !empty($menu['target_blank']),
+                        'order' => intval($menu['order']),
+                        'icon' => trim($menu['icon'] ?? '')
+                    ];
+                }
+            }
+            
+            // Ordina i menu profilo per ordine
+            usort($header_influencers_settings['profile_menus'], function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
+        
+        // Verifica se esiste già un record
+        $check_stmt = $pdo->prepare("SELECT id FROM page_settings WHERE setting_type = 'header_influencers'");
+        $check_stmt->execute();
+        $existing = $check_stmt->fetch();
+        
+        if ($existing) {
+            // Aggiorna record esistente
+            $stmt = $pdo->prepare("
+                UPDATE page_settings 
+                SET setting_value = ?, updated_at = NOW() 
+                WHERE setting_type = 'header_influencers'
+            ");
+        } else {
+            // Crea nuovo record
+            $stmt = $pdo->prepare("
+                INSERT INTO page_settings (setting_type, setting_value, created_at, updated_at)
+                VALUES ('header_influencers', ?, NOW(), NOW())
+            ");
+        }
+        
+        $stmt->execute([json_encode($header_influencers_settings, JSON_UNESCAPED_UNICODE)]);
+        
+        return [
+            'success' => true,
+            'message' => 'Impostazioni header influencers salvate con successo!'
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Errore salvataggio header influencers settings: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Errore durante il salvataggio: ' . $e->getMessage()
+        ];
+    }
+}
+
+/**
  * Gestisce l'upload del logo footer
  */
 function handle_footer_logo_upload($files, $remove_logo = false) {
@@ -405,6 +509,72 @@ function handle_header_brands_logo_upload($files, $remove_logo = false) {
         if (move_uploaded_file($files['header_brands_logo']['tmp_name'], $destination)) {
             // Elimina il vecchio logo se esiste
             $current_settings = get_header_brands_settings();
+            if (!empty($current_settings['logo_url'])) {
+                $old_logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
+                if (file_exists($old_logo_path) && is_file($old_logo_path)) {
+                    unlink($old_logo_path);
+                }
+            }
+            
+            return $upload_dir . $filename;
+        } else {
+            throw new Exception('Errore durante il caricamento del file.');
+        }
+    }
+    
+    return null; // Nessun nuovo upload e nessuna rimozione richiesta
+}
+
+/**
+ * Gestisce l'upload del logo header influencers
+ */
+function handle_header_influencers_logo_upload($files, $remove_logo = false) {
+    // Se richiesta rimozione logo esplicita
+    if ($remove_logo) {
+        // Elimina il file logo esistente se presente
+        $current_settings = get_header_influencers_settings();
+        if (!empty($current_settings['logo_url'])) {
+            $logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
+            if (file_exists($logo_path)) {
+                unlink($logo_path);
+            }
+        }
+        return ''; // Logo rimosso
+    }
+    
+    // Gestione upload nuovo logo
+    if (isset($files['header_influencers_logo']) && $files['header_influencers_logo']['error'] === UPLOAD_ERR_OK) {
+        $upload_dir = '/infl/uploads/logos/';
+        $absolute_upload_dir = $_SERVER['DOCUMENT_ROOT'] . $upload_dir;
+        
+        // Crea la directory se non esiste
+        if (!file_exists($absolute_upload_dir)) {
+            mkdir($absolute_upload_dir, 0755, true);
+        }
+        
+        $allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        $file_info = finfo_open(FILEINFO_MIME_TYPE);
+        $mime_type = finfo_file($file_info, $files['header_influencers_logo']['tmp_name']);
+        finfo_close($file_info);
+        
+        if (!in_array($mime_type, $allowed_types)) {
+            throw new Exception('Tipo file non supportato. Usa JPG, PNG, GIF o WebP.');
+        }
+        
+        // Verifica dimensioni (max 2MB)
+        if ($files['header_influencers_logo']['size'] > 2 * 1024 * 1024) {
+            throw new Exception('Il file è troppo grande. Dimensione massima: 2MB.');
+        }
+        
+        // Genera nome file univoco
+        $file_extension = pathinfo($files['header_influencers_logo']['name'], PATHINFO_EXTENSION);
+        $filename = 'header_influencers_logo_' . time() . '_' . uniqid() . '.' . $file_extension;
+        $destination = $absolute_upload_dir . $filename;
+        
+        // Sposta il file
+        if (move_uploaded_file($files['header_influencers_logo']['tmp_name'], $destination)) {
+            // Elimina il vecchio logo se esiste
+            $current_settings = get_header_influencers_settings();
             if (!empty($current_settings['logo_url'])) {
                 $old_logo_path = $_SERVER['DOCUMENT_ROOT'] . parse_url($current_settings['logo_url'], PHP_URL_PATH);
                 if (file_exists($old_logo_path) && is_file($old_logo_path)) {
@@ -624,6 +794,76 @@ function get_header_brands_settings() {
             [
                 'label' => 'Impostazioni',
                 'url' => '/infl/brands/settings.php',
+                'target_blank' => false,
+                'order' => 1,
+                'icon' => 'fas fa-cog'
+            ],
+            [
+                'label' => 'Logout',
+                'url' => '/infl/auth/logout.php',
+                'target_blank' => false,
+                'order' => 2,
+                'icon' => 'fas fa-sign-out-alt'
+            ]
+        ]
+    ];
+}
+
+/**
+ * Recupera le impostazioni dell'header influencers dal database
+ */
+function get_header_influencers_settings() {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM page_settings WHERE setting_type = 'header_influencers'");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && $result['setting_value']) {
+            return json_decode($result['setting_value'], true);
+        }
+    } catch (Exception $e) {
+        error_log("Errore recupero header influencers settings: " . $e->getMessage());
+    }
+    
+    // Valori di default
+    return [
+        'logo_text' => 'Kibbiz',
+        'main_menus' => [
+            [
+                'label' => 'Dashboard',
+                'url' => '/infl/influencers/dashboard.php',
+                'target_blank' => false,
+                'order' => 1,
+                'icon' => 'fas fa-tachometer-alt'
+            ],
+            [
+                'label' => 'Campagne', 
+                'url' => '/infl/influencers/campaigns.php',
+                'target_blank' => false,
+                'order' => 2,
+                'icon' => 'fas fa-bullhorn'
+            ],
+            [
+                'label' => 'Messaggi',
+                'url' => '/infl/influencers/messages/conversation-list.php',
+                'target_blank' => false,
+                'order' => 3,
+                'icon' => 'fas fa-envelope'
+            ],
+            [
+                'label' => 'Analytics',
+                'url' => '/infl/influencers/analytics.php',
+                'target_blank' => false,
+                'order' => 4,
+                'icon' => 'fas fa-chart-bar'
+            ]
+        ],
+        'profile_menus' => [
+            [
+                'label' => 'Impostazioni',
+                'url' => '/infl/influencers/settings.php',
                 'target_blank' => false,
                 'order' => 1,
                 'icon' => 'fas fa-cog'

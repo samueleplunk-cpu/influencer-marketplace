@@ -101,6 +101,16 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
     $main_menus = $header_brands_settings['main_menus'] ?? [];
     $profile_menus = $header_brands_settings['profile_menus'] ?? [];
 }
+
+// Carica le impostazioni del menu influencer se l'utente è loggato come influencer
+$header_influencers_settings = [];
+$main_menus_influencers = [];
+$profile_menus_influencers = [];
+if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer' && function_exists('get_header_influencers_settings')) {
+    $header_influencers_settings = get_header_influencers_settings();
+    $main_menus_influencers = $header_influencers_settings['main_menus'] ?? [];
+    $profile_menus_influencers = $header_influencers_settings['profile_menus'] ?? [];
+}
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -154,7 +164,7 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <!-- Logo Dinamico per Brand -->
+            <!-- Logo Dinamico per Brand e Influencer -->
             <a class="navbar-brand" href="/infl">
                 <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && !empty($header_brands_settings['logo_url'])): ?>
                     <img src="<?php echo htmlspecialchars($header_brands_settings['logo_url']); ?>" 
@@ -162,6 +172,12 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
                          style="max-height: 30px;">
                 <?php elseif (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand'): ?>
                     <?php echo htmlspecialchars($header_brands_settings['logo_text'] ?? 'Kibbiz'); ?>
+                <?php elseif (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer' && !empty($header_influencers_settings['logo_url'])): ?>
+                    <img src="<?php echo htmlspecialchars($header_influencers_settings['logo_url']); ?>" 
+                         alt="<?php echo htmlspecialchars($header_influencers_settings['logo_text'] ?? 'Kibbiz'); ?>" 
+                         style="max-height: 30px;">
+                <?php elseif (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer'): ?>
+                    <?php echo htmlspecialchars($header_influencers_settings['logo_text'] ?? 'Kibbiz'); ?>
                 <?php else: ?>
                     <i class="fas fa-store me-2"></i>Influencer Marketplace
                 <?php endif; ?>
@@ -217,25 +233,46 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
                             <?php endif; ?>
 
                         <?php elseif ($_SESSION['user_type'] === 'influencer'): ?>
-                            <!-- Menu Influencer -->
-                            <a class="nav-link" href="/infl/influencers/dashboard.php">
-                                <i class="fas fa-tachometer-alt me-1"></i> Dashboard
-                            </a>
-                            <a class="nav-link" href="/infl/influencers/campaigns.php">
-                                <i class="fas fa-bullhorn me-1"></i> Campagne
-                            </a>
-                            <a class="nav-link position-relative" href="/infl/influencers/messages/conversation-list.php">
-                                <i class="fas fa-envelope me-1"></i> Messaggi
-                                <?php if ($unread_count > 0): ?>
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger message-badge">
-                                        <?php echo $unread_count; ?>
-                                        <span class="visually-hidden">messaggi non letti</span>
-                                    </span>
-                                <?php endif; ?>
-                            </a>
-                            <a class="nav-link" href="/infl/influencers/analytics.php">
-                                <i class="fas fa-chart-bar me-1"></i> Analytics
-                            </a>
+                            <!-- Menu Influencer Dinamico -->
+                            <?php if (!empty($main_menus_influencers)): ?>
+                                <?php foreach ($main_menus_influencers as $menu): ?>
+                                    <a class="nav-link <?php echo strtolower($menu['label']) === 'messaggi' ? 'position-relative' : ''; ?>" 
+                                       href="<?php echo htmlspecialchars($menu['url']); ?>"
+                                       <?php echo !empty($menu['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                                        <?php if (!empty($menu['icon'])): ?>
+                                            <i class="<?php echo htmlspecialchars($menu['icon']); ?> me-1"></i>
+                                        <?php endif; ?>
+                                        <?php echo htmlspecialchars($menu['label']); ?>
+                                        
+                                        <?php if (strtolower($menu['label']) === 'messaggi' && $unread_count > 0): ?>
+                                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger message-badge">
+                                                <?php echo $unread_count; ?>
+                                                <span class="visually-hidden">messaggi non letti</span>
+                                            </span>
+                                        <?php endif; ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            <?php else: ?>
+                                <!-- Fallback al menu statico se non ci sono impostazioni dinamiche -->
+                                <a class="nav-link" href="/infl/influencers/dashboard.php">
+                                    <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                                </a>
+                                <a class="nav-link" href="/infl/influencers/campaigns.php">
+                                    <i class="fas fa-bullhorn me-1"></i> Campagne
+                                </a>
+                                <a class="nav-link position-relative" href="/infl/influencers/messages/conversation-list.php">
+                                    <i class="fas fa-envelope me-1"></i> Messaggi
+                                    <?php if ($unread_count > 0): ?>
+                                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger message-badge">
+                                            <?php echo $unread_count; ?>
+                                            <span class="visually-hidden">messaggi non letti</span>
+                                        </span>
+                                    <?php endif; ?>
+                                </a>
+                                <a class="nav-link" href="/infl/influencers/analytics.php">
+                                    <i class="fas fa-chart-bar me-1"></i> Analytics
+                                </a>
+                            <?php endif; ?>
                         <?php endif; ?>
                         
                         <!-- Icona Notifiche -->
@@ -314,13 +351,29 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand' && funct
                                         </a></li>
                                     <?php endif; ?>
                                 <?php elseif ($_SESSION['user_type'] === 'influencer'): ?>
-                                    <li><a class="dropdown-item" href="/infl/influencers/settings.php">
-                                        <i class="fas fa-cog me-2"></i>Impostazioni
-                                    </a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="/infl/auth/logout.php">
-                                        <i class="fas fa-sign-out-alt me-2"></i>Logout
-                                    </a></li>
+                                    <?php if (!empty($profile_menus_influencers)): ?>
+                                        <!-- Menu profilo dinamico per influencer -->
+                                        <?php foreach ($profile_menus_influencers as $menu): ?>
+                                            <li>
+                                                <a class="dropdown-item" href="<?php echo htmlspecialchars($menu['url']); ?>"
+                                                   <?php echo !empty($menu['target_blank']) ? 'target="_blank" rel="noopener noreferrer"' : ''; ?>>
+                                                    <?php if (!empty($menu['icon'])): ?>
+                                                        <i class="<?php echo htmlspecialchars($menu['icon']); ?> me-2"></i>
+                                                    <?php endif; ?>
+                                                    <?php echo htmlspecialchars($menu['label']); ?>
+                                                </a>
+                                            </li>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <!-- Fallback al menu profilo statico -->
+                                        <li><a class="dropdown-item" href="/infl/influencers/settings.php">
+                                            <i class="fas fa-cog me-2"></i>Impostazioni
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="/infl/auth/logout.php">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Logout
+                                        </a></li>
+                                    <?php endif; ?>
                                 <?php endif; ?>
                             </ul>
                         </div>
