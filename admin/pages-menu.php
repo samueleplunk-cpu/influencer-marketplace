@@ -466,6 +466,29 @@ $header_influencers_settings = get_header_influencers_settings();
                             </button>
                         </div>
                     </div>
+					
+					                    <!-- Copyright -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-secondary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-copyright me-2"></i>Testo Copyright
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label for="footer_copyright" class="form-label">Testo Copyright</label>
+                                    <input type="text" class="form-control" id="footer_copyright" name="footer_copyright" 
+                                           value="<?php echo htmlspecialchars($footer_settings['copyright'] ?? '© Kibbiz {year}. Tutti i diritti riservati.'); ?>" 
+                                           placeholder="Inserisci il testo del copyright">
+                                    <div class="form-text">
+                                        Personalizza il testo del copyright. Usa il segnaposto <code>{year}</code> per visualizzare automaticamente l'anno corrente.
+                                        Esempio: "© Kibbiz {year}. Tutti i diritti riservati." diventerà "© Kibbiz 2025. Tutti i diritti riservati."
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Pulsanti di salvataggio -->
                     <div class="row">

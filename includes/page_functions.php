@@ -14,6 +14,7 @@ function save_footer_settings($data, $files = []) {
         $footer_settings = [
             'title' => trim($data['footer_title'] ?? 'Kibbiz'),
             'description' => trim($data['footer_description'] ?? 'Uniamo Brand e Influencer per crescere insieme.'),
+            'copyright' => trim($data['footer_copyright'] ?? '© Kibbiz {year}. Tutti i diritti riservati.'),
             'quick_links' => [],
             'support_links' => [],
             'social_links' => []
@@ -689,6 +690,7 @@ function get_footer_settings() {
     return [
         'title' => 'Kibbiz',
         'description' => 'Uniamo Brand e Influencer per crescere insieme.',
+        'copyright' => '© Kibbiz {year}. Tutti i diritti riservati.',
         'quick_links' => [
             ['label' => 'Home', 'url' => '/infl/', 'target_blank' => false],
             ['label' => 'Funzionalità', 'url' => '#features', 'target_blank' => false],
@@ -885,6 +887,10 @@ function get_header_influencers_settings() {
 function render_dynamic_footer() {
     $settings = get_footer_settings();
     
+    // Sostituisci il segnaposto {year} con l'anno corrente
+    $copyright_text = $settings['copyright'] ?? '© Kibbiz {year}. Tutti i diritti riservati.';
+    $copyright_text = str_replace('{year}', date('Y'), $copyright_text);
+    
     ob_start();
     ?>
     <footer class="footer">
@@ -933,7 +939,7 @@ function render_dynamic_footer() {
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; <?php echo htmlspecialchars($settings['title']); ?> <?php echo date('Y'); ?>. Tutti i diritti riservati.</p>
+                <p><?php echo htmlspecialchars($copyright_text); ?></p>
             </div>
         </div>
     </footer>

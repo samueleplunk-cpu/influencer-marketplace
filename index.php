@@ -610,8 +610,8 @@ function render_static_header_fallback() {
                     </div>
                 </div>
                 <div class="footer-bottom">
-                    <p>&copy; Kibbiz <?php echo date('Y'); ?>. All Rights Reserved.</p>
-                </div>
+                <p>&copy; Kibbiz <?php echo date('Y'); ?>. Tutti i diritti riservati.</p>
+            </div>
             </div>
         </footer>
         <?php
