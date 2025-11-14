@@ -388,6 +388,118 @@ function save_header_influencers_settings($data, $files = []) {
 }
 
 /**
+ * Salva le impostazioni del footer B&I nel database
+ */
+function save_footer_bi_settings($data, $files = []) {
+    global $pdo;
+    
+    try {
+        // Prepara i dati per il salvataggio
+        $footer_bi_settings = [
+            'title' => trim($data['footer_bi_title'] ?? 'Influencer Marketplace'),
+            'description' => trim($data['footer_bi_description'] ?? 'La piattaforma per connettere influencer e brand.'),
+            'copyright' => trim($data['footer_bi_copyright'] ?? '© 2025 Influencer Marketplace. Tutti i diritti riservati.'),
+            'new_column_title' => trim($data['new_column_title'] ?? 'Nuova Colonna'),
+            'social_column_title' => trim($data['social_column_title'] ?? 'Seguici su'),
+            'useful_links' => [],
+            'new_column_links' => [],
+            'social_links' => []
+        ];
+        
+        // Processa i useful links
+        if (isset($data['useful_links']) && is_array($data['useful_links'])) {
+            foreach ($data['useful_links'] as $link) {
+                if (!empty(trim($link['label'])) && !empty(trim($link['url']))) {
+                    $footer_bi_settings['useful_links'][] = [
+                        'label' => trim($link['label']),
+                        'url' => trim($link['url']),
+                        'target_blank' => !empty($link['target_blank']),
+                        'order' => intval($link['order'])
+                    ];
+                }
+            }
+            
+            // Ordina i link per ordine
+            usort($footer_bi_settings['useful_links'], function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
+        
+        // Processa i new column links
+        if (isset($data['new_column_links']) && is_array($data['new_column_links'])) {
+            foreach ($data['new_column_links'] as $link) {
+                if (!empty(trim($link['label'])) && !empty(trim($link['url']))) {
+                    $footer_bi_settings['new_column_links'][] = [
+                        'label' => trim($link['label']),
+                        'url' => trim($link['url']),
+                        'target_blank' => !empty($link['target_blank']),
+                        'order' => intval($link['order'])
+                    ];
+                }
+            }
+            
+            // Ordina i link per ordine
+            usort($footer_bi_settings['new_column_links'], function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
+        
+        // Processa i social links
+        if (isset($data['social_links']) && is_array($data['social_links'])) {
+            foreach ($data['social_links'] as $social) {
+                if (!empty(trim($social['url']))) {
+                    $footer_bi_settings['social_links'][] = [
+                        'platform' => trim($social['platform']),
+                        'url' => trim($social['url']),
+                        'icon' => trim($social['icon']),
+                        'order' => intval($social['order'])
+                    ];
+                }
+            }
+            
+            // Ordina i social per ordine
+            usort($footer_bi_settings['social_links'], function($a, $b) {
+                return $a['order'] - $b['order'];
+            });
+        }
+        
+        // Verifica se esiste già un record
+        $check_stmt = $pdo->prepare("SELECT id FROM page_settings WHERE setting_type = 'footer_bi'");
+        $check_stmt->execute();
+        $existing = $check_stmt->fetch();
+        
+        if ($existing) {
+            // Aggiorna record esistente
+            $stmt = $pdo->prepare("
+                UPDATE page_settings 
+                SET setting_value = ?, updated_at = NOW() 
+                WHERE setting_type = 'footer_bi'
+            ");
+        } else {
+            // Crea nuovo record
+            $stmt = $pdo->prepare("
+                INSERT INTO page_settings (setting_type, setting_value, created_at, updated_at)
+                VALUES ('footer_bi', ?, NOW(), NOW())
+            ");
+        }
+        
+        $stmt->execute([json_encode($footer_bi_settings, JSON_UNESCAPED_UNICODE)]);
+        
+        return [
+            'success' => true,
+            'message' => 'Impostazioni footer B&I salvate con successo!'
+        ];
+        
+    } catch (Exception $e) {
+        error_log("Errore salvataggio footer B&I settings: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Errore durante il salvataggio: ' . $e->getMessage()
+        ];
+    }
+}
+
+/**
  * Gestisce l'upload del logo footer
  */
 function handle_footer_logo_upload($files, $remove_logo = false) {
@@ -877,6 +989,49 @@ function get_header_influencers_settings() {
                 'order' => 2,
                 'icon' => 'fas fa-sign-out-alt'
             ]
+        ]
+    ];
+}
+
+/**
+ * Recupera le impostazioni del footer B&I dal database
+ */
+function get_footer_bi_settings() {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM page_settings WHERE setting_type = 'footer_bi'");
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($result && $result['setting_value']) {
+            return json_decode($result['setting_value'], true);
+        }
+    } catch (Exception $e) {
+        error_log("Errore recupero footer B&I settings: " . $e->getMessage());
+    }
+    
+    // Valori di default
+    return [
+        'title' => 'Influencer Marketplace',
+        'description' => 'La piattaforma per connettere influencer e brand.',
+        'copyright' => '© 2025 Influencer Marketplace. Tutti i diritti riservati.',
+        'new_column_title' => 'Nuova Colonna',
+        'social_column_title' => 'Seguici su',
+        'useful_links' => [
+            ['label' => 'Home', 'url' => '/infl/', 'target_blank' => false, 'order' => 1],
+            ['label' => 'Login', 'url' => '/infl/auth/login.php', 'target_blank' => false, 'order' => 2],
+            ['label' => 'Registrati', 'url' => '/infl/auth/register.php', 'target_blank' => false, 'order' => 3]
+        ],
+        'new_column_links' => [
+            ['label' => 'Link 1', 'url' => '#', 'target_blank' => false, 'order' => 1],
+            ['label' => 'Link 2', 'url' => '#', 'target_blank' => false, 'order' => 2],
+            ['label' => 'Link 3', 'url' => '#', 'target_blank' => false, 'order' => 3]
+        ],
+        'social_links' => [
+            ['platform' => 'instagram', 'url' => '#', 'icon' => 'fab fa-instagram', 'order' => 1],
+            ['platform' => 'tiktok', 'url' => '#', 'icon' => 'fab fa-tiktok', 'order' => 2],
+            ['platform' => 'linkedin', 'url' => '#', 'icon' => 'fab fa-linkedin', 'order' => 3]
         ]
     ];
 }

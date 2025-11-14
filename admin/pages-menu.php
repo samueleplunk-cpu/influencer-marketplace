@@ -20,6 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = save_header_brands_settings($_POST, $_FILES);
     } elseif ($action === 'save_header_influencers_settings') {
         $result = save_header_influencers_settings($_POST, $_FILES);
+    } elseif ($action === 'save_footer_bi_settings') {
+        $result = save_footer_bi_settings($_POST, $_FILES);
     }
     
     if (isset($result) && $result['success']) {
@@ -38,6 +40,7 @@ $footer_settings = get_footer_settings();
 $header_settings = get_header_settings();
 $header_brands_settings = get_header_brands_settings();
 $header_influencers_settings = get_header_influencers_settings();
+$footer_bi_settings = get_footer_bi_settings();
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -108,6 +111,11 @@ $header_influencers_settings = get_header_influencers_settings();
             <li class="nav-item" role="presentation">
                 <button class="nav-link" id="header-influencers-tab" data-bs-toggle="tab" data-bs-target="#header-influencers" type="button" role="tab" aria-controls="header-influencers" aria-selected="false">
                     <i class="fas fa-user-friends me-2"></i>Header Influencers
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="footer-bi-tab" data-bs-toggle="tab" data-bs-target="#footer-bi" type="button" role="tab" aria-controls="footer-bi" aria-selected="false">
+                    <i class="fas fa-shoe-prints me-2"></i>Footer B&I
                 </button>
             </li>
         </ul>
@@ -948,6 +956,291 @@ $header_influencers_settings = get_header_influencers_settings();
                     </div>
                 </form>
             </div>
+
+            <!-- Tab Footer B&I -->
+            <div class="tab-pane fade" id="footer-bi" role="tabpanel" aria-labelledby="footer-bi-tab">
+                <form method="POST" id="footerBIForm" enctype="multipart/form-data">
+                    <input type="hidden" name="action" value="save_footer_bi_settings">
+                    
+                    <!-- Sezione Colonna 1: Titolo e Descrizione -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-heading me-2"></i>Colonna 1 - Titolo e Descrizione
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="footer_bi_title" class="form-label">Titolo</label>
+                                    <input type="text" class="form-control" id="footer_bi_title" name="footer_bi_title" 
+                                           value="<?php echo htmlspecialchars($footer_bi_settings['title'] ?? 'Influencer Marketplace'); ?>" 
+                                           placeholder="Inserisci il titolo" required>
+                                    <div class="form-text">Titolo principale della colonna (es. "Influencer Marketplace")</div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="footer_bi_description" class="form-label">Descrizione</label>
+                                    <textarea class="form-control" id="footer_bi_description" name="footer_bi_description" 
+                                              rows="3" placeholder="Inserisci la descrizione"><?php echo htmlspecialchars($footer_bi_settings['description'] ?? 'La piattaforma per connettere influencer e brand.'); ?></textarea>
+                                    <div class="form-text">Breve descrizione sotto il titolo</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Colonna 2: Link Utili -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-link me-2"></i>Colonna 2 - Link Utili
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">Gestisci i link della colonna "Link Utili"</p>
+                            <div id="usefulLinksContainer">
+                                <?php
+                                $useful_links = $footer_bi_settings['useful_links'] ?? [
+                                    ['label' => 'Home', 'url' => '/infl/', 'target_blank' => false, 'order' => 1],
+                                    ['label' => 'Login', 'url' => '/infl/auth/login.php', 'target_blank' => false, 'order' => 2],
+                                    ['label' => 'Registrati', 'url' => '/infl/auth/register.php', 'target_blank' => false, 'order' => 3]
+                                ];
+                                
+                                foreach ($useful_links as $index => $link): ?>
+                                    <div class="useful-link-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="useful_links[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($link['label']); ?>" 
+                                                           placeholder="Nome del link" required>
+                                                </div>
+                                                <div class="col-md-5 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="useful_links[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($link['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Ordine</label>
+                                                    <input type="number" class="form-control" name="useful_links[<?php echo $index; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($link['order']); ?>" 
+                                                           min="1" required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="useful_links[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($link['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-useful-link" 
+                                                            data-item-type="useful-link" data-item-label="<?php echo htmlspecialchars($link['label']); ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addUsefulLinkItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Link Utile
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Colonna 3: Nuova Colonna -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-columns me-2"></i>Colonna 3 - Nuova Colonna
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label for="new_column_title" class="form-label">Titolo Colonna</label>
+                                    <input type="text" class="form-control" id="new_column_title" name="new_column_title" 
+                                           value="<?php echo htmlspecialchars($footer_bi_settings['new_column_title'] ?? 'Nuova Colonna'); ?>" 
+                                           placeholder="Titolo della colonna">
+                                </div>
+                            </div>
+                            <p class="text-muted mb-3">Gestisci i link della colonna "Nuova Colonna"</p>
+                            <div id="newColumnLinksContainer">
+                                <?php
+                                $new_column_links = $footer_bi_settings['new_column_links'] ?? [
+                                    ['label' => 'Link 1', 'url' => '#', 'target_blank' => false, 'order' => 1],
+                                    ['label' => 'Link 2', 'url' => '#', 'target_blank' => false, 'order' => 2],
+                                    ['label' => 'Link 3', 'url' => '#', 'target_blank' => false, 'order' => 3]
+                                ];
+                                
+                                foreach ($new_column_links as $index => $link): ?>
+                                    <div class="new-column-link-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Etichetta</label>
+                                                    <input type="text" class="form-control" name="new_column_links[<?php echo $index; ?>][label]" 
+                                                           value="<?php echo htmlspecialchars($link['label']); ?>" 
+                                                           placeholder="Nome del link" required>
+                                                </div>
+                                                <div class="col-md-5 mb-3">
+                                                    <label class="form-label">URL</label>
+                                                    <input type="text" class="form-control" name="new_column_links[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($link['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Ordine</label>
+                                                    <input type="number" class="form-control" name="new_column_links[<?php echo $index; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($link['order']); ?>" 
+                                                           min="1" required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Target</label>
+                                                    <div class="form-check mt-2">
+                                                        <input type="checkbox" class="form-check-input" 
+                                                               name="new_column_links[<?php echo $index; ?>][target_blank]" 
+                                                               value="1" <?php echo !empty($link['target_blank']) ? 'checked' : ''; ?>>
+                                                        <label class="form-check-label">Nuova pagina</label>
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-new-column-link" 
+                                                            data-item-type="new-column-link" data-item-label="<?php echo htmlspecialchars($link['label']); ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addNewColumnLinkItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Link
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Sezione Colonna 4: Seguici su - Social Media -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-share-alt me-2"></i>Colonna 4 - Seguici su
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-12">
+                                    <label for="social_column_title" class="form-label">Titolo Colonna</label>
+                                    <input type="text" class="form-control" id="social_column_title" name="social_column_title" 
+                                           value="<?php echo htmlspecialchars($footer_bi_settings['social_column_title'] ?? 'Seguici su'); ?>" 
+                                           placeholder="Titolo della colonna social">
+                                </div>
+                            </div>
+                            <div id="socialMediaBIContainer">
+                                <?php
+                                $social_links_bi = $footer_bi_settings['social_links'] ?? [
+                                    ['platform' => 'instagram', 'url' => '#', 'icon' => 'fab fa-instagram', 'order' => 1],
+                                    ['platform' => 'tiktok', 'url' => '#', 'icon' => 'fab fa-tiktok', 'order' => 2],
+                                    ['platform' => 'linkedin', 'url' => '#', 'icon' => 'fab fa-linkedin', 'order' => 3]
+                                ];
+                                
+                                foreach ($social_links_bi as $index => $social): ?>
+                                    <div class="social-media-bi-item card mb-3">
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Piattaforma</label>
+                                                    <select class="form-select social-platform-bi" name="social_links[<?php echo $index; ?>][platform]">
+                                                        <option value="instagram" <?php echo ($social['platform'] === 'instagram') ? 'selected' : ''; ?>>Instagram</option>
+                                                        <option value="tiktok" <?php echo ($social['platform'] === 'tiktok') ? 'selected' : ''; ?>>TikTok</option>
+                                                        <option value="linkedin" <?php echo ($social['platform'] === 'linkedin') ? 'selected' : ''; ?>>LinkedIn</option>
+                                                        <option value="facebook" <?php echo ($social['platform'] === 'facebook') ? 'selected' : ''; ?>>Facebook</option>
+                                                        <option value="twitter" <?php echo ($social['platform'] === 'twitter') ? 'selected' : ''; ?>>Twitter</option>
+                                                        <option value="youtube" <?php echo ($social['platform'] === 'youtube') ? 'selected' : ''; ?>>YouTube</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Icona</label>
+                                                    <select class="form-select social-icon-bi" name="social_links[<?php echo $index; ?>][icon]">
+                                                        <option value="fab fa-instagram" <?php echo ($social['icon'] === 'fab fa-instagram') ? 'selected' : ''; ?>>Instagram</option>
+                                                        <option value="fab fa-tiktok" <?php echo ($social['icon'] === 'fab fa-tiktok') ? 'selected' : ''; ?>>TikTok</option>
+                                                        <option value="fab fa-linkedin" <?php echo ($social['icon'] === 'fab fa-linkedin') ? 'selected' : ''; ?>>LinkedIn</option>
+                                                        <option value="fab fa-facebook" <?php echo ($social['icon'] === 'fab fa-facebook') ? 'selected' : ''; ?>>Facebook</option>
+                                                        <option value="fab fa-twitter" <?php echo ($social['icon'] === 'fab fa-twitter') ? 'selected' : ''; ?>>Twitter</option>
+                                                        <option value="fab fa-youtube" <?php echo ($social['icon'] === 'fab fa-youtube') ? 'selected' : ''; ?>>YouTube</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">URL Profilo</label>
+                                                    <input type="url" class="form-control" name="social_links[<?php echo $index; ?>][url]" 
+                                                           value="<?php echo htmlspecialchars($social['url']); ?>" 
+                                                           placeholder="https://..." required>
+                                                </div>
+                                                <div class="col-md-1 mb-3">
+                                                    <label class="form-label">Ordine</label>
+                                                    <input type="number" class="form-control" name="social_links[<?php echo $index; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($social['order']); ?>" 
+                                                           min="1" required>
+                                                </div>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-danger btn-sm remove-social-bi" 
+                                                            data-item-type="social-bi" data-item-label="<?php echo htmlspecialchars($social['platform']); ?>">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                            
+                            <button type="button" class="btn btn-success btn-sm" onclick="addSocialBIItem()">
+                                <i class="fas fa-plus me-1"></i>Aggiungi Social
+                            </button>
+                        </div>
+                    </div>
+					
+					<!-- Sezione Copyright -->
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-copyright me-2"></i>Copyright
+        </h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-12 mb-3">
+                <label for="footer_bi_copyright" class="form-label">Testo Copyright</label>
+                <input type="text" class="form-control" id="footer_bi_copyright" name="footer_bi_copyright" 
+                       value="<?php echo htmlspecialchars($footer_bi_settings['copyright'] ?? '© 2025 Influencer Marketplace. Tutti i diritti riservati.'); ?>" 
+                       placeholder="Inserisci il testo del copyright" required>
+                <div class="form-text">
+                    Personalizza il testo del copyright. Usa il segnaposto <code>{year}</code> per visualizzare automaticamente l'anno corrente.
+                    Esempio: "© 2025 Influencer Marketplace. Tutti i diritti riservati."
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+                    <!-- Pulsanti di salvataggio -->
+                    <div class="row">
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>Salva Impostazioni Footer B&I
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
@@ -961,6 +1254,9 @@ let mainMenuCounter = <?php echo count($header_brands_settings['main_menus'] ?? 
 let profileMenuCounter = <?php echo count($header_brands_settings['profile_menus'] ?? []); ?>;
 let mainMenuInfluencersCounter = <?php echo count($header_influencers_settings['main_menus'] ?? []); ?>;
 let profileMenuInfluencersCounter = <?php echo count($header_influencers_settings['profile_menus'] ?? []); ?>;
+let usefulLinkCounter = <?php echo count($footer_bi_settings['useful_links'] ?? []); ?>;
+let newColumnLinkCounter = <?php echo count($footer_bi_settings['new_column_links'] ?? []); ?>;
+let socialBICounter = <?php echo count($footer_bi_settings['social_links'] ?? []); ?>;
 
 // Variabili per gestire il modal di conferma
 let currentDeleteButton = null;
@@ -977,7 +1273,10 @@ document.addEventListener('DOMContentLoaded', function() {
             e.target.closest('.remove-main-menu') ||
             e.target.closest('.remove-profile-menu') ||
             e.target.closest('.remove-main-menu-influencers') ||
-            e.target.closest('.remove-profile-menu-influencers')) {
+            e.target.closest('.remove-profile-menu-influencers') ||
+            e.target.closest('.remove-useful-link') ||
+            e.target.closest('.remove-new-column-link') ||
+            e.target.closest('.remove-social-bi')) {
             
             const button = e.target.closest('button');
             currentDeleteButton = button;
@@ -1018,6 +1317,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     break;
                 case 'profile-menu-influencers':
                     removeProfileMenuInfluencersItem(currentDeleteButton);
+                    break;
+                case 'useful-link':
+                    removeUsefulLinkItem(currentDeleteButton);
+                    break;
+                case 'new-column-link':
+                    removeNewColumnLinkItem(currentDeleteButton);
+                    break;
+                case 'social-bi':
+                    removeSocialBIItem(currentDeleteButton);
                     break;
             }
             
@@ -1501,11 +1809,184 @@ function removeProfileMenuInfluencersItem(button) {
     item.remove();
 }
 
+// Funzioni per Link Utili
+function addUsefulLinkItem() {
+    usefulLinkCounter++;
+    const container = document.getElementById('usefulLinksContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'useful-link-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="useful_links[${usefulLinkCounter}][label]" 
+                           placeholder="Nome del link" required>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="useful_links[${usefulLinkCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Ordine</label>
+                    <input type="number" class="form-control" name="useful_links[${usefulLinkCounter}][order]" 
+                           value="${usefulLinkCounter + 1}" min="1" required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="useful_links[${usefulLinkCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-useful-link" 
+                            data-item-type="useful-link" data-item-label="Nuovo link utile">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeUsefulLinkItem(button) {
+    const item = button.closest('.useful-link-item');
+    item.remove();
+}
+
+// Funzioni per Nuova Colonna Links
+function addNewColumnLinkItem() {
+    newColumnLinkCounter++;
+    const container = document.getElementById('newColumnLinksContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'new-column-link-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Etichetta</label>
+                    <input type="text" class="form-control" name="new_column_links[${newColumnLinkCounter}][label]" 
+                           placeholder="Nome del link" required>
+                </div>
+                <div class="col-md-5 mb-3">
+                    <label class="form-label">URL</label>
+                    <input type="text" class="form-control" name="new_column_links[${newColumnLinkCounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Ordine</label>
+                    <input type="number" class="form-control" name="new_column_links[${newColumnLinkCounter}][order]" 
+                           value="${newColumnLinkCounter + 1}" min="1" required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Target</label>
+                    <div class="form-check mt-2">
+                        <input type="checkbox" class="form-check-input" 
+                               name="new_column_links[${newColumnLinkCounter}][target_blank]" value="1">
+                        <label class="form-check-label">Nuova pagina</label>
+                    </div>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-new-column-link" 
+                            data-item-type="new-column-link" data-item-label="Nuovo link">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeNewColumnLinkItem(button) {
+    const item = button.closest('.new-column-link-item');
+    item.remove();
+}
+
+// Funzioni per Social Media B&I
+function addSocialBIItem() {
+    socialBICounter++;
+    const container = document.getElementById('socialMediaBIContainer');
+    const newItem = document.createElement('div');
+    newItem.className = 'social-media-bi-item card mb-3';
+    newItem.innerHTML = `
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Piattaforma</label>
+                    <select class="form-select social-platform-bi" name="social_links[${socialBICounter}][platform]">
+                        <option value="instagram">Instagram</option>
+                        <option value="tiktok">TikTok</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="twitter">Twitter</option>
+                        <option value="youtube">YouTube</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Icona</label>
+                    <select class="form-select social-icon-bi" name="social_links[${socialBICounter}][icon]">
+                        <option value="fab fa-instagram">Instagram</option>
+                        <option value="fab fa-tiktok">TikTok</option>
+                        <option value="fab fa-linkedin">LinkedIn</option>
+                        <option value="fab fa-facebook">Facebook</option>
+                        <option value="fab fa-twitter">Twitter</option>
+                        <option value="fab fa-youtube">YouTube</option>
+                    </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">URL Profilo</label>
+                    <input type="url" class="form-control" name="social_links[${socialBICounter}][url]" 
+                           placeholder="https://..." required>
+                </div>
+                <div class="col-md-1 mb-3">
+                    <label class="form-label">Ordine</label>
+                    <input type="number" class="form-control" name="social_links[${socialBICounter}][order]" 
+                           value="${socialBICounter + 1}" min="1" required>
+                </div>
+                <div class="col-md-1 mb-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm remove-social-bi" 
+                            data-item-type="social-bi" data-item-label="Nuovo social">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.appendChild(newItem);
+}
+
+function removeSocialBIItem(button) {
+    const item = button.closest('.social-media-bi-item');
+    item.remove();
+}
+
 // Aggiorna dinamicamente le icone quando cambia la piattaforma
 document.addEventListener('change', function(e) {
     if (e.target.classList.contains('social-platform')) {
         const platform = e.target.value;
         const iconSelect = e.target.closest('.row').querySelector('.social-icon');
+        const iconMap = {
+            'instagram': 'fab fa-instagram',
+            'tiktok': 'fab fa-tiktok',
+            'linkedin': 'fab fa-linkedin',
+            'facebook': 'fab fa-facebook',
+            'twitter': 'fab fa-twitter',
+            'youtube': 'fab fa-youtube'
+        };
+        iconSelect.value = iconMap[platform] || 'fab fa-link';
+    }
+});
+
+// Aggiorna dinamicamente le icone quando cambia la piattaforma (per B&I)
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('social-platform-bi')) {
+        const platform = e.target.value;
+        const iconSelect = e.target.closest('.row').querySelector('.social-icon-bi');
         const iconMap = {
             'instagram': 'fab fa-instagram',
             'tiktok': 'fab fa-tiktok',
