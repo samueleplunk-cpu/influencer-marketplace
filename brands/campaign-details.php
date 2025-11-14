@@ -16,6 +16,15 @@ if (!file_exists($config_file)) {
 require_once $config_file;
 
 // =============================================
+// INCLUSIONE FUNZIONI
+// =============================================
+$functions_file = dirname(__DIR__) . '/includes/functions.php';
+if (!file_exists($functions_file)) {
+    die("Errore: File funzioni non trovato in: " . $functions_file);
+}
+require_once $functions_file;
+
+// =============================================
 // VERIFICA AUTENTICAZIONE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
@@ -144,12 +153,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
         switch ($_POST['action']) {
             case 'invite':
+                // 1. Aggiorna lo stato dell'invito
                 $stmt = $pdo->prepare("
                     UPDATE campaign_influencers 
                     SET status = 'invited', brand_notes = ?
                     WHERE campaign_id = ? AND influencer_id = ?
                 ");
                 $stmt->execute([$_POST['notes'] ?? '', $campaign_id, $influencer_id]);
+                
+                // 2. Crea o recupera conversazione usando la funzione
+                $conversation_id = startConversation($pdo, $brand['id'], $influencer_id, $campaign_id);
+                
+                if ($conversation_id) {
+                    // 3. Crea messaggio di invito automatico con il nuovo formato
+                    $invite_message = "Vorrei invitarti a collaborare alla mia campagna \"" . $campaign['name'] . "\".\n\n";
+                    
+                    if (!empty($_POST['notes'])) {
+                        $invite_message .= $_POST['notes'] . "\n\n";
+                    }
+                    
+                    $stmt = $pdo->prepare("
+                        INSERT INTO messages (conversation_id, sender_id, sender_type, message, sent_at, is_read) 
+                        VALUES (?, ?, 'brand', ?, NOW(), 0)
+                    ");
+                    $stmt->execute([$conversation_id, $brand['id'], $invite_message]);
+                    
+                    // 4. Aggiorna timestamp conversazione
+                    $stmt = $pdo->prepare("
+                        UPDATE conversations SET updated_at = NOW() WHERE id = ?
+                    ");
+                    $stmt->execute([$conversation_id]);
+                }
                 break;
                 
             case 'update_status':
@@ -168,6 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         
     } catch (PDOException $e) {
         $error = "Errore nell'aggiornamento: " . $e->getMessage();
+        error_log("ERROR in invite process: " . $e->getMessage());
     }
 }
 
