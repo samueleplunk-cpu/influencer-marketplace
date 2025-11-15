@@ -177,40 +177,48 @@ include '../includes/header.php';
                     </div>
                     
                     <!-- Campi specifici per Influencer -->
-                    <?php if ($user_type === 'influencer'): ?>
-                    <div class="mb-3">
-                        <label for="influencer_type" class="form-label">Tipologia di Influencer *</label>
-                        <select class="form-select" id="influencer_type" name="influencer_type" required>
-                            <option value="">Seleziona la tua tipologia</option>
-                            <option value="lifestyle" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'lifestyle') ? 'selected' : ''; ?>>Lifestyle</option>
-                            <option value="fashion" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'fashion') ? 'selected' : ''; ?>>Fashion</option>
-                            <option value="beauty" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'beauty') ? 'selected' : ''; ?>>Beauty & Makeup</option>
-                            <option value="fitness" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'fitness') ? 'selected' : ''; ?>>Fitness & Wellness</option>
-                            <option value="travel" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'travel') ? 'selected' : ''; ?>>Travel</option>
-                            <option value="food" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'food') ? 'selected' : ''; ?>>Food & Cooking</option>
-                            <option value="tech" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'tech') ? 'selected' : ''; ?>>Tech & Gaming</option>
-                            <option value="business" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'business') ? 'selected' : ''; ?>>Business & Finance</option>
-                        </select>
-                    </div>
-                    <?php endif; ?>
+<?php if ($user_type === 'influencer'): ?>
+<div class="mb-3">
+    <label for="influencer_type" class="form-label">Tipologia di Influencer *</label>
+    <select class="form-select" id="influencer_type" name="influencer_type" required>
+        <option value="">Seleziona la tua tipologia</option>
+        <option value="fashion" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'fashion') ? 'selected' : ''; ?>>Fashion</option>
+        <option value="lifestyle" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'lifestyle') ? 'selected' : ''; ?>>Lifestyle</option>
+        <option value="beauty" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'beauty') ? 'selected' : ''; ?>>Beauty & Makeup</option>
+        <option value="food" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'food') ? 'selected' : ''; ?>>Food</option>
+        <option value="travel" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'travel') ? 'selected' : ''; ?>>Travel</option>
+        <option value="gaming" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'gaming') ? 'selected' : ''; ?>>Gaming</option>
+        <option value="fitness" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'fitness') ? 'selected' : ''; ?>>Fitness & Wellness</option>
+        <option value="entertainment" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'entertainment') ? 'selected' : ''; ?>>Entertainment</option>
+        <option value="tech" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'tech') ? 'selected' : ''; ?>>Tech</option>
+        <option value="finance" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'finance') ? 'selected' : ''; ?>>Finance & Business</option>
+        <option value="pet" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'pet') ? 'selected' : ''; ?>>Pet</option>
+        <option value="education" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'education') ? 'selected' : ''; ?>>Education</option>
+    </select>
+</div>
+<?php endif; ?>
                     
                     <!-- Campi specifici per Brand -->
-                    <?php if ($user_type === 'brand'): ?>
-                    <div class="mb-3">
-                        <label for="industry" class="form-label">Settore *</label>
-                        <select class="form-select" id="industry" name="industry" required>
-                            <option value="">Seleziona il settore</option>
-                            <option value="fashion" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'fashion') ? 'selected' : ''; ?>>Moda</option>
-                            <option value="beauty" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'beauty') ? 'selected' : ''; ?>>Beauty & Cosmesi</option>
-                            <option value="food" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'food') ? 'selected' : ''; ?>>Food & Beverage</option>
-                            <option value="tech" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'tech') ? 'selected' : ''; ?>>Tecnologia</option>
-                            <option value="travel" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'travel') ? 'selected' : ''; ?>>Travel & Turismo</option>
-                            <option value="fitness" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'fitness') ? 'selected' : ''; ?>>Fitness & Wellness</option>
-                            <option value="automotive" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'automotive') ? 'selected' : ''; ?>>Automotive</option>
-                            <option value="other" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'other') ? 'selected' : ''; ?>>Altro</option>
-                        </select>
-                    </div>
-                    <?php endif; ?>
+<?php if ($user_type === 'brand'): ?>
+<div class="mb-3">
+    <label for="industry" class="form-label">Settore *</label>
+    <select class="form-select" id="industry" name="industry" required>
+        <option value="">Seleziona il settore</option>
+        <option value="fashion" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'fashion') ? 'selected' : ''; ?>>Fashion</option>
+        <option value="lifestyle" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'lifestyle') ? 'selected' : ''; ?>>Lifestyle</option>
+        <option value="beauty" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'beauty') ? 'selected' : ''; ?>>Beauty & Makeup</option>
+        <option value="food" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'food') ? 'selected' : ''; ?>>Food</option>
+        <option value="travel" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'travel') ? 'selected' : ''; ?>>Travel</option>
+        <option value="gaming" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'gaming') ? 'selected' : ''; ?>>Gaming</option>
+        <option value="fitness" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'fitness') ? 'selected' : ''; ?>>Fitness & Wellness</option>
+        <option value="entertainment" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'entertainment') ? 'selected' : ''; ?>>Entertainment</option>
+        <option value="tech" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'tech') ? 'selected' : ''; ?>>Tech</option>
+        <option value="finance" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'finance') ? 'selected' : ''; ?>>Finance & Business</option>
+        <option value="pet" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'pet') ? 'selected' : ''; ?>>Pet</option>
+        <option value="education" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'education') ? 'selected' : ''; ?>>Education</option>
+    </select>
+</div>
+<?php endif; ?>
                     
                     <div class="mb-3 form-check">
                         <input type="checkbox" class="form-check-input" id="terms" name="terms" required <?php echo isset($_POST['terms']) ? 'checked' : ''; ?>>

@@ -48,24 +48,21 @@ try {
 }
 
 // =============================================
-// ELENCO NICHE E PIATTAFORME
+// ELENCO CATEGORIE E PIATTAFORME
 // =============================================
 $niches = [
-    'Fashion & Beauty',
-    'Health & Fitness',
-    'Food & Cooking',
-    'Travel',
-    'Technology',
-    'Gaming',
+    'Fashion',
     'Lifestyle',
-    'Parenting',
-    'Business & Finance',
-    'Education',
-    'Sports',
+    'Beauty & Makeup',
+    'Food',
+    'Travel',
+    'Gaming',
+    'Fitness & Wellness',
     'Entertainment',
-    'Art & Design',
-    'Home & Garden',
-    'Automotive'
+    'Tech',
+    'Finance & Business',
+    'Pet',
+    'Education'
 ];
 
 $platforms = [
@@ -224,9 +221,9 @@ require_once $header_file;
                             </div>
 
                             <div class="mb-3">
-                                <label for="niche" class="form-label">Niche *</label>
+                                <label for="niche" class="form-label">Categoria *</label>
                                 <select class="form-select" id="niche" name="niche" required>
-                                    <option value="">Seleziona un niche</option>
+                                    <option value="">Seleziona una categoria</option>
                                     <?php foreach ($niches as $niche): ?>
                                         <option value="<?php echo htmlspecialchars($niche); ?>" 
                                                 <?php echo (($_POST['niche'] ?? '') === $niche) ? 'selected' : ''; ?>>

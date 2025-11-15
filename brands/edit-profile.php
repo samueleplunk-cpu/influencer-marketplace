@@ -64,22 +64,18 @@ try {
 // ELENCO SETTORI
 // =============================================
 $industries = [
-    'Fashion & Beauty',
-    'Health & Fitness',
-    'Food & Cooking',
-    'Travel',
-    'Technology',
-    'Gaming',
+    'Fashion',
     'Lifestyle',
-    'Parenting',
-    'Business & Finance',
-    'Education',
-    'Sports',
+    'Beauty & Makeup',
+    'Food',
+    'Travel',
+    'Gaming',
+    'Fitness & Wellness',
     'Entertainment',
-    'Art & Design',
-    'Home & Garden',
-    'Automotive',
-    'Other'
+    'Tech',
+    'Finance & Business',
+    'Pet',
+    'Education'
 ];
 
 // =============================================
