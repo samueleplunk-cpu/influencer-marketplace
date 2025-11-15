@@ -184,6 +184,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     ");
                     $stmt->execute([$conversation_id]);
                 }
+				
+				// === MODIFICA: AGGIUNGI MESSAGGIO DI CONFERMA ===
+    $_SESSION['success_message'] = "Il tuo invito è stato inviato con successo. Attendi risposta dall'influencer.";
+	
                 break;
                 
             case 'update_status':
