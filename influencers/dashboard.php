@@ -10,6 +10,20 @@ if (!file_exists($config_file)) {
 require_once $config_file;
 
 // =============================================
+// MAPPA CATEGORIE PER VISUALIZZAZIONE
+// =============================================
+$category_mapping = [
+    'lifestyle' => 'Lifestyle',
+    'fashion' => 'Fashion',
+    'beauty' => 'Beauty & Makeup',
+    'fitness' => 'Fitness & Wellness',
+    'travel' => 'Travel',
+    'food' => 'Food',
+    'tech' => 'Tech',
+    'gaming' => 'Gaming'
+];
+
+// =============================================
 // VERIFICA AUTENTICAZIONE UTENTE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
@@ -186,7 +200,15 @@ if ($influencer) {
                             <?php endif; ?>
                             
                             <h4><?php echo htmlspecialchars($influencer['full_name']); ?></h4>
-                            <span class="badge bg-info"><?php echo htmlspecialchars($influencer['niche']); ?></span>
+                            <?php if (!empty($influencer['niche'])): ?>
+                                <?php 
+                                $display_niche = $influencer['niche'];
+                                if (isset($category_mapping[$influencer['niche']])) {
+                                    $display_niche = $category_mapping[$influencer['niche']];
+                                }
+                                ?>
+                                <span class="badge bg-info"><?php echo htmlspecialchars($display_niche); ?></span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>

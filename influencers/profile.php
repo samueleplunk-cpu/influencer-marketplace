@@ -26,6 +26,20 @@ if (!isset($_GET['id']) || empty($_GET['id'])) {
 $influencer_id = intval($_GET['id']);
 
 // =============================================
+// MAPPA CATEGORIE PER VISUALIZZAZIONE
+// =============================================
+$category_mapping = [
+    'lifestyle' => 'Lifestyle',
+    'fashion' => 'Fashion',
+    'beauty' => 'Beauty & Makeup',
+    'fitness' => 'Fitness & Wellness',
+    'travel' => 'Travel',
+    'food' => 'Food',
+    'tech' => 'Tech',
+    'gaming' => 'Gaming'
+];
+
+// =============================================
 // RECUPERO DATI INFLUENCER E INCREMENTO VISUALIZZAZIONI
 // =============================================
 $influencer = null;
@@ -124,7 +138,13 @@ require_once $header_file;
                             
                             <h4><?php echo htmlspecialchars($influencer['full_name']); ?></h4>
                             <?php if (!empty($influencer['niche'])): ?>
-                                <span class="badge bg-info fs-6"><?php echo htmlspecialchars($influencer['niche']); ?></span>
+                                <?php 
+                                $display_niche = $influencer['niche'];
+                                if (isset($category_mapping[$influencer['niche']])) {
+                                    $display_niche = $category_mapping[$influencer['niche']];
+                                }
+                                ?>
+                                <span class="badge bg-info fs-6"><?php echo htmlspecialchars($display_niche); ?></span>
                             <?php endif; ?>
                         </div>
                     </div>
