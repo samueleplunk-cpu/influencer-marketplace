@@ -39,6 +39,22 @@ $search_name = $_GET['search_name'] ?? '';
 $filter_category = $_GET['filter_category'] ?? '';
 $filter_status = $_GET['filter_status'] ?? '';
 
+// NUOVO SET UNIFICATO DI CATEGORIE
+$unified_categories = [
+    'Fashion',
+    'Lifestyle', 
+    'Beauty & Makeup',
+    'Food',
+    'Travel',
+    'Gaming',
+    'Fitness & Wellness',
+    'Entertainment',
+    'Tech',
+    'Finance & Business',
+    'Pet',
+    'Education'
+];
+
 try {
     // Recupera brand
     $stmt = $pdo->prepare("SELECT * FROM brands WHERE user_id = ?");
@@ -90,10 +106,8 @@ try {
     $stmt->execute($params);
     $campaigns = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Recupera categorie disponibili per il dropdown
-    $stmt_categories = $pdo->prepare("SELECT DISTINCT niche FROM campaigns WHERE brand_id = ? AND niche IS NOT NULL ORDER BY niche");
-    $stmt_categories->execute([$brand['id']]);
-    $categories = $stmt_categories->fetchAll(PDO::FETCH_COLUMN);
+    // MODIFICA: Utilizza il nuovo set unificato di categorie invece di recuperarle dal database
+    $categories = $unified_categories;
     
 } catch (PDOException $e) {
     $error = "Errore nel caricamento delle campagne: " . $e->getMessage();

@@ -188,19 +188,24 @@ require_once $header_file;
                                placeholder="Nome campagna...">
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label">Niche</label>
-                        <select name="niche" class="form-select">
-                            <option value="">Tutte</option>
-                            <?php
-                            $niches = ['Fashion', 'Beauty', 'Fitness', 'Travel', 'Food', 'Lifestyle', 'Gaming', 'Tech'];
-                            foreach ($niches as $niche): ?>
-                                <option value="<?php echo $niche; ?>" 
-                                    <?php echo $niche_filter === $niche ? 'selected' : ''; ?>>
-                                    <?php echo $niche; ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
+    <label class="form-label">Categoria</label>
+    <select name="niche" class="form-select">
+        <option value="">Tutte</option>
+        <?php
+        // Nuovo set unificato di categorie
+        $niches = [
+            'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel', 
+            'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech', 
+            'Finance & Business', 'Pet', 'Education'
+        ];
+        foreach ($niches as $niche): ?>
+            <option value="<?php echo $niche; ?>" 
+                <?php echo $niche_filter === $niche ? 'selected' : ''; ?>>
+                <?php echo $niche; ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+</div>
                     <div class="col-md-2">
                         <label class="form-label">Budget Min</label>
                         <input type="number" name="min_budget" class="form-control" 
