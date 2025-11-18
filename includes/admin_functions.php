@@ -1776,4 +1776,144 @@ function logAdminAction($admin_id, $action) {
         return false;
     }
 }
+
+// =============================================================================
+// FUNZIONI PER GESTIONE AMMINISTRATORI
+// =============================================================================
+
+/**
+ * Verifica se l'utente corrente è Super Admin
+ */
+function is_super_admin() {
+    return isset($_SESSION['is_super_admin']) && $_SESSION['is_super_admin'] === true;
+}
+
+/**
+ * Richiede i permessi di Super Admin
+ */
+function require_super_admin() {
+    if (!is_super_admin()) {
+        $_SESSION['error_message'] = "Accesso negato. Solo i Super Admin possono accedere a questa funzionalità.";
+        header("Location: dashboard.php");
+        exit();
+    }
+}
+
+/**
+ * Ottiene statistiche per la dashboard admin
+ */
+function get_admin_dashboard_stats() {
+    global $pdo;
+    
+    $stats = [];
+    
+    try {
+        // Conta admin totali (attivi)
+        $stmt = $pdo->query("SELECT COUNT(*) FROM admins WHERE is_active = 1");
+        $stats['total_admins'] = $stmt->fetchColumn();
+        
+        // Conta super admin (attivi)
+        $stmt = $pdo->query("SELECT COUNT(*) FROM admins WHERE is_active = 1 AND is_super_admin = 1");
+        $stats['super_admins'] = $stmt->fetchColumn();
+        
+        // Conta admin regolari (attivi)
+        $stats['regular_admins'] = $stats['total_admins'] - $stats['super_admins'];
+        
+        // Conta admin disattivati
+        $stmt = $pdo->query("SELECT COUNT(*) FROM admins WHERE is_active = 0");
+        $stats['inactive_admins'] = $stmt->fetchColumn();
+        
+    } catch (PDOException $e) {
+        error_log("Errore statistiche admin: " . $e->getMessage());
+        // Valori di default in caso di errore
+        $stats = [
+            'total_admins' => 0,
+            'super_admins' => 0,
+            'regular_admins' => 0,
+            'inactive_admins' => 0
+        ];
+    }
+    
+    return $stats;
+}
+
+/**
+ * Verifica se esiste già un admin con lo stesso username
+ */
+function admin_username_exists($username, $exclude_id = null) {
+    global $pdo;
+    
+    try {
+        if ($exclude_id) {
+            $sql = "SELECT COUNT(*) FROM admins WHERE username = ? AND id != ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$username, $exclude_id]);
+        } else {
+            $sql = "SELECT COUNT(*) FROM admins WHERE username = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$username]);
+        }
+        return $stmt->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        error_log("Errore verifica username admin: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Verifica se esiste già un admin con la stessa email
+ */
+function admin_email_exists($email, $exclude_id = null) {
+    global $pdo;
+    
+    try {
+        if ($exclude_id) {
+            $sql = "SELECT COUNT(*) FROM admins WHERE email = ? AND id != ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$email, $exclude_id]);
+        } else {
+            $sql = "SELECT COUNT(*) FROM admins WHERE email = ?";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$email]);
+        }
+        return $stmt->fetchColumn() > 0;
+    } catch (PDOException $e) {
+        error_log("Errore verifica email admin: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Crea un nuovo admin
+ */
+function create_admin($username, $email, $password, $full_name = null, $is_super_admin = false) {
+    global $pdo;
+    
+    try {
+        $sql = "INSERT INTO admins (username, email, password, full_name, is_super_admin, is_active, created_at, updated_at) 
+                VALUES (?, ?, ?, ?, ?, 1, NOW(), NOW())";
+        $stmt = $pdo->prepare($sql);
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        return $stmt->execute([$username, $email, $password_hash, $full_name, $is_super_admin]);
+    } catch (PDOException $e) {
+        error_log("Errore creazione admin: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Elimina definitivamente un admin (HARD DELETE)
+ */
+function hard_delete_admin($admin_id) {
+    global $pdo;
+    
+    try {
+        $sql = "DELETE FROM admins WHERE id = ?";
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$admin_id]);
+    } catch (PDOException $e) {
+        error_log("Errore eliminazione definitiva admin: " . $e->getMessage());
+        return false;
+    }
+}
 ?>

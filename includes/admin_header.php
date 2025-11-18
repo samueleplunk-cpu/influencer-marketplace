@@ -33,7 +33,10 @@ check_admin_session_timeout();
 $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
 $is_notifications_page = basename($_SERVER['PHP_SELF']) == 'notifications.php';
 $is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php']);
-$is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php'; // NUOVA VARIABILE
+$is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php';
+$is_general_settings_page = basename($_SERVER['PHP_SELF']) == 'general-settings.php';
+// NUOVA VARIABILE PER AMMINISTRAZIONE
+$is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']);
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -115,6 +118,11 @@ $is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php'; // NUO
                 <span class="navbar-text me-3">
                     <i class="fas fa-user-shield me-1"></i>
                     <strong><?php echo $_SESSION['user_name'] ?? 'Admin'; ?></strong>
+                    <?php if (isset($_SESSION['is_super_admin']) && $_SESSION['is_super_admin']): ?>
+                        <span class="badge bg-danger ms-1">Super Admin</span>
+                    <?php else: ?>
+                        <span class="badge bg-secondary ms-1">Admin</span>
+                    <?php endif; ?>
                 </span>
                 <div class="btn-group">
                     <a href="/infl/" class="btn btn-outline-info btn-sm me-2" target="_blank">
@@ -173,20 +181,50 @@ $is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php'; // NUO
                             </div>
                         </li>
 
-                        <!-- Menu Impostazioni a tendina - MODIFICATO: Aggiunta Pagine e Menu -->
+                        <!-- NUOVO MENU: Amministrazione a tendina -->
                         <li class="nav-item">
-                            <a class="nav-link <?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page ? '' : 'collapsed'; ?>" 
+                            <a class="nav-link <?php echo $is_administration_page ? '' : 'collapsed'; ?>" 
+                               data-bs-toggle="collapse" 
+                               href="#administrationSubmenu" 
+                               role="button" 
+                               aria-expanded="<?php echo $is_administration_page ? 'true' : 'false'; ?>" 
+                               aria-controls="administrationSubmenu">
+                                <i class="fas fa-user-shield me-2"></i> Amministrazione
+                                <i class="fas fa-chevron-down float-end mt-1"></i>
+                            </a>
+                            <div class="collapse <?php echo $is_administration_page ? 'show' : ''; ?>" id="administrationSubmenu">
+                                <ul class="nav flex-column ms-3">
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'users.php' ? 'active' : ''; ?>" 
+                                           href="/infl/admin/users.php">
+                                            <i class="fas fa-users-cog me-2"></i> Utenti Admin
+                                        </a>
+                                    </li>
+                                </ul>
+                            </div>
+                        </li>
+
+                        <!-- Menu Impostazioni a tendina - MODIFICATO: Aggiunto Generali prima di Pagine e Menu -->
+                        <li class="nav-item">
+                            <a class="nav-link <?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page || $is_general_settings_page ? '' : 'collapsed'; ?>" 
                                data-bs-toggle="collapse" 
                                href="#settingsSubmenu" 
                                role="button" 
-                               aria-expanded="<?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page ? 'true' : 'false'; ?>" 
+                               aria-expanded="<?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page || $is_general_settings_page ? 'true' : 'false'; ?>" 
                                aria-controls="settingsSubmenu">
                                 <i class="fas fa-cog me-2"></i> Impostazioni
                                 <i class="fas fa-chevron-down float-end mt-1"></i>
                             </a>
-                            <div class="collapse <?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page ? 'show' : ''; ?>" id="settingsSubmenu">
+                            <div class="collapse <?php echo $is_settings_page || $is_notifications_page || $is_pages_menu_page || $is_general_settings_page ? 'show' : ''; ?>" id="settingsSubmenu">
                                 <ul class="nav flex-column ms-3">
-                                    <!-- NUOVA VOCE PAGINE E MENU -->
+                                    <!-- NUOVA VOCE GENERALI (PRIMA DI PAGINE E MENU) -->
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo $is_general_settings_page ? 'active' : ''; ?>" 
+                                           href="/infl/admin/general-settings.php">
+                                            <i class="fas fa-sliders-h me-2"></i> Generali
+                                        </a>
+                                    </li>
+                                    <!-- VOCE ESISTENTE PAGINE E MENU -->
                                     <li class="nav-item">
                                         <a class="nav-link <?php echo $is_pages_menu_page ? 'active' : ''; ?>" 
                                            href="/infl/admin/pages-menu.php">
