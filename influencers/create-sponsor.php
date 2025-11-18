@@ -51,14 +51,18 @@ try {
 // ELENCO CATEGORIE UNIFICATE E PIATTAFORME
 // =============================================
 $categories = [
-    'lifestyle' => 'Lifestyle',
     'fashion' => 'Fashion',
+    'lifestyle' => 'Lifestyle',
     'beauty' => 'Beauty & Makeup',
-    'fitness' => 'Fitness & Wellness',
-    'travel' => 'Travel',
     'food' => 'Food',
+    'travel' => 'Travel',
+    'gaming' => 'Gaming',
+    'fitness' => 'Fitness & Wellness',
+    'entertainment' => 'Entertainment',
     'tech' => 'Tech',
-    'gaming' => 'Gaming'
+    'finance' => 'Finance & Business',
+    'pet' => 'Pet',
+    'education' => 'Education'
 ];
 
 $platforms = [

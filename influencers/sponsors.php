@@ -172,7 +172,7 @@ require_once $header_file;
         <!-- Lista Sponsor -->
         <div class="card">
             <div class="card-header">
-                <h5 class="card-title mb-0">Tutti i Miei Sponsor</h5>
+                <h5 class="card-title mb-0">I miei Sponsor</h5>
             </div>
             <div class="card-body">
                 <?php if (empty($sponsors)): ?>
@@ -190,12 +190,11 @@ require_once $header_file;
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th>Immagine</th>
+                                    <th>Copertina</th>
                                     <th>Titolo</th>
-                                    <th>Budget</th>
+                                    <th>Prezzo</th>
                                     <th>Categoria</th>
                                     <th>Stato</th>
-                                    <th>Data Creazione</th>
                                     <th>Azioni</th>
                                 </tr>
                             </thead>
@@ -252,16 +251,13 @@ require_once $header_file;
                                             </span>
                                         </td>
                                         <td>
-                                            <small><?php echo date('d/m/Y', strtotime($sponsor['created_at'])); ?></small>
-                                        </td>
-                                        <td>
-                                            <div class="btn-group btn-group-sm">
+                                            <div class="d-flex gap-1">
                                                 <a href="view-sponsor.php?id=<?php echo $sponsor['id']; ?>" 
-                                                   class="btn btn-outline-primary" title="Visualizza">
+                                                   class="btn btn-outline-primary btn-sm" title="Visualizza">
                                                     👁️
                                                 </a>
                                                 <a href="edit-sponsor.php?id=<?php echo $sponsor['id']; ?>" 
-                                                   class="btn btn-outline-secondary" title="Modifica">
+                                                   class="btn btn-outline-secondary btn-sm" title="Modifica">
                                                     ✏️
                                                 </a>
                                             </div>
