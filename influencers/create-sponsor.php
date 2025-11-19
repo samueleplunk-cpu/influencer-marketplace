@@ -133,8 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new Exception("Formato file non supportato. Usa JPG, PNG o GIF.");
             }
             
-            if ($_FILES['image']['size'] > 5 * 1024 * 1024) { // 5MB
-                throw new Exception("L'immagine non può superare i 5MB");
+            // MODIFICA: Cambiato da 5MB a 2MB
+            if ($_FILES['image']['size'] > 2 * 1024 * 1024) { // 2MB
+                throw new Exception("L'immagine non può superare i 2MB");
             }
             
             $filename = 'sponsor_' . time() . '_' . uniqid() . '.' . $file_extension;
@@ -250,7 +251,8 @@ require_once $header_file;
                                        accept="image/jpeg,image/png,image/gif">
                                 <div class="form-text">
                                     <small class="text-muted">
-                                        Formati supportati: JPG, PNG, GIF (max 5MB)
+                                        <!-- MODIFICA: Cambiato da 5MB a 2MB -->
+                                        Formati supportati: JPG, PNG, GIF (max 2MB)
                                     </small>
                                 </div>
                                 <div id="imagePreview" class="mt-2"></div>
@@ -335,23 +337,41 @@ document.addEventListener('DOMContentLoaded', function() {
     const imageInput = document.getElementById('image');
     const imagePreview = document.getElementById('imagePreview');
     
-    // Anteprima immagine
+    // Variabile per memorizzare l'immagine corrente
+    let currentImageData = null;
+    
+    // Anteprima immagine con validazione dimensione
     imageInput.addEventListener('change', function() {
         const file = this.files[0];
+        
+        // Se l'utente ha selezionato un file valido
         if (file) {
+            // Controllo dimensione file (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('L\'immagine non può superare i 2MB');
+                this.value = ''; // Reset del campo file
+                // NON cancellare l'anteprima esistente se c'era già un'immagine
+                if (!currentImageData) {
+                    imagePreview.innerHTML = '';
+                }
+                return;
+            }
+            
             const reader = new FileReader();
             reader.onload = function(e) {
+                // Memorizza i dati della nuova immagine
+                currentImageData = e.target.result;
                 imagePreview.innerHTML = `
-                    <img src="${e.target.result}" 
+                    <img src="${currentImageData}" 
                          class="img-thumbnail" 
                          style="max-width: 200px; max-height: 200px;"
                          alt="Anteprima immagine">
                 `;
             };
             reader.readAsDataURL(file);
-        } else {
-            imagePreview.innerHTML = '';
-        }
+        } 
+        // Se l'utente ha annullato la selezione (file è null/undefined)
+        // NON fare nulla per mantenere l'anteprima esistente
     });
     
     // Validazione form
@@ -373,6 +393,17 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             alert('Il budget deve essere maggiore di 0');
             return false;
+        }
+        
+        // Validazione dimensione file prima dell'invio
+        const fileInput = document.getElementById('image');
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            if (file.size > 2 * 1024 * 1024) {
+                e.preventDefault();
+                alert('L\'immagine non può superare i 2MB');
+                return false;
+            }
         }
     });
 });
