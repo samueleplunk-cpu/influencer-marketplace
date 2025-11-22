@@ -287,6 +287,7 @@ if ($action === 'list') {
                                 <table class="table table-striped table-hover">
                                     <thead>
                                         <tr>
+                                            <th>Copertina</th>
                                             <th>Titolo Sponsor</th>
                                             <th>Influencer</th>
                                             <th>Budget</th>
@@ -299,42 +300,40 @@ if ($action === 'list') {
                                         <?php foreach ($sponsors as $sponsor): ?>
                                             <tr>
                                                 <td>
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="me-3">
-                                                            <?php if ($sponsor['image_url']): ?>
+                                                    <?php if ($sponsor['image_url']): ?>
+                                                        <?php
+                                                        // Correzione del percorso immagine
+                                                        $image_path = '/infl/uploads/sponsor/' . basename($sponsor['image_url']);
+                                                        ?>
+                                                        <img src="<?php echo htmlspecialchars($image_path); ?>" 
+                                                             alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
+                                                             class="rounded" style="width: 40px; height: 40px; object-fit: cover;" 
+                                                             onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                                                        <div class="rounded bg-light d-flex align-items-center justify-content-center" 
+                                                             style="width: 40px; height: 40px; display: none;">
+                                                            <i class="fas fa-image text-muted"></i>
+                                                        </div>
+                                                    <?php else: ?>
+                                                        <div class="rounded bg-light d-flex align-items-center justify-content-center" 
+                                                             style="width: 40px; height: 40px;">
+                                                            <i class="fas fa-image text-muted"></i>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <div>
+                                                        <strong><?php echo htmlspecialchars($sponsor['title']); ?></strong>
+                                                        <?php if ($sponsor['platforms']): ?>
+                                                            <br>
+                                                            <small class="text-muted">
                                                                 <?php
-                                                                // Correzione del percorso immagine
-                                                                $image_path = '/infl/uploads/sponsor/' . basename($sponsor['image_url']);
-                                                                ?>
-                                                                <img src="<?php echo htmlspecialchars($image_path); ?>" 
-                                                                     alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
-                                                                     class="rounded" style="width: 40px; height: 40px; object-fit: cover;" 
-                                                                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                                                                <div class="rounded bg-light d-flex align-items-center justify-content-center" 
-                                                                     style="width: 40px; height: 40px; display: none;">
-                                                                    <i class="fas fa-image text-muted"></i>
-                                                                </div>
-                                                            <?php else: ?>
-                                                                <div class="rounded bg-light d-flex align-items-center justify-content-center" 
-                                                                     style="width: 40px; height: 40px;">
-                                                                    <i class="fas fa-image text-muted"></i>
-                                                                </div>
-                                                            <?php endif; ?>
-                                                        </div>
-                                                        <div>
-                                                            <strong><?php echo htmlspecialchars($sponsor['title']); ?></strong>
-                                                            <?php if ($sponsor['platforms']): ?>
-                                                                <br>
-                                                                <small class="text-muted">
-                                                                    <?php
-                                                                    $platforms = json_decode($sponsor['platforms'], true) ?: [];
-                                                                    foreach ($platforms as $platform): ?>
-                                                                        <i class="fab fa-<?php echo $platform; ?> me-1"></i>
-                                                                    <?php endforeach; ?>
-                                                                    <?php echo implode(', ', $platforms); ?>
-                                                                </small>
-                                                            <?php endif; ?>
-                                                        </div>
+                                                                $platforms = json_decode($sponsor['platforms'], true) ?: [];
+                                                                foreach ($platforms as $platform): ?>
+                                                                    <i class="fab fa-<?php echo $platform; ?> me-1"></i>
+                                                                <?php endforeach; ?>
+                                                                <?php echo implode(', ', $platforms); ?>
+                                                            </small>
+                                                        <?php endif; ?>
                                                     </div>
                                                 </td>
                                                 <td>
