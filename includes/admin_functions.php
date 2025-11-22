@@ -1916,4 +1916,293 @@ function hard_delete_admin($admin_id) {
         return false;
     }
 }
+
+// =============================================================================
+// FUNZIONI PER GESTIONE SPONSOR INFLUENCER
+// =============================================================================
+
+/**
+ * Ottiene gli sponsor con paginazione e filtri
+ */
+function getSponsors($page = 1, $per_page = 25, $filters = []) {
+    global $pdo;
+    
+    $offset = ($page - 1) * $per_page;
+    $where_conditions = ["s.deleted_at IS NULL"];
+    $params = [];
+    
+    // Costruzione condizioni WHERE
+    if (!empty($filters['search'])) {
+        $where_conditions[] = "s.title LIKE :search";
+        $params[':search'] = '%' . $filters['search'] . '%';
+    }
+    
+    if (!empty($filters['status'])) {
+        $where_conditions[] = "s.status = :status";
+        $params[':status'] = $filters['status'];
+    }
+    
+    if (!empty($filters['influencer_id'])) {
+        $where_conditions[] = "s.influencer_id = :influencer_id";
+        $params[':influencer_id'] = $filters['influencer_id'];
+    }
+    
+    if (!empty($filters['category'])) {
+        $where_conditions[] = "s.category = :category";
+        $params[':category'] = $filters['category'];
+    }
+    
+    // Query per il conteggio totale
+    $count_sql = "SELECT COUNT(*) as total 
+                  FROM sponsors s 
+                  WHERE " . implode(" AND ", $where_conditions);
+    
+    $stmt = $pdo->prepare($count_sql);
+    $stmt->execute($params);
+    $total = $stmt->fetchColumn();
+    
+    // Query per i dati
+    $sql = "SELECT s.*, u.name as influencer_name
+            FROM sponsors s 
+            LEFT JOIN users u ON s.influencer_id = u.id
+            WHERE " . implode(" AND ", $where_conditions) . " 
+            ORDER BY s.created_at DESC LIMIT :limit OFFSET :offset";
+    
+    $params[':limit'] = $per_page;
+    $params[':offset'] = $offset;
+    
+    $stmt = $pdo->prepare($sql);
+    
+    foreach ($params as $key => $value) {
+        if ($key === ':limit' || $key === ':offset') {
+            $stmt->bindValue($key, (int)$value, PDO::PARAM_INT);
+        } else {
+            $stmt->bindValue($key, $value);
+        }
+    }
+    
+    $stmt->execute();
+    $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    $total_pages = ceil($total / $per_page);
+    
+    return [
+        'data' => $data,
+        'total' => $total,
+        'total_pages' => $total_pages,
+        'current_page' => $page
+    ];
+}
+
+/**
+ * Ottiene un singolo sponsor per ID
+ */
+function getSponsorById($id) {
+    global $pdo;
+    
+    $sql = "SELECT s.*, u.name as influencer_name
+            FROM sponsors s 
+            LEFT JOIN users u ON s.influencer_id = u.id
+            WHERE s.id = ? AND s.deleted_at IS NULL";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([$id]);
+    
+    return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Salva/aggiorna uno sponsor
+ */
+function saveSponsor($data, $id = null) {
+    global $pdo;
+    
+    try {
+        if ($id) {
+            // Update
+            $sql = "UPDATE sponsors SET 
+                    influencer_id = ?, title = ?, description = ?, budget = ?, category = ?, 
+                    platforms = ?, target_audience = ?, status = ?, updated_at = NOW() 
+                    WHERE id = ?";
+            
+            $stmt = $pdo->prepare($sql);
+            $result = $stmt->execute([
+                $data['influencer_id'], $data['title'], $data['description'], $data['budget'], 
+                $data['category'], $data['platforms'], $data['target_audience'], $data['status'], $id
+            ]);
+        } else {
+            // Insert
+            $sql = "INSERT INTO sponsors 
+                    (influencer_id, title, description, budget, category, platforms, 
+                     target_audience, status, created_at, updated_at) 
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())";
+            
+            $stmt = $pdo->prepare($sql);
+            $result = $stmt->execute([
+                $data['influencer_id'], $data['title'], $data['description'], $data['budget'],
+                $data['category'], $data['platforms'], $data['target_audience'], $data['status']
+            ]);
+        }
+        
+        return $result;
+    } catch (PDOException $e) {
+        error_log("Errore salvataggio sponsor: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Conta gli sponsor per stato
+ */
+function getSponsorsCount($status = null) {
+    global $pdo;
+    
+    $sql = "SELECT COUNT(*) FROM sponsors WHERE deleted_at IS NULL";
+    
+    if ($status) {
+        $sql .= " AND status = ?";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$status]);
+    } else {
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+    }
+    
+    return $stmt->fetchColumn();
+}
+
+/**
+ * Ottiene tutti gli influencer per i dropdown
+ */
+function getAllInfluencers() {
+    global $pdo;
+    
+    $sql = "SELECT id, name, email 
+            FROM users 
+            WHERE user_type = 'influencer' AND deleted_at IS NULL AND is_active = 1
+            ORDER BY name";
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute();
+    
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+/**
+ * Ottiene le categorie disponibili per gli sponsor
+ */
+function getSponsorCategories() {
+    return [
+        'Fashion',
+        'Beauty',
+        'Lifestyle',
+        'Travel',
+        'Food',
+        'Fitness',
+        'Tech',
+        'Gaming',
+        'Parenting',
+        'Business',
+        'Automotive',
+        'Home & Garden',
+        'Pets',
+        'Health',
+        'Education'
+    ];
+}
+
+/**
+ * Elimina definitivamente uno sponsor (HARD DELETE)
+ */
+function hardDeleteSponsor($sponsor_id) {
+    global $pdo;
+    
+    try {
+        $pdo->beginTransaction();
+        
+        // Recupera informazioni sullo sponsor prima di eliminare
+        $stmt = $pdo->prepare("SELECT * FROM sponsors WHERE id = ?");
+        $stmt->execute([$sponsor_id]);
+        $sponsor = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$sponsor) {
+            throw new Exception("Sponsor non trovato");
+        }
+        
+        // Elimina l'immagine fisica se esiste
+        if (!empty($sponsor['image_url'])) {
+            deleteSponsorImage($sponsor['image_url']);
+        }
+        
+        // Elimina lo sponsor dal database
+        $stmt = $pdo->prepare("DELETE FROM sponsors WHERE id = ?");
+        $result = $stmt->execute([$sponsor_id]);
+        
+        $pdo->commit();
+        return $result;
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Errore eliminazione sponsor $sponsor_id: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Elimina l'immagine dello sponsor dal filesystem
+ */
+function deleteSponsorImage($image_url) {
+    if (empty($image_url)) {
+        return;
+    }
+    
+    $base_path = dirname(__DIR__) . '/';
+    
+    // Estrae il percorso del file dall'URL
+    $parsed_url = parse_url($image_url);
+    $file_path = $parsed_url['path'] ?? '';
+    
+    if (empty($file_path)) {
+        return;
+    }
+    
+    // Rimuove il leading slash se presente
+    if (strpos($file_path, '/') === 0) {
+        $file_path = substr($file_path, 1);
+    }
+    
+    $full_path = $base_path . $file_path;
+    
+    if (file_exists($full_path) && is_file($full_path)) {
+        try {
+            unlink($full_path);
+            error_log("Eliminata immagine sponsor: $full_path");
+        } catch (Exception $e) {
+            error_log("Errore eliminazione immagine sponsor $full_path: " . $e->getMessage());
+        }
+    }
+    
+    // Elimina anche le thumbnail se esistono
+    $filename = pathinfo($file_path, PATHINFO_FILENAME);
+    $extension = pathinfo($file_path, PATHINFO_EXTENSION);
+    $directory = pathinfo($file_path, PATHINFO_DIRNAME);
+    
+    $thumbnail_patterns = [
+        $base_path . $directory . '/thumb_*' . $filename . '*',
+        $base_path . $directory . '/small_*' . $filename . '*',
+        $base_path . $directory . '/medium_*' . $filename . '*'
+    ];
+    
+    foreach ($thumbnail_patterns as $pattern) {
+        foreach (glob($pattern) as $thumbnail) {
+            if (file_exists($thumbnail) && is_file($thumbnail)) {
+                try {
+                    unlink($thumbnail);
+                    error_log("Eliminata thumbnail sponsor: $thumbnail");
+                } catch (Exception $e) {
+                    error_log("Errore eliminazione thumbnail sponsor $thumbnail: " . $e->getMessage());
+                }
+            }
+        }
+    }
+}
 ?>

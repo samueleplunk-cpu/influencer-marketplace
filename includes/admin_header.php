@@ -32,7 +32,7 @@ check_admin_session_timeout();
 // Determina se siamo nella pagina settings per mantenere il menu aperto
 $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
 $is_notifications_page = basename($_SERVER['PHP_SELF']) == 'notifications.php';
-$is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php']);
+$is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php', 'sponsors.php']);
 $is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php';
 $is_general_settings_page = basename($_SERVER['PHP_SELF']) == 'general-settings.php';
 // NUOVA VARIABILE PER AMMINISTRAZIONE
@@ -175,6 +175,13 @@ $is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']
                                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'brand-campaigns.php' ? 'active' : ''; ?>" 
                                            href="/infl/admin/brand-campaigns.php">
                                             <i class="fas fa-bullhorn me-2"></i> Campagne Brand
+                                        </a>
+                                    </li>
+                                    <!-- NUOVO MENU SPONSOR INFLUENCER -->
+                                    <li class="nav-item">
+                                        <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'sponsors.php' ? 'active' : ''; ?>" 
+                                           href="/infl/admin/sponsors.php">
+                                            <i class="fas fa-star me-2"></i> Sponsor Influencer
                                         </a>
                                     </li>
                                 </ul>
