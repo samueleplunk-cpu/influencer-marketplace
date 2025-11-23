@@ -28,6 +28,11 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
 }
 
 // =============================================
+// INCLUSIONE FUNZIONI SOCIAL NETWORK
+// =============================================
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/social_network_functions.php';
+
+// =============================================
 // RECUPERO DATI INFLUENCER
 // =============================================
 $influencer = null;
@@ -188,24 +193,24 @@ require_once $header_file;
                                placeholder="Nome campagna...">
                     </div>
                     <div class="col-md-2">
-    <label class="form-label">Categoria</label>
-    <select name="niche" class="form-select">
-        <option value="">Tutte</option>
-        <?php
-        // Nuovo set unificato di categorie
-        $niches = [
-            'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel', 
-            'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech', 
-            'Finance & Business', 'Pet', 'Education'
-        ];
-        foreach ($niches as $niche): ?>
-            <option value="<?php echo $niche; ?>" 
-                <?php echo $niche_filter === $niche ? 'selected' : ''; ?>>
-                <?php echo $niche; ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-</div>
+                        <label class="form-label">Categoria</label>
+                        <select name="niche" class="form-select">
+                            <option value="">Tutte</option>
+                            <?php
+                            // Nuovo set unificato di categorie
+                            $niches = [
+                                'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel', 
+                                'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech', 
+                                'Finance & Business', 'Pet', 'Education'
+                            ];
+                            foreach ($niches as $niche): ?>
+                                <option value="<?php echo $niche; ?>" 
+                                    <?php echo $niche_filter === $niche ? 'selected' : ''; ?>>
+                                    <?php echo $niche; ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <div class="col-md-2">
                         <label class="form-label">Budget Min</label>
                         <input type="number" name="min_budget" class="form-control" 
@@ -222,9 +227,14 @@ require_once $header_file;
                         <label class="form-label">Piattaforma</label>
                         <select name="platform" class="form-select">
                             <option value="">Tutte</option>
-                            <option value="instagram" <?php echo $platform_filter === 'instagram' ? 'selected' : ''; ?>>Instagram</option>
-                            <option value="tiktok" <?php echo $platform_filter === 'tiktok' ? 'selected' : ''; ?>>TikTok</option>
-                            <option value="youtube" <?php echo $platform_filter === 'youtube' ? 'selected' : ''; ?>>YouTube</option>
+                            <?php
+                            $social_networks = get_active_social_networks();
+                            foreach ($social_networks as $social): ?>
+                                <option value="<?php echo $social['slug']; ?>" 
+                                    <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($social['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
@@ -328,14 +338,18 @@ require_once $header_file;
                                     $platforms = json_decode($campaign['platforms'], true);
                                     if ($platforms): 
                                         foreach ($platforms as $platform): 
-                                            $platform_names = [
-                                                'instagram' => 'Instagram',
-                                                'tiktok' => 'TikTok',
-                                                'youtube' => 'YouTube'
-                                            ];
+                                            $social_network = get_social_network_by_slug($platform);
+                                            if ($social_network):
                                     ?>
-                                        <span class="badge bg-light text-dark me-1 mb-1"><?php echo $platform_names[$platform] ?? $platform; ?></span>
-                                    <?php endforeach; endif; ?>
+                                        <span class="badge bg-light text-dark me-1 mb-1">
+                                            <i class="<?php echo $social_network['icon']; ?> me-1"></i>
+                                            <?php echo htmlspecialchars($social_network['name']); ?>
+                                        </span>
+                                    <?php 
+                                            endif;
+                                        endforeach; 
+                                    endif; 
+                                    ?>
                                 </div>
                                 
                                 <small class="text-muted">

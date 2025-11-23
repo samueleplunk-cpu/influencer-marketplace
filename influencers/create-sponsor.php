@@ -28,6 +28,11 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
 }
 
 // =============================================
+// INCLUSIONE FUNZIONI SOCIAL NETWORK
+// =============================================
+require_once dirname(__DIR__) . '/includes/social_network_functions.php';
+
+// =============================================
 // RECUPERO DATI INFLUENCER
 // =============================================
 $influencer = null;
@@ -65,12 +70,12 @@ $categories = [
     'education' => 'Education'
 ];
 
-$platforms = [
-    'instagram' => 'Instagram',
-    'tiktok' => 'TikTok',
-    'facebook' => 'Facebook',
-    'twitter' => 'X (Twitter)'
-];
+// Piattaforme dinamiche dai social network
+$platforms = [];
+$social_networks = get_active_social_networks();
+foreach ($social_networks as $social) {
+    $platforms[$social['slug']] = $social['name'];
+}
 
 // =============================================
 // GESTIONE INVIO FORM
@@ -117,39 +122,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // =============================================
-// GESTIONE UPLOAD IMMAGINE
-// =============================================
-$image_url = null;
-if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
-    // MODIFICA: Cambiato il percorso di upload da '/uploads/' a '/uploads/sponsor/'
-    $upload_dir = dirname(__DIR__) . '/uploads/sponsor/';
-    
-    // Crea directory se non esiste
-    if (!file_exists($upload_dir)) {
-        mkdir($upload_dir, 0755, true);
-    }
-    
-    $file_extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
-    $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
-    
-    if (!in_array($file_extension, $allowed_extensions)) {
-        throw new Exception("Formato file non supportato. Usa JPG, PNG o GIF.");
-    }
-    
-    // MODIFICA: Cambiato da 5MB a 2MB
-    if ($_FILES['image']['size'] > 2 * 1024 * 1024) { // 2MB
-        throw new Exception("L'immagine non può superare i 2MB");
-    }
-    
-    $filename = 'sponsor_' . time() . '_' . uniqid() . '.' . $file_extension;
-    $file_path = $upload_dir . $filename;
-    
-    if (move_uploaded_file($_FILES['image']['tmp_name'], $file_path)) {
-        $image_url = $filename;
-    } else {
-        throw new Exception("Errore nel caricamento dell'immagine");
-    }
-}
+        // GESTIONE UPLOAD IMMAGINE
+        // =============================================
+        $image_url = null;
+        if (isset($_FILES['image']) && $_FILES['image']['error'] === UPLOAD_ERR_OK) {
+            // MODIFICA: Cambiato il percorso di upload da '/uploads/' a '/uploads/sponsor/'
+            $upload_dir = dirname(__DIR__) . '/uploads/sponsor/';
+            
+            // Crea directory se non esiste
+            if (!file_exists($upload_dir)) {
+                mkdir($upload_dir, 0755, true);
+            }
+            
+            $file_extension = strtolower(pathinfo($_FILES['image']['name'], PATHINFO_EXTENSION));
+            $allowed_extensions = ['jpg', 'jpeg', 'png', 'gif'];
+            
+            if (!in_array($file_extension, $allowed_extensions)) {
+                throw new Exception("Formato file non supportato. Usa JPG, PNG o GIF.");
+            }
+            
+            // MODIFICA: Cambiato da 5MB a 2MB
+            if ($_FILES['image']['size'] > 2 * 1024 * 1024) { // 2MB
+                throw new Exception("L'immagine non può superare i 2MB");
+            }
+            
+            $filename = 'sponsor_' . time() . '_' . uniqid() . '.' . $file_extension;
+            $file_path = $upload_dir . $filename;
+            
+            if (move_uploaded_file($_FILES['image']['tmp_name'], $file_path)) {
+                $image_url = $filename;
+            } else {
+                throw new Exception("Errore nel caricamento dell'immagine");
+            }
+        }
 
         // Inserimento nel database
         $stmt = $pdo->prepare("

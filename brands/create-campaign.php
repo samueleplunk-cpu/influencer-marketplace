@@ -16,6 +16,15 @@ if (!file_exists($config_file)) {
 require_once $config_file;
 
 // =============================================
+// INCLUSIONE FUNZIONI SOCIAL NETWORK
+// =============================================
+$social_functions_file = dirname(__DIR__) . '/includes/social_network_functions.php';
+if (!file_exists($social_functions_file)) {
+    die("Errore: File funzioni social network non trovato in: " . $social_functions_file);
+}
+require_once $social_functions_file;
+
+// =============================================
 // VERIFICA AUTENTICAZIONE UTENTE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
@@ -48,7 +57,7 @@ try {
 }
 
 // =============================================
-// ELENCO CATEGORIE E PIATTAFORME
+// ELENCO CATEGORIE E PIATTAFORME (MODIFICATO)
 // =============================================
 $niches = [
     'Fashion',
@@ -65,13 +74,24 @@ $niches = [
     'Education'
 ];
 
-$platforms = [
-    'instagram' => 'Instagram',
-    'tiktok' => 'TikTok',
-    'youtube' => 'YouTube',
-    'facebook' => 'Facebook',
-    'twitter' => 'Twitter/X'
-];
+// RECUPERO PIATTAFORME DINAMICHE DAL DATABASE
+$platforms = [];
+try {
+    $social_networks = get_active_social_networks();
+    foreach ($social_networks as $social) {
+        $platforms[$social['slug']] = $social['name'];
+    }
+} catch (Exception $e) {
+    $error = "Errore nel caricamento delle piattaforme social: " . $e->getMessage();
+    // Fallback a piattaforme predefinite in caso di errore
+    $platforms = [
+        'instagram' => 'Instagram',
+        'tiktok' => 'TikTok',
+        'youtube' => 'YouTube',
+        'facebook' => 'Facebook',
+        'twitter' => 'Twitter/X'
+    ];
+}
 
 // =============================================
 // GESTIONE INVIO FORM
@@ -120,6 +140,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($platforms_selected)) {
             throw new Exception("Seleziona almeno una piattaforma");
+        }
+
+        // Validazione piattaforme selezionate rispetto a quelle disponibili
+        $valid_platforms = array_keys($platforms);
+        foreach ($platforms_selected as $platform) {
+            if (!in_array($platform, $valid_platforms)) {
+                throw new Exception("Piattaforma non valida selezionata: " . htmlspecialchars($platform));
+            }
         }
 
         // Inserimento nel database
@@ -238,17 +266,23 @@ require_once $header_file;
                             <div class="mb-3">
                                 <label for="platforms" class="form-label">Piattaforme Social *</label>
                                 <div class="border p-3 rounded">
-                                    <?php foreach ($platforms as $key => $platform): ?>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" 
-                                                   name="platforms[]" value="<?php echo $key; ?>" 
-                                                   id="platform_<?php echo $key; ?>"
-                                                   <?php echo (isset($_POST['platforms']) && in_array($key, $_POST['platforms'])) ? 'checked' : ''; ?>>
-                                            <label class="form-check-label" for="platform_<?php echo $key; ?>">
-                                                <?php echo htmlspecialchars($platform); ?>
-                                            </label>
+                                    <?php if (empty($platforms)): ?>
+                                        <div class="alert alert-warning">
+                                            <small>Nessuna piattaforma social configurata. Contatta l'amministratore.</small>
                                         </div>
-                                    <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <?php foreach ($platforms as $key => $platform): ?>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" 
+                                                       name="platforms[]" value="<?php echo $key; ?>" 
+                                                       id="platform_<?php echo $key; ?>"
+                                                       <?php echo (isset($_POST['platforms']) && in_array($key, $_POST['platforms'])) ? 'checked' : ''; ?>>
+                                                <label class="form-check-label" for="platform_<?php echo $key; ?>">
+                                                    <?php echo htmlspecialchars($platform); ?>
+                                                </label>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="form-text">Seleziona tutte le piattaforme su cui vuoi promuovere la campagna</div>
                             </div>

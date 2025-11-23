@@ -1,9 +1,9 @@
 <?php
 require_once '../includes/admin_header.php';
 require_once '../includes/functions.php';
-
-// Includi funzioni specifiche per le impostazioni generali
 require_once '../includes/general_settings_functions.php';
+// Aggiungi questa include
+require_once '../includes/social_network_functions.php';
 
 $page_title = "Impostazioni Generali";
 $active_menu = "general-settings";
@@ -16,6 +16,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $result = save_categories_settings($_POST);
     } elseif ($action === 'save_social_networks') {
         $result = save_social_networks_settings($_POST);
+    } elseif ($action === 'delete_social_network') {
+        // Nuova gestione eliminazione
+        $social_id = $_POST['social_id'] ?? '';
+        if ($social_id) {
+            if (delete_social_network($social_id)) {
+                $_SESSION['success_message'] = 'Social network eliminato con successo!';
+            } else {
+                $_SESSION['error_message'] = 'Errore nell\'eliminazione del social network';
+            }
+        }
     }
     
     if (isset($result) && $result['success']) {
@@ -204,17 +214,12 @@ $social_networks_settings = get_social_networks_settings();
                             <p class="text-muted mb-3">Gestisci i social network disponibili per gli influencer.</p>
                             <div id="socialNetworksContainer">
                                 <?php
-                                $social_networks = $social_networks_settings['social_networks'] ?? [
-                                    ['name' => 'Instagram', 'slug' => 'instagram', 'icon' => 'fab fa-instagram', 'base_url' => 'https://instagram.com/', 'order' => 1, 'active' => true],
-                                    ['name' => 'TikTok', 'slug' => 'tiktok', 'icon' => 'fab fa-tiktok', 'base_url' => 'https://tiktok.com/@', 'order' => 2, 'active' => true],
-                                    ['name' => 'YouTube', 'slug' => 'youtube', 'icon' => 'fab fa-youtube', 'base_url' => 'https://youtube.com/', 'order' => 3, 'active' => true],
-                                    ['name' => 'Facebook', 'slug' => 'facebook', 'icon' => 'fab fa-facebook', 'base_url' => 'https://facebook.com/', 'order' => 4, 'active' => true],
-                                    ['name' => 'Twitter', 'slug' => 'twitter', 'icon' => 'fab fa-twitter', 'base_url' => 'https://twitter.com/', 'order' => 5, 'active' => true]
-                                ];
+                                $social_networks = $social_networks_settings['social_networks'] ?? [];
                                 
                                 foreach ($social_networks as $index => $social): ?>
                                     <div class="social-network-item card mb-3">
                                         <div class="card-body">
+                                            <input type="hidden" name="social_networks[<?php echo $index; ?>][id]" value="<?php echo $social['id'] ?? ''; ?>">
                                             <div class="row">
                                                 <div class="col-md-2 mb-3">
                                                     <label class="form-label">Nome</label>
@@ -251,7 +256,7 @@ $social_networks_settings = get_social_networks_settings();
                                                 <div class="col-md-1 mb-3">
                                                     <label class="form-label">Ordine</label>
                                                     <input type="number" class="form-control" name="social_networks[<?php echo $index; ?>][order]" 
-                                                           value="<?php echo htmlspecialchars($social['order']); ?>" 
+                                                           value="<?php echo htmlspecialchars($social['display_order']); ?>" 
                                                            min="1" required>
                                                 </div>
                                                 <div class="col-md-1 mb-3">
@@ -259,15 +264,22 @@ $social_networks_settings = get_social_networks_settings();
                                                     <div class="form-check form-switch mt-2">
                                                         <input type="checkbox" class="form-check-input" 
                                                                name="social_networks[<?php echo $index; ?>][active]" 
-                                                               value="1" <?php echo !empty($social['active']) ? 'checked' : ''; ?>>
+                                                               value="1" <?php echo !empty($social['is_active']) ? 'checked' : ''; ?>>
                                                         <label class="form-check-label">Attivo</label>
                                                     </div>
                                                 </div>
-                                                <div class="col-md-1 mb-3 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-danger btn-sm remove-social-network" 
-                                                            data-item-type="social-network" data-item-label="<?php echo htmlspecialchars($social['name']); ?>">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
+                                                <div class="col-md-1 mb-3 d-flex align-items-end gap-1">
+                                                    <?php if (isset($social['id'])): ?>
+                                                        <button type="button" class="btn btn-danger btn-sm delete-social-network" 
+                                                                data-social-id="<?php echo $social['id']; ?>" 
+                                                                data-social-name="<?php echo htmlspecialchars($social['name']); ?>">
+                                                            <i class="fas fa-trash"></i> Elimina
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button type="button" class="btn btn-danger btn-sm remove-social-network">
+                                                            <i class="fas fa-trash"></i> Rimuovi
+                                                        </button>
+                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                         </div>
@@ -289,6 +301,12 @@ $social_networks_settings = get_social_networks_settings();
                             </button>
                         </div>
                     </div>
+                </form>
+
+                <!-- Form per eliminazione -->
+                <form method="POST" id="deleteSocialNetworkForm" style="display: none;">
+                    <input type="hidden" name="action" value="delete_social_network">
+                    <input type="hidden" name="social_id" id="delete_social_id">
                 </form>
             </div>
         </div>
@@ -360,6 +378,26 @@ document.addEventListener('DOMContentLoaded', function() {
                     .replace(/^-+|-+$/g, '');
                 slugInput.value = slug;
             }
+        }
+    });
+
+    // Gestione eliminazione social network
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.delete-social-network')) {
+            const button = e.target.closest('button');
+            const socialId = button.getAttribute('data-social-id');
+            const socialName = button.getAttribute('data-social-name');
+            
+            if (confirm(`Sei sicuro di voler eliminare il social network "${socialName}"?`)) {
+                document.getElementById('delete_social_id').value = socialId;
+                document.getElementById('deleteSocialNetworkForm').submit();
+            }
+        }
+        
+        // Rimozione elemento non salvato
+        if (e.target.closest('.remove-social-network')) {
+            const button = e.target.closest('button');
+            removeSocialNetworkItem(button);
         }
     });
 });
@@ -471,9 +509,8 @@ function addSocialNetworkItem() {
                     </div>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-social-network" 
-                            data-item-type="social-network" data-item-label="Nuovo social network">
-                        <i class="fas fa-trash"></i>
+                    <button type="button" class="btn btn-danger btn-sm remove-social-network">
+                        <i class="fas fa-trash"></i> Rimuovi
                     </button>
                 </div>
             </div>

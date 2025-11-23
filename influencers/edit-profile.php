@@ -29,6 +29,11 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
 }
 
 // =============================================
+// INCLUSIONE FUNZIONI SOCIAL NETWORK
+// =============================================
+require_once dirname(__DIR__) . '/includes/social_network_functions.php';
+
+// =============================================
 // VERIFICA E AGGIUNGI COLONNA PROFILE_IMAGE SE MANCANTE
 // =============================================
 try {
@@ -86,11 +91,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $full_name = trim($_POST['full_name'] ?? '');
     $bio = trim($_POST['bio'] ?? '');
     $niche = trim($_POST['niche'] ?? '');
-    $instagram_handle = trim($_POST['instagram_handle'] ?? '');
-    $tiktok_handle = trim($_POST['tiktok_handle'] ?? '');
-    $youtube_handle = trim($_POST['youtube_handle'] ?? '');
     $website = trim($_POST['website'] ?? '');
     $rate = floatval($_POST['rate'] ?? 0);
+    
+    // Recupera gli handle social dai social network attivi
+    $social_handles = [];
+    $social_networks = get_active_social_networks();
+    foreach ($social_networks as $social) {
+        $handle_field = $social['slug'] . '_handle';
+        $social_handles[$handle_field] = trim($_POST[$handle_field] ?? '');
+    }
     
     // Validazione campi obbligatori
     if (empty($full_name) || empty($bio) || empty($niche)) {
@@ -153,29 +163,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             
             if (empty($error)) {
-                // Query UPDATE con tutti i campi corretti
+                // Costruisci dinamicamente la query per gli handle social
                 $sql = "UPDATE influencers 
                         SET full_name = :full_name, bio = :bio, niche = :niche, 
-                            instagram_handle = :instagram_handle, 
-                            tiktok_handle = :tiktok_handle, 
-                            youtube_handle = :youtube_handle, 
                             website = :website, rate = :rate,
-                            profile_image = :profile_image, updated_at = NOW() 
-                        WHERE user_id = :user_id";
+                            profile_image = :profile_image, updated_at = NOW()";
                 
-                $stmt = $pdo->prepare($sql);
-                $result = $stmt->execute([
+                // Aggiungi i campi per gli handle social
+                $params = [
                     ':full_name' => $full_name,
                     ':bio' => $bio,
                     ':niche' => $niche,
-                    ':instagram_handle' => $instagram_handle,
-                    ':tiktok_handle' => $tiktok_handle,
-                    ':youtube_handle' => $youtube_handle,
                     ':website' => $website,
                     ':rate' => $rate,
                     ':profile_image' => $profile_image,
                     ':user_id' => $_SESSION['user_id']
-                ]);
+                ];
+                
+                foreach ($social_handles as $field => $value) {
+                    $sql .= ", $field = :$field";
+                    $params[":$field"] = $value;
+                }
+                
+                $sql .= " WHERE user_id = :user_id";
+                
+                $stmt = $pdo->prepare($sql);
+                $result = $stmt->execute($params);
                 
                 if ($result && $stmt->rowCount() > 0) {
                     // Cancella vecchia immagine SOLO dopo update riuscito
@@ -397,21 +410,45 @@ $niche_options = ['fashion', 'lifestyle', 'beauty', 'food', 'travel', 'gaming', 
 
         .social-handles {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: 1fr;
             gap: 15px;
         }
 
+        .input-group {
+            display: flex;
+        }
+
+        .input-group-text {
+            background-color: #f8f9fa;
+            border: 2px solid #e1e5e9;
+            border-right: none;
+            padding: 12px 15px;
+            border-radius: 8px 0 0 8px;
+            font-size: 14px;
+            color: #666;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 200px;
+        }
+
+        .input-group .form-control {
+            border-radius: 0 8px 8px 0;
+            border-left: none;
+        }
+
         @media (max-width: 768px) {
-            .social-handles {
-                grid-template-columns: 1fr;
-            }
-            
             .container {
                 padding: 20px;
             }
             
             .header h1 {
                 font-size: 2rem;
+            }
+
+            .input-group-text {
+                max-width: 150px;
+                font-size: 12px;
             }
         }
     </style>
@@ -450,52 +487,53 @@ $niche_options = ['fashion', 'lifestyle', 'beauty', 'food', 'travel', 'gaming', 
             </div>
 
             <div class="form-group">
-    <label for="niche">Categoria *</label>
-    <select id="niche" name="niche" required>
-        <option value="">Seleziona una categoria</option>
-        <option value="fashion" <?php echo ($influencer['niche'] ?? '') === 'fashion' ? 'selected' : ''; ?>>Fashion</option>
-        <option value="lifestyle" <?php echo ($influencer['niche'] ?? '') === 'lifestyle' ? 'selected' : ''; ?>>Lifestyle</option>
-        <option value="beauty" <?php echo ($influencer['niche'] ?? '') === 'beauty' ? 'selected' : ''; ?>>Beauty & Makeup</option>
-        <option value="food" <?php echo ($influencer['niche'] ?? '') === 'food' ? 'selected' : ''; ?>>Food</option>
-        <option value="travel" <?php echo ($influencer['niche'] ?? '') === 'travel' ? 'selected' : ''; ?>>Travel</option>
-        <option value="gaming" <?php echo ($influencer['niche'] ?? '') === 'gaming' ? 'selected' : ''; ?>>Gaming</option>
-        <option value="fitness" <?php echo ($influencer['niche'] ?? '') === 'fitness' ? 'selected' : ''; ?>>Fitness & Wellness</option>
-        <option value="entertainment" <?php echo ($influencer['niche'] ?? '') === 'entertainment' ? 'selected' : ''; ?>>Entertainment</option>
-        <option value="tech" <?php echo ($influencer['niche'] ?? '') === 'tech' ? 'selected' : ''; ?>>Tech</option>
-        <option value="finance" <?php echo ($influencer['niche'] ?? '') === 'finance' ? 'selected' : ''; ?>>Finance & Business</option>
-        <option value="pet" <?php echo ($influencer['niche'] ?? '') === 'pet' ? 'selected' : ''; ?>>Pet</option>
-        <option value="education" <?php echo ($influencer['niche'] ?? '') === 'education' ? 'selected' : ''; ?>>Education</option>
-    </select>
-</div>
+                <label for="niche">Categoria *</label>
+                <select id="niche" name="niche" required>
+                    <option value="">Seleziona una categoria</option>
+                    <option value="fashion" <?php echo ($influencer['niche'] ?? '') === 'fashion' ? 'selected' : ''; ?>>Fashion</option>
+                    <option value="lifestyle" <?php echo ($influencer['niche'] ?? '') === 'lifestyle' ? 'selected' : ''; ?>>Lifestyle</option>
+                    <option value="beauty" <?php echo ($influencer['niche'] ?? '') === 'beauty' ? 'selected' : ''; ?>>Beauty & Makeup</option>
+                    <option value="food" <?php echo ($influencer['niche'] ?? '') === 'food' ? 'selected' : ''; ?>>Food</option>
+                    <option value="travel" <?php echo ($influencer['niche'] ?? '') === 'travel' ? 'selected' : ''; ?>>Travel</option>
+                    <option value="gaming" <?php echo ($influencer['niche'] ?? '') === 'gaming' ? 'selected' : ''; ?>>Gaming</option>
+                    <option value="fitness" <?php echo ($influencer['niche'] ?? '') === 'fitness' ? 'selected' : ''; ?>>Fitness & Wellness</option>
+                    <option value="entertainment" <?php echo ($influencer['niche'] ?? '') === 'entertainment' ? 'selected' : ''; ?>>Entertainment</option>
+                    <option value="tech" <?php echo ($influencer['niche'] ?? '') === 'tech' ? 'selected' : ''; ?>>Tech</option>
+                    <option value="finance" <?php echo ($influencer['niche'] ?? '') === 'finance' ? 'selected' : ''; ?>>Finance & Business</option>
+                    <option value="pet" <?php echo ($influencer['niche'] ?? '') === 'pet' ? 'selected' : ''; ?>>Pet</option>
+                    <option value="education" <?php echo ($influencer['niche'] ?? '') === 'education' ? 'selected' : ''; ?>>Education</option>
+                </select>
+            </div>
 
             <div class="form-group">
                 <label>Social Handles</label>
                 <div class="social-handles">
-                    <div>
-                        <label for="instagram_handle">Instagram</label>
-                        <input type="text" id="instagram_handle" name="instagram_handle" 
-                               value="<?php echo htmlspecialchars($influencer['instagram_handle'] ?? ''); ?>" 
-                               placeholder="@username">
-                    </div>
-                    <div>
-                        <label for="tiktok_handle">TikTok</label>
-                        <input type="text" id="tiktok_handle" name="tiktok_handle" 
-                               value="<?php echo htmlspecialchars($influencer['tiktok_handle'] ?? ''); ?>" 
-                               placeholder="@username">
-                    </div>
-                    <div>
-                        <label for="youtube_handle">YouTube</label>
-                        <input type="text" id="youtube_handle" name="youtube_handle" 
-                               value="<?php echo htmlspecialchars($influencer['youtube_handle'] ?? ''); ?>" 
-                               placeholder="@username o nome canale">
-                    </div>
-                    <div>
-                        <label for="website">Sito Web</label>
-                        <input type="text" id="website" name="website" 
-                               value="<?php echo htmlspecialchars($influencer['website'] ?? ''); ?>" 
-                               placeholder="https://...">
-                    </div>
+                    <?php
+                    $social_networks = get_active_social_networks();
+                    foreach ($social_networks as $social): 
+                        $handle_value = $influencer[$social['slug'] . '_handle'] ?? '';
+                    ?>
+                        <div class="mb-3">
+                            <label for="<?php echo $social['slug']; ?>_handle" class="form-label">
+                                <i class="<?php echo $social['icon']; ?> me-2"></i><?php echo $social['name']; ?>
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text"><?php echo $social['base_url']; ?></span>
+                                <input type="text" class="form-control" id="<?php echo $social['slug']; ?>_handle" 
+                                       name="<?php echo $social['slug']; ?>_handle" 
+                                       value="<?php echo htmlspecialchars($handle_value); ?>" 
+                                       placeholder="username">
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
                 </div>
+            </div>
+
+            <div class="form-group">
+                <label for="website">Sito Web</label>
+                <input type="text" id="website" name="website" 
+                       value="<?php echo htmlspecialchars($influencer['website'] ?? ''); ?>" 
+                       placeholder="https://...">
             </div>
 
             <div class="form-group">

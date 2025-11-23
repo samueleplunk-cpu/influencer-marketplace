@@ -29,6 +29,11 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'brand') {
 }
 
 // =============================================
+// INCLUSIONE FUNZIONI SOCIAL NETWORK
+// =============================================
+require_once dirname(__DIR__) . '/includes/social_network_functions.php';
+
+// =============================================
 // INCLUSIONE HEADER CON PERCORSO ASSOLUTO
 // =============================================
 $header_file = dirname(__DIR__) . '/includes/header.php';
@@ -108,16 +113,19 @@ if (!empty($niche_filter)) {
 
 // Filtro per piattaforma
 if (!empty($platform_filter)) {
-    switch ($platform_filter) {
-        case 'instagram':
-            $where_conditions[] = "instagram_handle IS NOT NULL AND instagram_handle != ''";
+    $social_networks = get_active_social_networks();
+    $platform_exists = false;
+    
+    // Verifica che la piattaforma selezionata esista tra quelle attive
+    foreach ($social_networks as $social) {
+        if ($social['slug'] === $platform_filter) {
+            $platform_exists = true;
             break;
-        case 'tiktok':
-            $where_conditions[] = "tiktok_handle IS NOT NULL AND tiktok_handle != ''";
-            break;
-        case 'youtube':
-            $where_conditions[] = "youtube_handle IS NOT NULL AND youtube_handle != ''";
-            break;
+        }
+    }
+    
+    if ($platform_exists) {
+        $where_conditions[] = "{$platform_filter}_handle IS NOT NULL AND {$platform_filter}_handle != ''";
     }
 }
 
@@ -190,33 +198,38 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
                     </div>
 
                     <!-- Filtro Categoria -->
-<div class="col-md-3">
-    <label for="niche" class="form-label">Categoria</label>
-    <select class="form-select" id="niche" name="niche">
-        <option value="">Tutte le categorie</option>
-        <option value="Fashion" <?php echo $niche_filter === 'Fashion' ? 'selected' : ''; ?>>Fashion</option>
-        <option value="Lifestyle" <?php echo $niche_filter === 'Lifestyle' ? 'selected' : ''; ?>>Lifestyle</option>
-        <option value="Beauty & Makeup" <?php echo $niche_filter === 'Beauty & Makeup' ? 'selected' : ''; ?>>Beauty & Makeup</option>
-        <option value="Food" <?php echo $niche_filter === 'Food' ? 'selected' : ''; ?>>Food</option>
-        <option value="Travel" <?php echo $niche_filter === 'Travel' ? 'selected' : ''; ?>>Travel</option>
-        <option value="Gaming" <?php echo $niche_filter === 'Gaming' ? 'selected' : ''; ?>>Gaming</option>
-        <option value="Fitness & Wellness" <?php echo $niche_filter === 'Fitness & Wellness' ? 'selected' : ''; ?>>Fitness & Wellness</option>
-        <option value="Entertainment" <?php echo $niche_filter === 'Entertainment' ? 'selected' : ''; ?>>Entertainment</option>
-        <option value="Tech" <?php echo $niche_filter === 'Tech' ? 'selected' : ''; ?>>Tech</option>
-        <option value="Finance & Business" <?php echo $niche_filter === 'Finance & Business' ? 'selected' : ''; ?>>Finance & Business</option>
-        <option value="Pet" <?php echo $niche_filter === 'Pet' ? 'selected' : ''; ?>>Pet</option>
-        <option value="Education" <?php echo $niche_filter === 'Education' ? 'selected' : ''; ?>>Education</option>
-    </select>
-</div>
+                    <div class="col-md-3">
+                        <label for="niche" class="form-label">Categoria</label>
+                        <select class="form-select" id="niche" name="niche">
+                            <option value="">Tutte le categorie</option>
+                            <option value="Fashion" <?php echo $niche_filter === 'Fashion' ? 'selected' : ''; ?>>Fashion</option>
+                            <option value="Lifestyle" <?php echo $niche_filter === 'Lifestyle' ? 'selected' : ''; ?>>Lifestyle</option>
+                            <option value="Beauty & Makeup" <?php echo $niche_filter === 'Beauty & Makeup' ? 'selected' : ''; ?>>Beauty & Makeup</option>
+                            <option value="Food" <?php echo $niche_filter === 'Food' ? 'selected' : ''; ?>>Food</option>
+                            <option value="Travel" <?php echo $niche_filter === 'Travel' ? 'selected' : ''; ?>>Travel</option>
+                            <option value="Gaming" <?php echo $niche_filter === 'Gaming' ? 'selected' : ''; ?>>Gaming</option>
+                            <option value="Fitness & Wellness" <?php echo $niche_filter === 'Fitness & Wellness' ? 'selected' : ''; ?>>Fitness & Wellness</option>
+                            <option value="Entertainment" <?php echo $niche_filter === 'Entertainment' ? 'selected' : ''; ?>>Entertainment</option>
+                            <option value="Tech" <?php echo $niche_filter === 'Tech' ? 'selected' : ''; ?>>Tech</option>
+                            <option value="Finance & Business" <?php echo $niche_filter === 'Finance & Business' ? 'selected' : ''; ?>>Finance & Business</option>
+                            <option value="Pet" <?php echo $niche_filter === 'Pet' ? 'selected' : ''; ?>>Pet</option>
+                            <option value="Education" <?php echo $niche_filter === 'Education' ? 'selected' : ''; ?>>Education</option>
+                        </select>
+                    </div>
 
                     <!-- Filtro Piattaforma -->
                     <div class="col-md-2">
                         <label for="platform" class="form-label">Piattaforma</label>
                         <select class="form-select" id="platform" name="platform">
                             <option value="">Tutte</option>
-                            <option value="instagram" <?php echo $platform_filter === 'instagram' ? 'selected' : ''; ?>>Instagram</option>
-                            <option value="tiktok" <?php echo $platform_filter === 'tiktok' ? 'selected' : ''; ?>>TikTok</option>
-                            <option value="youtube" <?php echo $platform_filter === 'youtube' ? 'selected' : ''; ?>>YouTube</option>
+                            <?php
+                            $social_networks = get_active_social_networks();
+                            foreach ($social_networks as $social): ?>
+                                <option value="<?php echo $social['slug']; ?>" 
+                                    <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($social['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
@@ -307,30 +320,30 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
 
                                     <div class="card-body">
                                         <!-- Nome e Categoria -->
-<h5 class="card-title"><?php echo htmlspecialchars($influencer['full_name']); ?></h5>
-<?php if (!empty($influencer['niche'])): ?>
-    <?php
-    // Mappa le vecchie categorie ai nuovi nomi per il display
-    $display_categories = [
-        'fashion' => 'Fashion',
-        'lifestyle' => 'Lifestyle',
-        'beauty' => 'Beauty & Makeup',
-        'food' => 'Food',
-        'travel' => 'Travel',
-        'gaming' => 'Gaming',
-        'fitness' => 'Fitness & Wellness',
-        'entertainment' => 'Entertainment',
-        'tech' => 'Tech',
-        'finance' => 'Finance & Business',
-        'pet' => 'Pet',
-        'education' => 'Education'
-    ];
-    
-    $original_niche = $influencer['niche'];
-    $display_niche = $display_categories[$original_niche] ?? $original_niche;
-    ?>
-    <span class="badge bg-info mb-2"><?php echo htmlspecialchars($display_niche); ?></span>
-<?php endif; ?>
+                                        <h5 class="card-title"><?php echo htmlspecialchars($influencer['full_name']); ?></h5>
+                                        <?php if (!empty($influencer['niche'])): ?>
+                                            <?php
+                                            // Mappa le vecchie categorie ai nuovi nomi per il display
+                                            $display_categories = [
+                                                'fashion' => 'Fashion',
+                                                'lifestyle' => 'Lifestyle',
+                                                'beauty' => 'Beauty & Makeup',
+                                                'food' => 'Food',
+                                                'travel' => 'Travel',
+                                                'gaming' => 'Gaming',
+                                                'fitness' => 'Fitness & Wellness',
+                                                'entertainment' => 'Entertainment',
+                                                'tech' => 'Tech',
+                                                'finance' => 'Finance & Business',
+                                                'pet' => 'Pet',
+                                                'education' => 'Education'
+                                            ];
+                                            
+                                            $original_niche = $influencer['niche'];
+                                            $display_niche = $display_categories[$original_niche] ?? $original_niche;
+                                            ?>
+                                            <span class="badge bg-info mb-2"><?php echo htmlspecialchars($display_niche); ?></span>
+                                        <?php endif; ?>
 
                                         <!-- Bio -->
                                         <?php if (!empty($influencer['bio'])): ?>
@@ -344,21 +357,21 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
 
                                         <!-- Handles Social -->
                                         <div class="mb-2">
-                                            <?php if (!empty($influencer['instagram_handle'])): ?>
+                                            <?php
+                                            $social_networks = get_active_social_networks();
+                                            foreach ($social_networks as $social): 
+                                                $handle_value = $influencer[$social['slug'] . '_handle'] ?? '';
+                                                if (!empty($handle_value)): 
+                                            ?>
                                                 <small class="text-muted d-block">
-                                                    <strong>IG:</strong> @<?php echo htmlspecialchars($influencer['instagram_handle']); ?>
+                                                    <i class="<?php echo $social['icon']; ?> me-1"></i>
+                                                    <strong><?php echo $social['name']; ?>:</strong> 
+                                                    @<?php echo htmlspecialchars($handle_value); ?>
                                                 </small>
-                                            <?php endif; ?>
-                                            <?php if (!empty($influencer['tiktok_handle'])): ?>
-                                                <small class="text-muted d-block">
-                                                    <strong>TikTok:</strong> @<?php echo htmlspecialchars($influencer['tiktok_handle']); ?>
-                                                </small>
-                                            <?php endif; ?>
-                                            <?php if (!empty($influencer['youtube_handle'])): ?>
-                                                <small class="text-muted d-block">
-                                                    <strong>YT:</strong> @<?php echo htmlspecialchars($influencer['youtube_handle']); ?>
-                                                </small>
-                                            <?php endif; ?>
+                                            <?php 
+                                                endif;
+                                            endforeach; 
+                                            ?>
                                         </div>
 
                                         <!-- Tariffa e Visualizzazioni -->
