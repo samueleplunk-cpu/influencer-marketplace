@@ -253,162 +253,156 @@ if ($action === 'list') {
                 <?php echo $message; ?>
                 
                 <!-- Statistiche Rapide -->
-                <div class="row mb-4">
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-primary text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('active'); ?></div>
-                                        <div>Campagne Attive</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-play-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<div class="row mb-4">
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-success text-white mb-4"> <!-- Cambiato da bg-primary a bg-success -->
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('active'); ?></div>
+                        <div>Campagne Attive</div>
                     </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-warning text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('paused'); ?></div>
-                                        <div>In Pausa</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-pause-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-success text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('completed'); ?></div>
-                                        <div>Completate</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-check-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-danger text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('expired'); ?></div>
-                                        <div>Scadute</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-clock fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-secondary text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('draft'); ?></div>
-                                        <div>Bozze</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-edit fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-info text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount(); ?></div>
-                                        <div>Totale Campagne</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-bullhorn fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-play-circle fa-2x"></i>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-warning text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('paused'); ?></div>
+                        <div>In Pausa</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-pause-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-info text-white mb-4"> <!-- Cambiato da bg-success a bg-info -->
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('completed'); ?></div>
+                        <div>Completate</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-danger text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('expired'); ?></div>
+                        <div>Scadute</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-secondary text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount('draft'); ?></div>
+                        <div>Bozze</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-edit fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-primary text-white mb-4"> <!-- Cambiato da bg-info a bg-primary -->
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getCampaignsCount(); ?></div>
+                        <div>Totale Campagne</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-bullhorn fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                 
                 <!-- Filtri -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">
-                            <i class="fas fa-filter me-2"></i>Filtri
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" class="row g-3">
-                            <input type="hidden" name="action" value="list">
-                            
-                            <div class="col-md-3">
-                                <label for="search" class="form-label">Cerca</label>
-                                <input type="text" class="form-control" id="search" name="search" 
-                                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
-                                       placeholder="Nome campagna...">
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="status" class="form-label">Stato</label>
-                                <select class="form-select" id="status" name="status">
-                                    <option value="">Tutti</option>
-                                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attive</option>
-                                    <option value="paused" <?php echo $filters['status'] === 'paused' ? 'selected' : ''; ?>>In pausa</option>
-                                    <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completate</option>
-                                    <option value="expired" <?php echo $filters['status'] === 'expired' ? 'selected' : ''; ?>>Scadute</option>
-                                    <option value="draft" <?php echo $filters['status'] === 'draft' ? 'selected' : ''; ?>>Bozza</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="brand_id" class="form-label">Brand</label>
-                                <select class="form-select" id="brand_id" name="brand_id">
-                                    <option value="">Tutti i brand</option>
-                                    <?php foreach ($brands_list as $brand): ?>
-                                        <option value="<?php echo $brand['id']; ?>" 
-                                                <?php echo $filters['brand_id'] == $brand['id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($brand['company_name'] ?: $brand['name']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="date_from" class="form-label">Da data</label>
-                                <input type="date" class="form-control" id="date_from" name="date_from" 
-                                       value="<?php echo htmlspecialchars($filters['date_from']); ?>">
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="date_to" class="form-label">A data</label>
-                                <input type="date" class="form-control" id="date_to" name="date_to" 
-                                       value="<?php echo htmlspecialchars($filters['date_to']); ?>">
-                            </div>
-                            
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">
+            <i class="fas fa-filter me-2"></i>Filtri
+        </h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <input type="hidden" name="action" value="list">
+            
+            <div class="col-md-3">
+                <label for="search" class="form-label">Cerca</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
+                       placeholder="Nome campagna...">
+            </div>
+            
+            <div class="col-md-2">
+                <label for="brand_id" class="form-label">Brand</label>
+                <select class="form-select" id="brand_id" name="brand_id">
+                    <option value="">Tutti i brand</option>
+                    <?php foreach ($brands_list as $brand): ?>
+                        <option value="<?php echo $brand['id']; ?>" 
+                                <?php echo $filters['brand_id'] == $brand['id'] ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($brand['company_name'] ?: $brand['name']); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="status" class="form-label">Stato</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Tutti</option>
+                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attive</option>
+                    <option value="paused" <?php echo $filters['status'] === 'paused' ? 'selected' : ''; ?>>In pausa</option>
+                    <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completate</option>
+                    <option value="expired" <?php echo $filters['status'] === 'expired' ? 'selected' : ''; ?>>Scadute</option>
+                    <option value="draft" <?php echo $filters['status'] === 'draft' ? 'selected' : ''; ?>>Bozza</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100 me-2">
+                    <i class="fas fa-search"></i> Cerca
+                </button>
+            </div>
+            
+            <div class="col-md-2 d-flex align-items-end">
+                <a href="?action=list" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-refresh"></i> Reset
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
                 
                 <!-- Tabella Campagne -->
                 <div class="card">

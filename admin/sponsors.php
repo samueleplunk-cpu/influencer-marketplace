@@ -337,16 +337,20 @@ if ($action === 'list') {
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2" 
-                                                             style="width: 32px; height: 32px;">
-                                                            <i class="fas fa-user text-white"></i>
-                                                        </div>
-                                                        <div>
-                                                            <strong><?php echo htmlspecialchars($sponsor['influencer_name']); ?></strong>
-                                                        </div>
-                                                    </div>
-                                                </td>
+    <div class="d-flex align-items-center">
+        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2" 
+             style="width: 32px; height: 32px;">
+            <i class="fas fa-user text-white"></i>
+        </div>
+        <div>
+            <strong><?php echo htmlspecialchars($sponsor['influencer_email']); ?></strong>
+            <?php if (!empty($sponsor['influencer_name'])): ?>
+                <br>
+                <small class="text-muted"><?php echo htmlspecialchars($sponsor['influencer_name']); ?></small>
+            <?php endif; ?>
+        </div>
+    </div>
+</td>
                                                 <td>
                                                     <strong><?php echo number_format($sponsor['budget'], 2); ?> €</strong>
                                                 </td>
