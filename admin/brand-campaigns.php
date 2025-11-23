@@ -424,7 +424,7 @@ if ($action === 'list') {
                                 <table class="table table-striped table-hover">
                                     <thead>
                                         <tr>
-                                            <th>Nome Campagna</th>
+                                            <th>Titolo Campagna</th>
                                             <th>Brand</th>
                                             <th>Budget</th>
                                             <th>Stato</th>
@@ -550,7 +550,7 @@ if ($action === 'list') {
                                                     <?php endif; ?>
                                                 </td>
                                                 <td>
-                                                    <div class="btn-group btn-group-sm">
+                                                    <div class="btn-group btn-group-sm" style="gap: 2px;">
                                                         <!-- Modifica -->
                                                         <a href="?action=edit&id=<?php echo $campaign['id']; ?>" 
                                                            class="btn btn-outline-primary" title="Modifica">
@@ -774,11 +774,11 @@ if ($action === 'list') {
                                     <div class="row">
                                         <div class="col-md-8">
                                             <div class="mb-3">
-                                                <label for="name" class="form-label">Nome Campagna <span class="text-danger">*</span></label>
+                                                <label for="name" class="form-label">Titolo Campagna <span class="text-danger">*</span></label>
                                                 <input type="text" class="form-control" id="name" name="name" 
                                                        value="<?php echo htmlspecialchars($campaign['name'] ?? ''); ?>" 
                                                        required>
-                                                <div class="form-text">Inserisci un nome descrittivo per la campagna</div>
+                                                <div class="form-text">Inserisci un titolo descrittivo per la campagna</div>
                                             </div>
                                         </div>
                                         
