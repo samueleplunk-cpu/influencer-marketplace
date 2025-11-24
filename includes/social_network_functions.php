@@ -3,6 +3,86 @@
  * Funzioni per la gestione dei social network dal database
  */
 
+// =============================================
+// INIZIALIZZAZIONE IMMEDIATA DEL SISTEMA
+// =============================================
+
+/**
+ * Verifica e crea IMMEDIATAMENTE tutte le colonne mancanti
+ */
+function initialize_social_platforms_immediately() {
+    global $pdo;
+    
+    // Verifica se la tabella influencers esiste
+    try {
+        $stmt = $pdo->query("SELECT 1 FROM influencers LIMIT 1");
+    } catch (PDOException $e) {
+        error_log("❌ Tabella influencers non trovata: " . $e->getMessage());
+        return;
+    }
+    
+    // Ottieni tutte le piattaforme social
+    $social_networks = get_all_social_networks();
+    
+    if (empty($social_networks)) {
+        error_log("📝 Nessuna piattaforma social trovata nel database");
+        return;
+    }
+    
+    error_log("🔧 Inizializzazione IMMEDIATA piattaforme social...");
+    
+    foreach ($social_networks as $network) {
+        $column_name = $network['slug'] . '_handle';
+        
+        // Verifica se la colonna esiste
+        $column_exists = false;
+        try {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'influencers' 
+                AND COLUMN_NAME = ?
+            ");
+            $stmt->execute([$column_name]);
+            $column_exists = (bool)$stmt->fetchColumn();
+        } catch (PDOException $e) {
+            error_log("❌ Errore verifica colonna {$column_name}: " . $e->getMessage());
+        }
+        
+        if (!$column_exists) {
+            // Crea la colonna
+            try {
+                $sql = "ALTER TABLE influencers ADD COLUMN `{$column_name}` VARCHAR(255) NULL DEFAULT NULL";
+                $pdo->exec($sql);
+                error_log("🚀 COLONNA CREATA: {$column_name} per {$network['name']}");
+            } catch (PDOException $e) {
+                error_log("💥 ERRORE creazione colonna {$column_name}: " . $e->getMessage());
+                
+                // Tentativo alternativo
+                try {
+                    $sql = "ALTER TABLE influencers ADD `{$column_name}` TEXT NULL";
+                    $pdo->exec($sql);
+                    error_log("🚀 COLONNA CREATA (alternativa): {$column_name} per {$network['name']}");
+                } catch (PDOException $e2) {
+                    error_log("💥 ERRORE CRITICO colonna {$column_name}: " . $e2->getMessage());
+                }
+            }
+        } else {
+            error_log("✅ Colonna esistente: {$column_name}");
+        }
+    }
+    
+    error_log("🎯 Inizializzazione piattaforme COMPLETATA");
+}
+
+// ESEGUIIMMEDIATAMENTE l'inizializzazione
+initialize_social_platforms_immediately();
+
+// =============================================
+// FUNZIONI PRINCIPALI
+// =============================================
+
 /**
  * Recupera tutti i social network attivi ordinati
  */
@@ -76,6 +156,71 @@ function create_social_network($data) {
         ]);
     } catch (PDOException $e) {
         error_log("Errore nella creazione social network: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Crea un nuovo social network con migrazione automatica della colonna
+ * VERSIONE SEMPLIFICATA E SICURA
+ */
+function create_social_network_with_auto_migrate($data) {
+    global $pdo;
+    
+    try {
+        // PRIMA crea la colonna
+        $column_name = $data['slug'] . '_handle';
+        
+        // Verifica se la colonna esiste già
+        $column_exists = false;
+        try {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'influencers' 
+                AND COLUMN_NAME = ?
+            ");
+            $stmt->execute([$column_name]);
+            $column_exists = (bool)$stmt->fetchColumn();
+        } catch (PDOException $e) {
+            error_log("Errore verifica colonna: " . $e->getMessage());
+        }
+        
+        if (!$column_exists) {
+            // Crea la colonna
+            try {
+                $sql = "ALTER TABLE influencers ADD COLUMN `{$column_name}` VARCHAR(255) NULL DEFAULT NULL";
+                $pdo->exec($sql);
+                error_log("🚀 COLONNA CREATA DURANTE SALVATAGGIO: {$column_name}");
+            } catch (PDOException $e) {
+                error_log("💥 ERRORE creazione colonna durante salvataggio: " . $e->getMessage());
+                // Continua comunque con la creazione della piattaforma
+            }
+        }
+        
+        // POI crea il social network
+        $stmt = $pdo->prepare("
+            INSERT INTO social_networks (name, slug, icon, base_url, display_order, is_active)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        $success = $stmt->execute([
+            $data['name'],
+            $data['slug'],
+            $data['icon'],
+            $data['base_url'],
+            $data['display_order'],
+            $data['is_active'] ?? 1
+        ]);
+        
+        if ($success) {
+            error_log("✅ Piattaforma '{$data['name']}' creata con successo");
+        }
+        
+        return $success;
+        
+    } catch (Exception $e) {
+        error_log("❌ Errore nella creazione social network: " . $e->getMessage());
         return false;
     }
 }
@@ -164,4 +309,86 @@ function generate_social_handles_fields($current_handles = []) {
     
     return $fields;
 }
+
+/**
+ * Verifica se una piattaforma può essere utilizzata per il filtro
+ */
+function can_filter_by_platform($platform_slug) {
+    global $pdo;
+    
+    try {
+        $stmt = $pdo->prepare("
+            SELECT COUNT(*) 
+            FROM information_schema.COLUMNS 
+            WHERE TABLE_SCHEMA = DATABASE() 
+            AND TABLE_NAME = 'influencers' 
+            AND COLUMN_NAME = ?
+        ");
+        $stmt->execute([$platform_slug . '_handle']);
+        return (bool)$stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("Errore verifica colonna filtro: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Recupera solo le piattaforme che possono essere utilizzate per il filtro
+ */
+function get_filterable_social_networks() {
+    $all_networks = get_active_social_networks();
+    $filterable_networks = [];
+    
+    foreach ($all_networks as $network) {
+        if (can_filter_by_platform($network['slug'])) {
+            $filterable_networks[] = $network;
+        }
+    }
+    
+    return $filterable_networks;
+}
+
+/**
+ * DEBUG: Mostra lo stato di tutte le colonne
+ */
+function debug_social_platform_columns() {
+    global $pdo;
+    
+    $social_networks = get_all_social_networks();
+    $results = [];
+    
+    foreach ($social_networks as $network) {
+        $column_name = $network['slug'] . '_handle';
+        
+        try {
+            $stmt = $pdo->prepare("
+                SELECT COUNT(*) 
+                FROM information_schema.COLUMNS 
+                WHERE TABLE_SCHEMA = DATABASE() 
+                AND TABLE_NAME = 'influencers' 
+                AND COLUMN_NAME = ?
+            ");
+            $stmt->execute([$column_name]);
+            $exists = (bool)$stmt->fetchColumn();
+            
+            $results[] = [
+                'platform' => $network['name'],
+                'slug' => $network['slug'],
+                'column' => $column_name,
+                'exists' => $exists
+            ];
+        } catch (PDOException $e) {
+            $results[] = [
+                'platform' => $network['name'],
+                'slug' => $network['slug'],
+                'column' => $column_name,
+                'exists' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+    
+    return $results;
+}
+
 ?>
