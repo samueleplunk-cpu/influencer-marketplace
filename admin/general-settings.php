@@ -2,8 +2,8 @@
 require_once '../includes/admin_header.php';
 require_once '../includes/functions.php';
 require_once '../includes/general_settings_functions.php';
-// Aggiungi questa include
 require_once '../includes/social_network_functions.php';
+require_once '../includes/category_functions.php';
 
 $page_title = "Impostazioni Generali";
 $active_menu = "general-settings";
@@ -17,13 +17,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'save_social_networks') {
         $result = save_social_networks_settings($_POST);
     } elseif ($action === 'delete_social_network') {
-        // Nuova gestione eliminazione
         $social_id = $_POST['social_id'] ?? '';
         if ($social_id) {
             if (delete_social_network($social_id)) {
                 $_SESSION['success_message'] = 'Social network eliminato con successo!';
             } else {
                 $_SESSION['error_message'] = 'Errore nell\'eliminazione del social network';
+            }
+        }
+    } elseif ($action === 'delete_category') {
+        $category_id = $_POST['category_id'] ?? '';
+        if ($category_id) {
+            $result = delete_category($pdo, $category_id);
+            if ($result['success']) {
+                $_SESSION['success_message'] = 'Categoria eliminata con successo!';
+            } else {
+                $_SESSION['error_message'] = $result['error'];
             }
         }
     }
@@ -71,25 +80,6 @@ $social_networks_settings = get_social_networks_settings();
     <?php unset($_SESSION['error_message']); ?>
 <?php endif; ?>
 
-<!-- Modal di Conferma Eliminazione -->
-<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="deleteConfirmModalLabel">Conferma Eliminazione</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Sei sicuro di voler eliminare questo elemento?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Conferma Eliminazione</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="row">
     <div class="col-12">
         <!-- Nav tabs -->
@@ -124,61 +114,60 @@ $social_networks_settings = get_social_networks_settings();
                             <p class="text-muted mb-3">Gestisci le categorie disponibili per influencer e brand.</p>
                             <div id="categoriesContainer">
                                 <?php
-                                $categories = $categories_settings['categories'] ?? [
-                                    ['name' => 'Beauty & Makeup', 'slug' => 'beauty-makeup', 'description' => 'Tutto su bellezza e makeup', 'order' => 1, 'active' => true],
-                                    ['name' => 'Fashion', 'slug' => 'fashion', 'description' => 'Moda e tendenze', 'order' => 2, 'active' => true],
-                                    ['name' => 'Lifestyle', 'slug' => 'lifestyle', 'description' => 'Stile di vita e benessere', 'order' => 3, 'active' => true],
-                                    ['name' => 'Travel', 'slug' => 'travel', 'description' => 'Viaggi e avventure', 'order' => 4, 'active' => true],
-                                    ['name' => 'Food & Cooking', 'slug' => 'food-cooking', 'description' => 'Cucina e ricette', 'order' => 5, 'active' => true]
-                                ];
+                                $categories = $categories_settings['categories'] ?? [];
+                                $counter = 0;
                                 
-                                foreach ($categories as $index => $category): ?>
+                                foreach ($categories as $category): ?>
                                     <div class="category-item card mb-3">
                                         <div class="card-body">
+                                            <?php if (isset($category['id'])): ?>
+                                                <input type="hidden" name="categories[<?php echo $counter; ?>][id]" value="<?php echo $category['id']; ?>">
+                                            <?php endif; ?>
                                             <div class="row">
-                                                <div class="col-md-3 mb-3">
-                                                    <label class="form-label">Nome Categoria</label>
-                                                    <input type="text" class="form-control" name="categories[<?php echo $index; ?>][name]" 
+                                                <div class="col-md-4 mb-3">
+                                                    <label class="form-label">Nome Categoria *</label>
+                                                    <input type="text" class="form-control category-name" 
+                                                           name="categories[<?php echo $counter; ?>][name]" 
                                                            value="<?php echo htmlspecialchars($category['name']); ?>" 
                                                            placeholder="Nome della categoria" required>
                                                 </div>
-                                                <div class="col-md-2 mb-3">
-                                                    <label class="form-label">Slug</label>
-                                                    <input type="text" class="form-control" name="categories[<?php echo $index; ?>][slug]" 
+                                                <div class="col-md-3 mb-3">
+                                                    <label class="form-label">Slug *</label>
+                                                    <input type="text" class="form-control category-slug" 
+                                                           name="categories[<?php echo $counter; ?>][slug]" 
                                                            value="<?php echo htmlspecialchars($category['slug']); ?>" 
                                                            placeholder="slug-categoria" required>
                                                     <div class="form-text">URL-friendly version</div>
                                                 </div>
-                                                <div class="col-md-4 mb-3">
-                                                    <label class="form-label">Descrizione</label>
-                                                    <textarea class="form-control" name="categories[<?php echo $index; ?>][description]" 
-                                                              rows="2" placeholder="Breve descrizione della categoria"><?php echo htmlspecialchars($category['description']); ?></textarea>
-                                                </div>
-                                                <div class="col-md-1 mb-3">
+                                                <div class="col-md-2 mb-3">
                                                     <label class="form-label">Ordine</label>
-                                                    <input type="number" class="form-control" name="categories[<?php echo $index; ?>][order]" 
-                                                           value="<?php echo htmlspecialchars($category['order']); ?>" 
+                                                    <input type="number" class="form-control" 
+                                                           name="categories[<?php echo $counter; ?>][order]" 
+                                                           value="<?php echo htmlspecialchars($category['order'] ?? $category['display_order'] ?? ($counter + 1)); ?>" 
                                                            min="1" required>
                                                 </div>
-                                                <div class="col-md-1 mb-3">
+                                                <div class="col-md-2 mb-3">
                                                     <label class="form-label">Stato</label>
                                                     <div class="form-check form-switch mt-2">
                                                         <input type="checkbox" class="form-check-input" 
-                                                               name="categories[<?php echo $index; ?>][active]" 
-                                                               value="1" <?php echo !empty($category['active']) ? 'checked' : ''; ?>>
+                                                               name="categories[<?php echo $counter; ?>][active]" 
+                                                               value="1" <?php echo (($category['active'] ?? $category['is_active'] ?? true)) ? 'checked' : ''; ?>>
                                                         <label class="form-check-label">Attiva</label>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-1 mb-3 d-flex align-items-end">
                                                     <button type="button" class="btn btn-danger btn-sm remove-category" 
-                                                            data-item-type="category" data-item-label="<?php echo htmlspecialchars($category['name']); ?>">
+                                                            data-category-id="<?php echo $category['id'] ?? ''; ?>" 
+                                                            data-category-name="<?php echo htmlspecialchars($category['name']); ?>">
                                                         <i class="fas fa-trash"></i>
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                <?php endforeach; ?>
+                                <?php 
+                                $counter++;
+                                endforeach; ?>
                             </div>
                             
                             <button type="button" class="btn btn-success btn-sm" onclick="addCategoryItem()">
@@ -313,64 +302,26 @@ $social_networks_settings = get_social_networks_settings();
     </div>
 </div>
 
+<!-- Form per eliminazione categoria -->
+<form method="POST" id="deleteCategoryForm" style="display: none;">
+    <input type="hidden" name="action" value="delete_category">
+    <input type="hidden" name="category_id" id="delete_category_id">
+</form>
+
 <script>
 let categoryCounter = <?php echo count($categories_settings['categories'] ?? []); ?>;
 let socialNetworkCounter = <?php echo count($social_networks_settings['social_networks'] ?? []); ?>;
 
-// Variabili per gestire il modal di conferma
-let currentDeleteButton = null;
-let currentItemType = null;
-
-// Inizializzazione event listeners per i pulsanti elimina
+// Inizializzazione event listeners
 document.addEventListener('DOMContentLoaded', function() {
-    // Aggiungi event listener per tutti i pulsanti elimina
-    document.addEventListener('click', function(e) {
-        if (e.target.closest('.remove-category') || 
-            e.target.closest('.remove-social-network')) {
-            
-            const button = e.target.closest('button');
-            currentDeleteButton = button;
-            currentItemType = button.getAttribute('data-item-type');
-            const itemLabel = button.getAttribute('data-item-label');
-            
-            // Mostra il modal di conferma
-            const modal = new bootstrap.Modal(document.getElementById('deleteConfirmModal'));
-            modal.show();
-        }
-    });
-    
-    // Gestione conferma eliminazione
-    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-        if (currentDeleteButton && currentItemType) {
-            // Chiama la funzione appropriata in base al tipo di elemento
-            switch(currentItemType) {
-                case 'category':
-                    removeCategoryItem(currentDeleteButton);
-                    break;
-                case 'social-network':
-                    removeSocialNetworkItem(currentDeleteButton);
-                    break;
-            }
-            
-            // Chiudi il modal
-            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteConfirmModal'));
-            modal.hide();
-            
-            // Reset delle variabili
-            currentDeleteButton = null;
-            currentItemType = null;
-        }
-    });
-
     // Auto-generate slug from category name
     document.addEventListener('input', function(e) {
-        if (e.target.name && e.target.name.includes('[name]') && e.target.closest('.category-item')) {
+        if (e.target.classList.contains('category-name') && e.target.closest('.category-item')) {
             const nameInput = e.target;
-            const slugInput = nameInput.closest('.row').querySelector('input[name$="[slug]"]');
+            const slugInput = nameInput.closest('.row').querySelector('.category-slug');
             const nameValue = nameInput.value;
             
-            // Generate slug only if slug field is empty or matches the old name
-            if (!slugInput.value || slugInput.value === nameInput.defaultValue.toLowerCase().replace(/\s+/g, '-')) {
+            if (!slugInput.value || slugInput.value === nameInput.defaultValue?.toLowerCase().replace(/\s+/g, '-')) {
                 const slug = nameValue.toLowerCase()
                     .replace(/\s+/g, '-')
                     .replace(/[^a-z0-9-]/g, '')
@@ -394,10 +345,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        // Rimozione elemento non salvato
         if (e.target.closest('.remove-social-network')) {
             const button = e.target.closest('button');
             removeSocialNetworkItem(button);
+        }
+    });
+
+    // Gestione eliminazione categoria
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-category')) {
+            const button = e.target.closest('button');
+            removeCategoryItem(button);
         }
     });
 });
@@ -411,28 +369,26 @@ function addCategoryItem() {
     newItem.innerHTML = `
         <div class="card-body">
             <div class="row">
-                <div class="col-md-3 mb-3">
-                    <label class="form-label">Nome Categoria</label>
-                    <input type="text" class="form-control" name="categories[${categoryCounter}][name]" 
+                <div class="col-md-4 mb-3">
+                    <label class="form-label">Nome Categoria *</label>
+                    <input type="text" class="form-control category-name" 
+                           name="categories[${categoryCounter}][name]" 
                            placeholder="Nome della categoria" required>
                 </div>
-                <div class="col-md-2 mb-3">
-                    <label class="form-label">Slug</label>
-                    <input type="text" class="form-control" name="categories[${categoryCounter}][slug]" 
+                <div class="col-md-3 mb-3">
+                    <label class="form-label">Slug *</label>
+                    <input type="text" class="form-control category-slug" 
+                           name="categories[${categoryCounter}][slug]" 
                            placeholder="slug-categoria" required>
                     <div class="form-text">URL-friendly version</div>
                 </div>
-                <div class="col-md-4 mb-3">
-                    <label class="form-label">Descrizione</label>
-                    <textarea class="form-control" name="categories[${categoryCounter}][description]" 
-                              rows="2" placeholder="Breve descrizione della categoria"></textarea>
-                </div>
-                <div class="col-md-1 mb-3">
+                <div class="col-md-2 mb-3">
                     <label class="form-label">Ordine</label>
-                    <input type="number" class="form-control" name="categories[${categoryCounter}][order]" 
+                    <input type="number" class="form-control" 
+                           name="categories[${categoryCounter}][order]" 
                            value="${categoryCounter + 1}" min="1" required>
                 </div>
-                <div class="col-md-1 mb-3">
+                <div class="col-md-2 mb-3">
                     <label class="form-label">Stato</label>
                     <div class="form-check form-switch mt-2">
                         <input type="checkbox" class="form-check-input" 
@@ -441,8 +397,7 @@ function addCategoryItem() {
                     </div>
                 </div>
                 <div class="col-md-1 mb-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm remove-category" 
-                            data-item-type="category" data-item-label="Nuova categoria">
+                    <button type="button" class="btn btn-danger btn-sm remove-category">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -454,7 +409,19 @@ function addCategoryItem() {
 
 function removeCategoryItem(button) {
     const item = button.closest('.category-item');
-    item.remove();
+    const categoryId = button.getAttribute('data-category-id');
+    const categoryName = button.getAttribute('data-category-name');
+    
+    if (categoryId && categoryId !== '') {
+        if (confirm(`Sei sicuro di voler eliminare la categoria "${categoryName}"?\n\nQuesta azione non può essere annullata.`)) {
+            document.getElementById('delete_category_id').value = categoryId;
+            document.getElementById('deleteCategoryForm').submit();
+        }
+    } else {
+        if (confirm('Sei sicuro di voler rimuovere questa categoria?')) {
+            item.remove();
+        }
+    }
 }
 
 // Funzioni per Social Network

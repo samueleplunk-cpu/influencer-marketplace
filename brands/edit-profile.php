@@ -16,6 +16,11 @@ if (!file_exists($config_file)) {
 require_once $config_file;
 
 // =============================================
+// INCLUSIONE FUNZIONI CATEGORIE
+// =============================================
+require_once dirname(__DIR__) . '/includes/category_functions.php';
+
+// =============================================
 // VERIFICA AUTENTICAZIONE UTENTE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
@@ -61,22 +66,9 @@ try {
 }
 
 // =============================================
-// ELENCO SETTORI
+// RECUPERO CATEGORIE DAL DATABASE
 // =============================================
-$industries = [
-    'Fashion',
-    'Lifestyle',
-    'Beauty & Makeup',
-    'Food',
-    'Travel',
-    'Gaming',
-    'Fitness & Wellness',
-    'Entertainment',
-    'Tech',
-    'Finance & Business',
-    'Pet',
-    'Education'
-];
+$industries = get_active_categories($pdo);
 
 // =============================================
 // GESTIONE INVIO FORM
@@ -96,6 +88,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if (empty($industry)) {
             throw new Exception("Il settore è obbligatorio");
+        }
+
+        // Verifica che la categoria selezionata esista e sia attiva
+        $valid_categories = array_column($industries, 'name');
+        if (!in_array($industry, $valid_categories)) {
+            throw new Exception("Categoria selezionata non valida");
         }
 
         if (!empty($website) && !filter_var($website, FILTER_VALIDATE_URL)) {
@@ -245,12 +243,23 @@ require_once $header_file;
                                 <select class="form-select" id="industry" name="industry" required>
                                     <option value="">Seleziona un settore</option>
                                     <?php foreach ($industries as $industry_option): ?>
-                                        <option value="<?php echo htmlspecialchars($industry_option); ?>" 
-                                                <?php echo (($brand['industry'] ?? '') === $industry_option) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($industry_option); ?>
+                                        <option value="<?php echo htmlspecialchars($industry_option['name']); ?>" 
+                                                <?php echo (($brand['industry'] ?? '') === $industry_option['name']) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($industry_option['name']); ?>
+                                            <?php if (!empty($industry_option['description'])): ?>
+                                                - <?php echo htmlspecialchars($industry_option['description']); ?>
+                                            <?php endif; ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
+                                <div class="form-text">
+                                    Le categorie sono gestite dinamicamente dal sistema. 
+                                    <?php if (count($industries) === 0): ?>
+                                        <span class="text-warning">Nessuna categoria disponibile. Contatta l'amministratore.</span>
+                                    <?php else: ?>
+                                        <span class="text-success"><?php echo count($industries); ?> categorie disponibili</span>
+                                    <?php endif; ?>
+                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -377,6 +386,24 @@ require_once $header_file;
                         </div>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <strong>Settore attuale:</strong> 
+                            <span class="float-end">
+                                <?php echo !empty($brand['industry']) ? htmlspecialchars($brand['industry']) : 'Non impostato'; ?>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-2">
+                            <strong>Categorie disponibili:</strong> 
+                            <span class="float-end badge bg-info">
+                                <?php echo count($industries); ?> categorie
+                            </span>
+                        </div>
+                    </div>
+                </div>
                 <?php if ($logo_column_exists && !empty($brand['logo'])): ?>
                 <div class="row">
                     <div class="col-md-12">
@@ -390,6 +417,7 @@ require_once $header_file;
                 <hr>
                 <small class="text-muted">
                     <strong>Suggerimento:</strong> Mantieni il tuo profilo sempre aggiornato per attrarre gli influencer più adatti alla tua azienda.
+                    Le categorie sono sincronizzate automaticamente con il sistema centrale.
                 </small>
             </div>
         </div>
@@ -615,6 +643,15 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
     }
+
+    // Notifica se non ci sono categorie disponibili
+    const industrySelect = document.getElementById('industry');
+    if (industrySelect && industrySelect.options.length <= 1) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning mt-2';
+        alertDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Nessuna categoria disponibile. Contatta l\'amministratore del sistema.';
+        industrySelect.parentNode.appendChild(alertDiv);
+    }
 });
 </script>
 
@@ -643,6 +680,9 @@ document.addEventListener('DOMContentLoaded', function() {
 .btn-sm {
     font-size: 0.875rem;
     padding: 0.25rem 0.5rem;
+}
+.badge {
+    font-size: 0.75em;
 }
 </style>
 
