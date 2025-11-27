@@ -33,6 +33,11 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
 require_once dirname(dirname(dirname(__FILE__))) . '/includes/social_network_functions.php';
 
 // =============================================
+// INCLUSIONE FUNZIONI CATEGORIE
+// =============================================
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/category_functions.php';
+
+// =============================================
 // RECUPERO DATI INFLUENCER
 // =============================================
 $influencer = null;
@@ -62,6 +67,11 @@ $platform_filter = $_GET['platform'] ?? '';
 $current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $campaigns_per_page = 12;
 $offset = ($current_page - 1) * $campaigns_per_page;
+
+// =============================================
+// RECUPERO CATEGORIE ATTIVE DAL DATABASE
+// =============================================
+$active_categories = get_active_categories($pdo);
 
 // =============================================
 // QUERY CAMPAIGNE CON FILTRI
@@ -197,16 +207,11 @@ require_once $header_file;
                         <select name="niche" class="form-select">
                             <option value="">Tutte</option>
                             <?php
-                            // Nuovo set unificato di categorie
-                            $niches = [
-                                'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel', 
-                                'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech', 
-                                'Finance & Business', 'Pet', 'Education'
-                            ];
-                            foreach ($niches as $niche): ?>
-                                <option value="<?php echo $niche; ?>" 
-                                    <?php echo $niche_filter === $niche ? 'selected' : ''; ?>>
-                                    <?php echo $niche; ?>
+                            // CATEGORIE DINAMICHE DAL DATABASE
+                            foreach ($active_categories as $category): ?>
+                                <option value="<?php echo htmlspecialchars($category['name']); ?>" 
+                                    <?php echo $niche_filter === $category['name'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($category['name']); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>

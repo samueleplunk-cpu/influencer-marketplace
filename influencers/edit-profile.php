@@ -84,6 +84,54 @@ try {
 }
 
 // =============================================
+// RECUPERO CATEGORIE DAL DATABASE
+// =============================================
+$categories = [];
+try {
+    // Includi le funzioni per le categorie
+    require_once dirname(__DIR__) . '/includes/category_functions.php';
+    
+    // Recupera tutte le categorie attive
+    $categories = get_active_categories($pdo);
+    
+    if (empty($categories)) {
+        error_log("Nessuna categoria attiva trovata nel database");
+        // Fallback alle categorie predefinite
+        $categories = [
+            ['id' => 'fashion', 'name' => 'Fashion'],
+            ['id' => 'lifestyle', 'name' => 'Lifestyle'],
+            ['id' => 'beauty', 'name' => 'Beauty & Makeup'],
+            ['id' => 'food', 'name' => 'Food'],
+            ['id' => 'travel', 'name' => 'Travel'],
+            ['id' => 'gaming', 'name' => 'Gaming'],
+            ['id' => 'fitness', 'name' => 'Fitness & Wellness'],
+            ['id' => 'entertainment', 'name' => 'Entertainment'],
+            ['id' => 'tech', 'name' => 'Tech'],
+            ['id' => 'finance', 'name' => 'Finance & Business'],
+            ['id' => 'pet', 'name' => 'Pet'],
+            ['id' => 'education', 'name' => 'Education']
+        ];
+    }
+} catch (Exception $e) {
+    error_log("Errore nel recupero delle categorie: " . $e->getMessage());
+    // Fallback in caso di errore
+    $categories = [
+        ['id' => 'fashion', 'name' => 'Fashion'],
+        ['id' => 'lifestyle', 'name' => 'Lifestyle'],
+        ['id' => 'beauty', 'name' => 'Beauty & Makeup'],
+        ['id' => 'food', 'name' => 'Food'],
+        ['id' => 'travel', 'name' => 'Travel'],
+        ['id' => 'gaming', 'name' => 'Gaming'],
+        ['id' => 'fitness', 'name' => 'Fitness & Wellness'],
+        ['id' => 'entertainment', 'name' => 'Entertainment'],
+        ['id' => 'tech', 'name' => 'Tech'],
+        ['id' => 'finance', 'name' => 'Finance & Business'],
+        ['id' => 'pet', 'name' => 'Pet'],
+        ['id' => 'education', 'name' => 'Education']
+    ];
+}
+
+// =============================================
 // GESTIONE INVIO FORM DI MODIFICA
 // =============================================
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -104,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Validazione campi obbligatori
     if (empty($full_name) || empty($bio) || empty($niche)) {
-        $error = "Nome completo, biografia e niche sono campi obbligatori!";
+        $error = "Nome completo, biografia e categoria sono campi obbligatori!";
     } elseif ($rate < 0) {
         $error = "La tariffa non può essere negativa!";
     } else {
@@ -212,9 +260,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 }
-
-// Valori possibili per categoria (dalla struttura enum)
-$niche_options = ['fashion', 'lifestyle', 'beauty', 'food', 'travel', 'gaming', 'fitness', 'entertainment', 'tech', 'finance', 'pet', 'education'];
 ?>
 <!DOCTYPE html>
 <html lang="it">
@@ -490,18 +535,17 @@ $niche_options = ['fashion', 'lifestyle', 'beauty', 'food', 'travel', 'gaming', 
                 <label for="niche">Categoria *</label>
                 <select id="niche" name="niche" required>
                     <option value="">Seleziona una categoria</option>
-                    <option value="fashion" <?php echo ($influencer['niche'] ?? '') === 'fashion' ? 'selected' : ''; ?>>Fashion</option>
-                    <option value="lifestyle" <?php echo ($influencer['niche'] ?? '') === 'lifestyle' ? 'selected' : ''; ?>>Lifestyle</option>
-                    <option value="beauty" <?php echo ($influencer['niche'] ?? '') === 'beauty' ? 'selected' : ''; ?>>Beauty & Makeup</option>
-                    <option value="food" <?php echo ($influencer['niche'] ?? '') === 'food' ? 'selected' : ''; ?>>Food</option>
-                    <option value="travel" <?php echo ($influencer['niche'] ?? '') === 'travel' ? 'selected' : ''; ?>>Travel</option>
-                    <option value="gaming" <?php echo ($influencer['niche'] ?? '') === 'gaming' ? 'selected' : ''; ?>>Gaming</option>
-                    <option value="fitness" <?php echo ($influencer['niche'] ?? '') === 'fitness' ? 'selected' : ''; ?>>Fitness & Wellness</option>
-                    <option value="entertainment" <?php echo ($influencer['niche'] ?? '') === 'entertainment' ? 'selected' : ''; ?>>Entertainment</option>
-                    <option value="tech" <?php echo ($influencer['niche'] ?? '') === 'tech' ? 'selected' : ''; ?>>Tech</option>
-                    <option value="finance" <?php echo ($influencer['niche'] ?? '') === 'finance' ? 'selected' : ''; ?>>Finance & Business</option>
-                    <option value="pet" <?php echo ($influencer['niche'] ?? '') === 'pet' ? 'selected' : ''; ?>>Pet</option>
-                    <option value="education" <?php echo ($influencer['niche'] ?? '') === 'education' ? 'selected' : ''; ?>>Education</option>
+                    <?php foreach ($categories as $category): 
+                        // Gestisce sia il nuovo formato (con id) che il vecchio (array semplice)
+                        $category_id = isset($category['id']) ? $category['id'] : $category;
+                        $category_name = isset($category['name']) ? $category['name'] : ucfirst($category);
+                        $is_selected = ($influencer['niche'] ?? '') === $category_id;
+                    ?>
+                        <option value="<?php echo htmlspecialchars($category_id); ?>" 
+                                <?php echo $is_selected ? 'selected' : ''; ?>>
+                            <?php echo htmlspecialchars($category_name); ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </div>
 

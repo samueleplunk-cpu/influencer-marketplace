@@ -25,6 +25,15 @@ if (!file_exists($social_functions_file)) {
 require_once $social_functions_file;
 
 // =============================================
+// INCLUSIONE FUNZIONI CATEGORIE
+// =============================================
+$category_functions_file = dirname(__DIR__) . '/includes/category_functions.php';
+if (!file_exists($category_functions_file)) {
+    die("Errore: File funzioni categorie non trovato in: " . $category_functions_file);
+}
+require_once $category_functions_file;
+
+// =============================================
 // VERIFICA AUTENTICAZIONE UTENTE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
@@ -57,22 +66,53 @@ try {
 }
 
 // =============================================
-// ELENCO CATEGORIE E PIATTAFORME (MODIFICATO)
+// ELENCO CATEGORIE E PIATTAFORME (MODIFICATO - CATEGORIE DINAMICHE)
 // =============================================
-$niches = [
-    'Fashion',
-    'Lifestyle',
-    'Beauty & Makeup',
-    'Food',
-    'Travel',
-    'Gaming',
-    'Fitness & Wellness',
-    'Entertainment',
-    'Tech',
-    'Finance & Business',
-    'Pet',
-    'Education'
-];
+
+// RECUPERO CATEGORIE DINAMICHE DAL DATABASE
+$niches = [];
+try {
+    $categories = get_active_categories($pdo);
+    foreach ($categories as $category) {
+        $niches[$category['id']] = $category['name'];
+    }
+    
+    // Se non ci sono categorie attive, usa valori di fallback
+    if (empty($niches)) {
+        $niches = [
+            'Fashion',
+            'Lifestyle', 
+            'Beauty & Makeup',
+            'Food',
+            'Travel',
+            'Gaming',
+            'Fitness & Wellness',
+            'Entertainment',
+            'Tech',
+            'Finance & Business',
+            'Pet',
+            'Education'
+        ];
+        error_log("Nessuna categoria attiva trovata nel database, usando categorie predefinite");
+    }
+} catch (Exception $e) {
+    $error = "Errore nel caricamento delle categorie: " . $e->getMessage();
+    // Fallback a categorie predefinite in caso di errore
+    $niches = [
+        'Fashion',
+        'Lifestyle',
+        'Beauty & Makeup', 
+        'Food',
+        'Travel',
+        'Gaming',
+        'Fitness & Wellness',
+        'Entertainment',
+        'Tech',
+        'Finance & Business',
+        'Pet',
+        'Education'
+    ];
+}
 
 // RECUPERO PIATTAFORME DINAMICHE DAL DATABASE
 $platforms = [];
@@ -135,7 +175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if (empty($niche)) {
-            throw new Exception("Seleziona un niche");
+            throw new Exception("Seleziona una categoria");
         }
 
         if (empty($platforms_selected)) {
@@ -252,10 +292,16 @@ require_once $header_file;
                                 <label for="niche" class="form-label">Categoria *</label>
                                 <select class="form-select" id="niche" name="niche" required>
                                     <option value="">Seleziona una categoria</option>
-                                    <?php foreach ($niches as $niche): ?>
-                                        <option value="<?php echo htmlspecialchars($niche); ?>" 
-                                                <?php echo (($_POST['niche'] ?? '') === $niche) ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($niche); ?>
+                                    <?php foreach ($niches as $id => $name): ?>
+                                        <?php 
+                                        // Gestione compatibilità: se $niches è array associativo (nuovo) usa $id, 
+                                        // se è array indicizzato (vecchio) usa $name come valore
+                                        $value = is_string($id) ? $id : $name;
+                                        $display_name = $name;
+                                        ?>
+                                        <option value="<?php echo htmlspecialchars($value); ?>" 
+                                                <?php echo (($_POST['niche'] ?? '') === $value) ? 'selected' : ''; ?>>
+                                            <?php echo htmlspecialchars($display_name); ?>
                                         </option>
                                     <?php endforeach; ?>
                                 </select>

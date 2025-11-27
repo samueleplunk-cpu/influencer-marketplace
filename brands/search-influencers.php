@@ -29,9 +29,10 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'brand') {
 }
 
 // =============================================
-// INCLUSIONE FUNZIONI SOCIAL NETWORK
+// INCLUSIONE FUNZIONI SOCIAL NETWORK E CATEGORIE
 // =============================================
 require_once dirname(__DIR__) . '/includes/social_network_functions.php';
+require_once dirname(__DIR__) . '/includes/category_functions.php';
 
 // =============================================
 // INCLUSIONE HEADER CON PERCORSO ASSOLUTO
@@ -52,6 +53,11 @@ $brand_data = $stmt_brand->fetch(PDO::FETCH_ASSOC);
 if ($brand_data) {
     $brand_id = $brand_data['id'];
 }
+
+// =============================================
+// RECUPERO CATEGORIE ATTIVE PER FILTRO
+// =============================================
+$active_categories = get_active_categories($pdo);
 
 // =============================================
 // PARAMETRI DI RICERCA E FILTRI
@@ -82,32 +88,18 @@ if (!empty($search_query)) {
     $params[] = $search_param;
 }
 
-// Filtro per categorie - CON MAPPA CATEGORIE
+// Filtro per categorie - DINAMICO DAL DATABASE
 if (!empty($niche_filter)) {
-    // Mappa le nuove categorie alle vecchie nel database
-    $category_mapping = [
-        'Fashion' => 'fashion',
-        'Lifestyle' => 'lifestyle',
-        'Beauty & Makeup' => 'beauty',
-        'Food' => 'food',
-        'Travel' => 'travel',
-        'Gaming' => 'gaming',
-        'Fitness & Wellness' => 'fitness',
-        'Entertainment' => 'entertainment',
-        'Tech' => 'tech',
-        'Finance & Business' => 'finance',
-        'Pet' => 'pet',
-        'Education' => 'education'
-    ];
+    // Crea una mappatura nome categoria -> slug per compatibilità
+    $category_mapping = [];
+    foreach ($active_categories as $category) {
+        $category_mapping[$category['name']] = $category['slug'];
+    }
     
-    // Se la categoria selezionata esiste nella mappatura, usa il valore del database
+    // Se la categoria selezionata esiste, usa lo slug corrispondente
     if (isset($category_mapping[$niche_filter])) {
         $where_conditions[] = "niche = ?";
         $params[] = $category_mapping[$niche_filter];
-    } else {
-        // Altrimenti usa il valore originale (per categorie che non hanno bisogno di mappatura)
-        $where_conditions[] = "niche = ?";
-        $params[] = $niche_filter;
     }
 }
 
@@ -165,12 +157,6 @@ $results_sql = "SELECT * FROM influencers $where_sql ORDER BY RAND() LIMIT $limi
 $stmt = $pdo->prepare($results_sql);
 $stmt->execute($params);
 $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// =============================================
-// RECUPERO NICHE UNICHE PER FILTRO
-// =============================================
-$niches_stmt = $pdo->query("SELECT DISTINCT niche FROM influencers WHERE niche IS NOT NULL AND niche != '' ORDER BY niche");
-$available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
 ?>
 
 <div class="row">
@@ -202,18 +188,12 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
                         <label for="niche" class="form-label">Categoria</label>
                         <select class="form-select" id="niche" name="niche">
                             <option value="">Tutte le categorie</option>
-                            <option value="Fashion" <?php echo $niche_filter === 'Fashion' ? 'selected' : ''; ?>>Fashion</option>
-                            <option value="Lifestyle" <?php echo $niche_filter === 'Lifestyle' ? 'selected' : ''; ?>>Lifestyle</option>
-                            <option value="Beauty & Makeup" <?php echo $niche_filter === 'Beauty & Makeup' ? 'selected' : ''; ?>>Beauty & Makeup</option>
-                            <option value="Food" <?php echo $niche_filter === 'Food' ? 'selected' : ''; ?>>Food</option>
-                            <option value="Travel" <?php echo $niche_filter === 'Travel' ? 'selected' : ''; ?>>Travel</option>
-                            <option value="Gaming" <?php echo $niche_filter === 'Gaming' ? 'selected' : ''; ?>>Gaming</option>
-                            <option value="Fitness & Wellness" <?php echo $niche_filter === 'Fitness & Wellness' ? 'selected' : ''; ?>>Fitness & Wellness</option>
-                            <option value="Entertainment" <?php echo $niche_filter === 'Entertainment' ? 'selected' : ''; ?>>Entertainment</option>
-                            <option value="Tech" <?php echo $niche_filter === 'Tech' ? 'selected' : ''; ?>>Tech</option>
-                            <option value="Finance & Business" <?php echo $niche_filter === 'Finance & Business' ? 'selected' : ''; ?>>Finance & Business</option>
-                            <option value="Pet" <?php echo $niche_filter === 'Pet' ? 'selected' : ''; ?>>Pet</option>
-                            <option value="Education" <?php echo $niche_filter === 'Education' ? 'selected' : ''; ?>>Education</option>
+                            <?php foreach ($active_categories as $category): ?>
+                                <option value="<?php echo htmlspecialchars($category['name']); ?>" 
+                                    <?php echo $niche_filter === $category['name'] ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($category['name']); ?>
+                                </option>
+                            <?php endforeach; ?>
                         </select>
                     </div>
 
@@ -323,24 +303,14 @@ $available_niches = $niches_stmt->fetchAll(PDO::FETCH_COLUMN);
                                         <h5 class="card-title"><?php echo htmlspecialchars($influencer['full_name']); ?></h5>
                                         <?php if (!empty($influencer['niche'])): ?>
                                             <?php
-                                            // Mappa le vecchie categorie ai nuovi nomi per il display
-                                            $display_categories = [
-                                                'fashion' => 'Fashion',
-                                                'lifestyle' => 'Lifestyle',
-                                                'beauty' => 'Beauty & Makeup',
-                                                'food' => 'Food',
-                                                'travel' => 'Travel',
-                                                'gaming' => 'Gaming',
-                                                'fitness' => 'Fitness & Wellness',
-                                                'entertainment' => 'Entertainment',
-                                                'tech' => 'Tech',
-                                                'finance' => 'Finance & Business',
-                                                'pet' => 'Pet',
-                                                'education' => 'Education'
-                                            ];
+                                            // Crea una mappatura slug -> nome per il display
+                                            $slug_to_name_mapping = [];
+                                            foreach ($active_categories as $category) {
+                                                $slug_to_name_mapping[$category['slug']] = $category['name'];
+                                            }
                                             
                                             $original_niche = $influencer['niche'];
-                                            $display_niche = $display_categories[$original_niche] ?? $original_niche;
+                                            $display_niche = $slug_to_name_mapping[$original_niche] ?? $original_niche;
                                             ?>
                                             <span class="badge bg-info mb-2"><?php echo htmlspecialchars($display_niche); ?></span>
                                         <?php endif; ?>

@@ -39,22 +39,6 @@ $search_name = $_GET['search_name'] ?? '';
 $filter_category = $_GET['filter_category'] ?? '';
 $filter_status = $_GET['filter_status'] ?? '';
 
-// NUOVO SET UNIFICATO DI CATEGORIE
-$unified_categories = [
-    'Fashion',
-    'Lifestyle', 
-    'Beauty & Makeup',
-    'Food',
-    'Travel',
-    'Gaming',
-    'Fitness & Wellness',
-    'Entertainment',
-    'Tech',
-    'Finance & Business',
-    'Pet',
-    'Education'
-];
-
 try {
     // Recupera brand
     $stmt = $pdo->prepare("SELECT * FROM brands WHERE user_id = ?");
@@ -106,8 +90,45 @@ try {
     $stmt->execute($params);
     $campaigns = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // MODIFICA: Utilizza il nuovo set unificato di categorie invece di recuperarle dal database
-    $categories = $unified_categories;
+    // MODIFICA CENTRALIZZATA: Recupera le categorie dalla tabella categories gestita dall'admin
+    $categories = [];
+    try {
+        // Verifica se la tabella categories esiste
+        $stmt = $pdo->prepare("SHOW TABLES LIKE 'categories'");
+        $stmt->execute();
+        
+        if ($stmt->rowCount() > 0) {
+            // Recupera categorie attive dalla tabella centralizzata
+            $stmt = $pdo->prepare("
+                SELECT name 
+                FROM categories 
+                WHERE is_active = TRUE 
+                ORDER BY display_order ASC, name ASC
+            ");
+            $stmt->execute();
+            $category_results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Estrai solo i nomi delle categorie
+            foreach ($category_results as $category) {
+                $categories[] = $category['name'];
+            }
+        } else {
+            // Fallback: usa le categorie hardcoded se la tabella non esiste
+            $categories = [
+                'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel',
+                'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech',
+                'Finance & Business', 'Pet', 'Education'
+            ];
+        }
+    } catch (PDOException $e) {
+        error_log("Errore nel recupero delle categorie: " . $e->getMessage());
+        // Fallback alle categorie hardcoded in caso di errore
+        $categories = [
+            'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel',
+            'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech',
+            'Finance & Business', 'Pet', 'Education'
+        ];
+    }
     
 } catch (PDOException $e) {
     $error = "Errore nel caricamento delle campagne: " . $e->getMessage();

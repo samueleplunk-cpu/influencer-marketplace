@@ -1,5 +1,4 @@
 <?php
-// CORREGGI L'ORDINE DI INCLUDERE I FILE
 
 // PRIMA config.php (che gestisce sessioni e database)
 require_once '../includes/config.php';
@@ -182,18 +181,36 @@ include '../includes/header.php';
     <label for="influencer_type" class="form-label">Tipologia di Influencer *</label>
     <select class="form-select" id="influencer_type" name="influencer_type" required>
         <option value="">Seleziona la tua tipologia</option>
-        <option value="fashion" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'fashion') ? 'selected' : ''; ?>>Fashion</option>
-        <option value="lifestyle" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'lifestyle') ? 'selected' : ''; ?>>Lifestyle</option>
-        <option value="beauty" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'beauty') ? 'selected' : ''; ?>>Beauty & Makeup</option>
-        <option value="food" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'food') ? 'selected' : ''; ?>>Food</option>
-        <option value="travel" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'travel') ? 'selected' : ''; ?>>Travel</option>
-        <option value="gaming" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'gaming') ? 'selected' : ''; ?>>Gaming</option>
-        <option value="fitness" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'fitness') ? 'selected' : ''; ?>>Fitness & Wellness</option>
-        <option value="entertainment" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'entertainment') ? 'selected' : ''; ?>>Entertainment</option>
-        <option value="tech" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'tech') ? 'selected' : ''; ?>>Tech</option>
-        <option value="finance" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'finance') ? 'selected' : ''; ?>>Finance & Business</option>
-        <option value="pet" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'pet') ? 'selected' : ''; ?>>Pet</option>
-        <option value="education" <?php echo (isset($_POST['influencer_type']) && $_POST['influencer_type'] === 'education') ? 'selected' : ''; ?>>Education</option>
+        <?php
+        // Recupera le categorie attive dal database
+        try {
+            $categories_stmt = $pdo->prepare("
+                SELECT id, name 
+                FROM categories 
+                WHERE is_active = TRUE 
+                ORDER BY display_order ASC, name ASC
+            ");
+            $categories_stmt->execute();
+            $categories = $categories_stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($categories as $category) {
+                $selected = (isset($_POST['influencer_type']) && $_POST['influencer_type'] === $category['name']) ? 'selected' : '';
+                echo '<option value="' . htmlspecialchars($category['name']) . '" ' . $selected . '>' . htmlspecialchars($category['name']) . '</option>';
+            }
+        } catch (PDOException $e) {
+            // Fallback a categorie predefinite in caso di errore
+            $fallback_categories = [
+                'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel', 
+                'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech', 
+                'Finance & Business', 'Pet', 'Education'
+            ];
+            
+            foreach ($fallback_categories as $cat) {
+                $selected = (isset($_POST['influencer_type']) && $_POST['influencer_type'] === $cat) ? 'selected' : '';
+                echo '<option value="' . htmlspecialchars($cat) . '" ' . $selected . '>' . htmlspecialchars($cat) . '</option>';
+            }
+        }
+        ?>
     </select>
 </div>
 <?php endif; ?>
@@ -204,18 +221,36 @@ include '../includes/header.php';
     <label for="industry" class="form-label">Settore *</label>
     <select class="form-select" id="industry" name="industry" required>
         <option value="">Seleziona il settore</option>
-        <option value="fashion" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'fashion') ? 'selected' : ''; ?>>Fashion</option>
-        <option value="lifestyle" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'lifestyle') ? 'selected' : ''; ?>>Lifestyle</option>
-        <option value="beauty" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'beauty') ? 'selected' : ''; ?>>Beauty & Makeup</option>
-        <option value="food" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'food') ? 'selected' : ''; ?>>Food</option>
-        <option value="travel" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'travel') ? 'selected' : ''; ?>>Travel</option>
-        <option value="gaming" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'gaming') ? 'selected' : ''; ?>>Gaming</option>
-        <option value="fitness" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'fitness') ? 'selected' : ''; ?>>Fitness & Wellness</option>
-        <option value="entertainment" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'entertainment') ? 'selected' : ''; ?>>Entertainment</option>
-        <option value="tech" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'tech') ? 'selected' : ''; ?>>Tech</option>
-        <option value="finance" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'finance') ? 'selected' : ''; ?>>Finance & Business</option>
-        <option value="pet" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'pet') ? 'selected' : ''; ?>>Pet</option>
-        <option value="education" <?php echo (isset($_POST['industry']) && $_POST['industry'] === 'education') ? 'selected' : ''; ?>>Education</option>
+        <?php
+        // Recupera le categorie attive dal database
+        try {
+            $categories_stmt = $pdo->prepare("
+                SELECT id, name 
+                FROM categories 
+                WHERE is_active = TRUE 
+                ORDER BY display_order ASC, name ASC
+            ");
+            $categories_stmt->execute();
+            $categories = $categories_stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($categories as $category) {
+                $selected = (isset($_POST['industry']) && $_POST['industry'] === $category['name']) ? 'selected' : '';
+                echo '<option value="' . htmlspecialchars($category['name']) . '" ' . $selected . '>' . htmlspecialchars($category['name']) . '</option>';
+            }
+        } catch (PDOException $e) {
+            // Fallback a categorie predefinite in caso di errore
+            $fallback_categories = [
+                'Fashion', 'Lifestyle', 'Beauty & Makeup', 'Food', 'Travel', 
+                'Gaming', 'Fitness & Wellness', 'Entertainment', 'Tech', 
+                'Finance & Business', 'Pet', 'Education'
+            ];
+            
+            foreach ($fallback_categories as $cat) {
+                $selected = (isset($_POST['industry']) && $_POST['industry'] === $cat) ? 'selected' : '';
+                echo '<option value="' . htmlspecialchars($cat) . '" ' . $selected . '>' . htmlspecialchars($cat) . '</option>';
+            }
+        }
+        ?>
     </select>
 </div>
 <?php endif; ?>
