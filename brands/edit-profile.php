@@ -108,14 +108,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             // Validazione file
             $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-            $max_size = 5 * 1024 * 1024; // 5MB
+            $max_size = 2 * 1024 * 1024; // MODIFICATO: 2MB invece di 5MB
             
             if (!in_array($logo_file['type'], $allowed_types)) {
                 throw new Exception("Formato file non supportato. Usa JPG, PNG o GIF.");
             }
             
             if ($logo_file['size'] > $max_size) {
-                throw new Exception("Il file è troppo grande. Dimensione massima: 5MB.");
+                throw new Exception("Il file è troppo grande. Dimensione massima: 2MB."); // MODIFICATO: messaggio aggiornato
             }
             
             // Crea directory se non esiste
@@ -252,14 +252,6 @@ require_once $header_file;
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
-                                <div class="form-text">
-                                    Le categorie sono gestite dinamicamente dal sistema. 
-                                    <?php if (count($industries) === 0): ?>
-                                        <span class="text-warning">Nessuna categoria disponibile. Contatta l'amministratore.</span>
-                                    <?php else: ?>
-                                        <span class="text-success"><?php echo count($industries); ?> categorie disponibili</span>
-                                    <?php endif; ?>
-                                </div>
                             </div>
 
                             <div class="mb-3">
@@ -329,7 +321,7 @@ require_once $header_file;
                                 </div>
                                 
                                 <div class="form-text">
-                                    Formati supportati: JPG, PNG, GIF. Dimensione massima: 5MB.
+                                    Formati supportati: JPG, PNG, GIF. Dimensione massima: 2MB. <!-- MODIFICATO: 2MB invece di 5MB -->
                                 </div>
                             </div>
                         </div>
@@ -498,7 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const file = e.target.files[0];
             if (file) {
                 // Validazione client-side del file
-                const maxSize = 5 * 1024 * 1024; // 5MB
+                const maxSize = 2 * 1024 * 1024; // MODIFICATO: 2MB invece di 5MB
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
                 
                 if (!allowedTypes.includes(file.type)) {
@@ -508,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 if (file.size > maxSize) {
-                    alert('Il file è troppo grande. Dimensione massima: 5MB.');
+                    alert('Il file è troppo grande. Dimensione massima: 2MB.'); // MODIFICATO: messaggio aggiornato
                     resetLogoInput();
                     return;
                 }
@@ -593,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Validazione file se selezionato
         if (logoInput && logoInput.files.length > 0) {
             const file = logoInput.files[0];
-            const maxSize = 5 * 1024 * 1024; // 5MB
+            const maxSize = 2 * 1024 * 1024; // MODIFICATO: 2MB invece di 5MB
             const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
             
             if (!allowedTypes.includes(file.type)) {
@@ -604,7 +596,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (file.size > maxSize) {
                 e.preventDefault();
-                alert('Il file è troppo grande. Dimensione massima: 5MB.');
+                alert('Il file è troppo grande. Dimensione massima: 2MB.'); // MODIFICATO: messaggio aggiornato
                 return false;
             }
         }
