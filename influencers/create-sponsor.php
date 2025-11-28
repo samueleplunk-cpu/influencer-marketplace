@@ -53,22 +53,59 @@ try {
 }
 
 // =============================================
-// ELENCO CATEGORIE UNIFICATE E PIATTAFORME
+// ELENCO CATEGORIE DINAMICHE E PIATTAFORME
 // =============================================
-$categories = [
-    'fashion' => 'Fashion',
-    'lifestyle' => 'Lifestyle',
-    'beauty' => 'Beauty & Makeup',
-    'food' => 'Food',
-    'travel' => 'Travel',
-    'gaming' => 'Gaming',
-    'fitness' => 'Fitness & Wellness',
-    'entertainment' => 'Entertainment',
-    'tech' => 'Tech',
-    'finance' => 'Finance & Business',
-    'pet' => 'Pet',
-    'education' => 'Education'
-];
+
+// Carica le categorie dal database invece dell'array statico
+$categories = [];
+try {
+    // Includi le funzioni per le categorie
+    require_once dirname(__DIR__) . '/includes/category_functions.php';
+    
+    // Recupera le categorie attive dal database
+    $active_categories = get_active_categories($pdo);
+    
+    // Converti nel formato richiesto dal form (slug => name)
+    foreach ($active_categories as $category) {
+        $categories[$category['slug']] = $category['name'];
+    }
+    
+    // Se non ci sono categorie nel database, usa quelle di default come fallback
+    if (empty($categories)) {
+        $categories = [
+            'fashion' => 'Fashion',
+            'lifestyle' => 'Lifestyle',
+            'beauty' => 'Beauty & Makeup',
+            'food' => 'Food',
+            'travel' => 'Travel',
+            'gaming' => 'Gaming',
+            'fitness' => 'Fitness & Wellness',
+            'entertainment' => 'Entertainment',
+            'tech' => 'Tech',
+            'finance' => 'Finance & Business',
+            'pet' => 'Pet',
+            'education' => 'Education'
+        ];
+    }
+} catch (Exception $e) {
+    error_log("Errore nel caricamento delle categorie: " . $e->getMessage());
+    
+    // Fallback alle categorie statiche in caso di errore
+    $categories = [
+        'fashion' => 'Fashion',
+        'lifestyle' => 'Lifestyle',
+        'beauty' => 'Beauty & Makeup',
+        'food' => 'Food',
+        'travel' => 'Travel',
+        'gaming' => 'Gaming',
+        'fitness' => 'Fitness & Wellness',
+        'entertainment' => 'Entertainment',
+        'tech' => 'Tech',
+        'finance' => 'Finance & Business',
+        'pet' => 'Pet',
+        'education' => 'Education'
+    ];
+}
 
 // Piattaforme dinamiche dai social network
 $platforms = [];
@@ -109,8 +146,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("Il budget deve essere maggiore di 0");
         }
 
-        if (empty($category) || !array_key_exists($category, $categories)) {
+        if (empty($category)) {
             throw new Exception("Seleziona una categoria valida");
+        }
+
+        // Verifica che la categoria esista nel database (validazione più permissiva per compatibilità)
+        try {
+            $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM categories WHERE slug = ? AND is_active = TRUE");
+            $stmt->execute([$category]);
+            $category_exists = $stmt->fetch(PDO::FETCH_ASSOC)['count'] > 0;
+            
+            if (!$category_exists) {
+                throw new Exception("Categoria non valida o non più disponibile");
+            }
+        } catch (Exception $e) {
+            throw new Exception("Errore nella validazione della categoria: " . $e->getMessage());
         }
 
         if (empty($description)) {
