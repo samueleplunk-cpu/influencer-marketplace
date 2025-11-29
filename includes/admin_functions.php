@@ -695,6 +695,11 @@ function deleteCampaign($campaign_id) {
 function getCampaigns($page = 1, $per_page = 15, $filters = []) {
     global $pdo;
     
+    // PRIMA: Assicurati che le campagne scadute siano aggiornate quando si usa il filtro expired
+    if (isset($filters['status']) && $filters['status'] === 'expired') {
+        checkAndUpdateExpiredCampaigns();
+    }
+    
     $offset = ($page - 1) * $per_page;
     $where_conditions = ["c.deleted_at IS NULL"];
     $params = [];
@@ -722,13 +727,15 @@ function getCampaigns($page = 1, $per_page = 15, $filters = []) {
     
     if (!empty($filters['date_to'])) {
         $where_conditions[] = "c.end_date <= :date_to";
-        $params[':date_to'] = $filters['date_to'];
+        $params[':date_to'] = $filters['date_to'] . ' 23:59:59';
     }
+    
+    $where_sql = implode(" AND ", $where_conditions);
     
     // Query per il conteggio totale
     $count_sql = "SELECT COUNT(*) as total 
                   FROM campaigns c 
-                  WHERE " . implode(" AND ", $where_conditions);
+                  WHERE " . $where_sql;
     
     $stmt = $pdo->prepare($count_sql);
     $stmt->execute($params);
@@ -745,7 +752,7 @@ function getCampaigns($page = 1, $per_page = 15, $filters = []) {
                    (SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = c.id) as invited_count
             FROM campaigns c 
             LEFT JOIN users u ON c.brand_id = u.id
-            WHERE " . implode(" AND ", $where_conditions) . " 
+            WHERE " . $where_sql . " 
             ORDER BY c.created_at DESC LIMIT :limit OFFSET :offset";
     
     $params[':limit'] = $per_page;
@@ -865,18 +872,23 @@ function updateCampaignStatus($campaign_id, $status) {
 function getCampaignsCount($status = null) {
     global $pdo;
     
+    // PRIMA: Assicurati che le campagne scadute siano aggiornate
+    if ($status === 'expired') {
+        checkAndUpdateExpiredCampaigns();
+    }
+    
     $sql = "SELECT COUNT(*) FROM campaigns WHERE deleted_at IS NULL";
     
     if ($status) {
         $sql .= " AND status = ?";
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$status]);
+        return $stmt->fetchColumn();
     } else {
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
+        return $stmt->fetchColumn();
     }
-    
-    return $stmt->fetchColumn();
 }
 
 /**
@@ -890,9 +902,10 @@ function checkExpiredPausedCampaigns() {
             UPDATE campaigns 
             SET status = 'expired', 
                 updated_at = NOW() 
-            WHERE status = 'paused' 
+            WHERE status IN ('paused', 'active')
             AND deadline_date IS NOT NULL 
             AND deadline_date < CURDATE()
+            AND status != 'expired'
         ";
         
         $stmt = $pdo->prepare($query);
@@ -901,13 +914,62 @@ function checkExpiredPausedCampaigns() {
         $expired_count = $stmt->rowCount();
         
         if ($expired_count > 0) {
-            error_log("Auto-expired $expired_count paused campaigns");
+            error_log("Auto-expired $expired_count campaigns (paused/active with passed deadline)");
         }
         
         return $expired_count;
         
     } catch (PDOException $e) {
         error_log("Error checking expired campaigns: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Controlla e aggiorna IMMEDIATAMENTE le campagne scadute - VERSIONE DEFINITIVA
+ */
+function checkAndUpdateExpiredCampaigns() {
+    global $pdo;
+    
+    try {
+        $current_date = date('Y-m-d H:i:s');
+        
+        // FORZA l'aggiornamento di TUTTE le campagne con deadline passata
+        $query = "
+            UPDATE campaigns 
+            SET status = 'expired', 
+                updated_at = NOW() 
+            WHERE deleted_at IS NULL
+            AND deadline_date IS NOT NULL 
+            AND deadline_date < ?
+            AND status != 'expired'
+        ";
+        
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([$current_date]);
+        $expired_count = $stmt->rowCount();
+        
+        if ($expired_count > 0) {
+            error_log("SUCCESS: Updated $expired_count campaigns to 'expired' status");
+            
+            // Log delle campagne aggiornate per debug
+            $log_sql = "SELECT id, name, deadline_date 
+                       FROM campaigns 
+                       WHERE updated_at > DATE_SUB(NOW(), INTERVAL 5 SECOND) 
+                       AND status = 'expired'";
+            $log_stmt = $pdo->prepare($log_sql);
+            $log_stmt->execute();
+            $updated = $log_stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($updated as $campaign) {
+                error_log(" - Campaign {$campaign['id']}: {$campaign['name']} (deadline: {$campaign['deadline_date']})");
+            }
+        }
+        
+        return $expired_count;
+        
+    } catch (PDOException $e) {
+        error_log("ERROR in checkAndUpdateExpiredCampaigns: " . $e->getMessage());
         return 0;
     }
 }
@@ -1933,29 +1995,33 @@ function getSponsors($page = 1, $per_page = 25, $filters = []) {
     
     // Costruzione condizioni WHERE
     if (!empty($filters['search'])) {
-        $where_conditions[] = "s.title LIKE :search";
-        $params[':search'] = '%' . $filters['search'] . '%';
+        $where_conditions[] = "s.title LIKE ?";
+        $params[] = '%' . $filters['search'] . '%';
     }
     
     if (!empty($filters['status'])) {
-        $where_conditions[] = "s.status = :status";
-        $params[':status'] = $filters['status'];
+        $where_conditions[] = "s.status = ?";
+        $params[] = $filters['status'];
     }
     
-    if (!empty($filters['influencer_id'])) {
-        $where_conditions[] = "s.influencer_id = :influencer_id";
-        $params[':influencer_id'] = $filters['influencer_id'];
+    if (!empty($filters['influencer_search'])) {
+        $where_conditions[] = "(u.name LIKE ? OR u.email LIKE ?)";
+        $params[] = '%' . $filters['influencer_search'] . '%';
+        $params[] = '%' . $filters['influencer_search'] . '%';
     }
     
     if (!empty($filters['category'])) {
-        $where_conditions[] = "s.category = :category";
-        $params[':category'] = $filters['category'];
+        $where_conditions[] = "s.category = ?";
+        $params[] = $filters['category'];
     }
+    
+    $where_sql = implode(" AND ", $where_conditions);
     
     // Query per il conteggio totale
     $count_sql = "SELECT COUNT(*) as total 
                   FROM sponsors s 
-                  WHERE " . implode(" AND ", $where_conditions);
+                  LEFT JOIN users u ON s.influencer_id = u.id
+                  WHERE " . $where_sql;
     
     $stmt = $pdo->prepare($count_sql);
     $stmt->execute($params);
@@ -1963,25 +2029,17 @@ function getSponsors($page = 1, $per_page = 25, $filters = []) {
     
     // Query per i dati
     $sql = "SELECT s.*, u.email as influencer_email, u.name as influencer_name
-        FROM sponsors s 
-        LEFT JOIN users u ON s.influencer_id = u.id
-        WHERE " . implode(" AND ", $where_conditions) . " 
-        ORDER BY s.created_at DESC LIMIT :limit OFFSET :offset";
+            FROM sponsors s 
+            LEFT JOIN users u ON s.influencer_id = u.id
+            WHERE " . $where_sql . " 
+            ORDER BY s.created_at DESC LIMIT ? OFFSET ?";
     
-    $params[':limit'] = $per_page;
-    $params[':offset'] = $offset;
+    // Aggiungi i parametri di paginazione
+    $params[] = $per_page;
+    $params[] = $offset;
     
     $stmt = $pdo->prepare($sql);
-    
-    foreach ($params as $key => $value) {
-        if ($key === ':limit' || $key === ':offset') {
-            $stmt->bindValue($key, (int)$value, PDO::PARAM_INT);
-        } else {
-            $stmt->bindValue($key, $value);
-        }
-    }
-    
-    $stmt->execute();
+    $stmt->execute($params);
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $total_pages = ceil($total / $per_page);

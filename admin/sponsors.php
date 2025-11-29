@@ -73,11 +73,11 @@ if ($action === 'list') {
     $per_page = 25;
     
     $filters = [
-        'status' => isset($_GET['status']) ? $_GET['status'] : '',
-        'search' => isset($_GET['search']) ? $_GET['search'] : '',
-        'influencer_id' => isset($_GET['influencer_id']) ? $_GET['influencer_id'] : '',
-        'category' => isset($_GET['category']) ? $_GET['category'] : ''
-    ];
+    'status' => isset($_GET['status']) ? $_GET['status'] : '',
+    'search' => isset($_GET['search']) ? $_GET['search'] : '',
+    'influencer_search' => isset($_GET['influencer_search']) ? $_GET['influencer_search'] : '',
+    'category' => isset($_GET['category']) ? $_GET['category'] : ''
+];
     
     // Ottieni dati
     $result = getSponsors($page, $per_page, $filters);
@@ -103,98 +103,98 @@ if ($action === 'list') {
                 <?php echo $message; ?>
                 
                 <!-- Statistiche Rapide -->
-                <div class="row mb-4">
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-primary text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('active'); ?></div>
-                                        <div>Sponsor Attivi</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-play-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+<div class="row mb-4">
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-success text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('active'); ?></div>
+                        <div>Sponsor Attivi</div>
                     </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-warning text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('pending'); ?></div>
-                                        <div>In Attesa</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-clock fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-success text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('completed'); ?></div>
-                                        <div>Completati</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-check-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-danger text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('rejected'); ?></div>
-                                        <div>Rifiutati</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-times-circle fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-secondary text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('draft'); ?></div>
-                                        <div>Bozze</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-edit fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-xl-2 col-md-4">
-                        <div class="card bg-info text-white mb-4">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between">
-                                    <div>
-                                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount(); ?></div>
-                                        <div>Totale Sponsor</div>
-                                    </div>
-                                    <div class="align-self-center">
-                                        <i class="fas fa-handshake fa-2x"></i>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-play-circle fa-2x"></i>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-warning text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('pending'); ?></div>
+                        <div>In Attesa</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-clock fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-info text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('completed'); ?></div>
+                        <div>Completati</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-check-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-danger text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('rejected'); ?></div>
+                        <div>Rifiutati</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-times-circle fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-secondary text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount('draft'); ?></div>
+                        <div>Bozze</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-edit fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4">
+        <div class="card bg-primary text-white mb-4">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <div class="fs-4 fw-bold"><?php echo getSponsorsCount(); ?></div>
+                        <div>Totale Sponsor</div>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-handshake fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
                 
                 <!-- Filtri -->
                 <div class="card mb-4">
@@ -204,67 +204,61 @@ if ($action === 'list') {
                         </h5>
                     </div>
                     <div class="card-body">
-                        <form method="get" class="row g-3">
-                            <input type="hidden" name="action" value="list">
-                            
-                            <div class="col-md-3">
-                                <label for="search" class="form-label">Cerca</label>
-                                <input type="text" class="form-control" id="search" name="search" 
-                                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
-                                       placeholder="Titolo sponsor...">
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="status" class="form-label">Stato</label>
-                                <select class="form-select" id="status" name="status">
-                                    <option value="">Tutti</option>
-                                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
-                                    <option value="pending" <?php echo $filters['status'] === 'pending' ? 'selected' : ''; ?>>In attesa</option>
-                                    <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completati</option>
-                                    <option value="rejected" <?php echo $filters['status'] === 'rejected' ? 'selected' : ''; ?>>Rifiutati</option>
-                                    <option value="draft" <?php echo $filters['status'] === 'draft' ? 'selected' : ''; ?>>Bozza</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="influencer_id" class="form-label">Influencer</label>
-                                <select class="form-select" id="influencer_id" name="influencer_id">
-                                    <option value="">Tutti gli influencer</option>
-                                    <?php foreach ($influencers_list as $influencer): ?>
-                                        <option value="<?php echo $influencer['id']; ?>" 
-                                                <?php echo $filters['influencer_id'] == $influencer['id'] ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($influencer['name']); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="category" class="form-label">Categoria</label>
-                                <select class="form-select" id="category" name="category">
-                                    <option value="">Tutte</option>
-                                    <?php foreach ($categories_list as $category): ?>
-                                        <option value="<?php echo $category; ?>" 
-                                                <?php echo $filters['category'] === $category ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($category); ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-search"></i>
-                                </button>
-                            </div>
-                            
-                            <div class="col-md-2 d-flex align-items-end">
-                                <a href="?action=list" class="btn btn-outline-secondary w-100">
-                                    <i class="fas fa-refresh"></i> Reset
-                                </a>
-                            </div>
-                        </form>
-                    </div>
+    <form method="get" class="row g-3">
+        <input type="hidden" name="action" value="list">
+        
+        <div class="col-md-2">
+            <label for="search" class="form-label">Titolo sponsor</label>
+            <input type="text" class="form-control" id="search" name="search" 
+                   value="<?php echo htmlspecialchars($filters['search']); ?>" 
+                   placeholder="Cerca titolo...">
+        </div>
+        
+        <div class="col-md-2">
+            <label for="status" class="form-label">Stato</label>
+            <select class="form-select" id="status" name="status">
+                <option value="">Tutti</option>
+                <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
+                <option value="pending" <?php echo $filters['status'] === 'pending' ? 'selected' : ''; ?>>In attesa</option>
+                <option value="completed" <?php echo $filters['status'] === 'completed' ? 'selected' : ''; ?>>Completati</option>
+                <option value="rejected" <?php echo $filters['status'] === 'rejected' ? 'selected' : ''; ?>>Rifiutati</option>
+                <option value="draft" <?php echo $filters['status'] === 'draft' ? 'selected' : ''; ?>>Bozza</option>
+            </select>
+        </div>
+        
+        <div class="col-md-2">
+            <label for="influencer_search" class="form-label">Nome influencer</label>
+            <input type="text" class="form-control" id="influencer_search" name="influencer_search" 
+                   value="<?php echo htmlspecialchars($filters['influencer_search'] ?? ''); ?>" 
+                   placeholder="Cerca nome...">
+        </div>
+        
+        <div class="col-md-2">
+            <label for="category" class="form-label">Categoria</label>
+            <select class="form-select" id="category" name="category">
+                <option value="">Tutte</option>
+                <?php foreach ($categories_list as $category): ?>
+                    <option value="<?php echo $category; ?>" 
+                            <?php echo $filters['category'] === $category ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($category); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search me-1"></i> Cerca
+            </button>
+        </div>
+        
+        <div class="col-md-2 d-flex align-items-end">
+            <a href="?action=list" class="btn btn-outline-secondary w-100">
+                <i class="fas fa-refresh me-1"></i> Reset
+            </a>
+        </div>
+    </form>
+</div>
                 </div>
                 
                 <!-- Tabella Sponsor -->

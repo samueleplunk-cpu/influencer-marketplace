@@ -20,7 +20,10 @@ $action = isset($_GET['action']) ? $_GET['action'] : 'list';
 $id = isset($_GET['id']) ? intval($_GET['id']) : null;
 $message = '';
 
-// Esegui controllo scadenze campagne in pausa (solo occasionalmente per performance)
+// Controllo IMMEDIATO delle campagne scadute - SEMPRE eseguito
+checkAndUpdateExpiredCampaigns();
+
+// Controllo aggiuntivo casuale per campagne in pausa (solo occasionalmente per performance)
 if (mt_rand(1, 10) === 1) {
     checkExpiredPausedCampaigns();
 }
@@ -436,16 +439,21 @@ if ($action === 'list') {
                                     </thead>
                                     <tbody>
                                         <?php foreach ($campaigns as $campaign): 
-                                            $pause_requests = getCampaignPauseRequests($campaign['id']);
-                                            $pending_requests = array_filter($pause_requests, function($req) {
-                                                return $req['status'] === 'pending';
-                                            });
-                                            
-                                            // Controlla se la campagna è scaduta
-                                            $is_expired = $campaign['status'] === 'paused' && 
-                                                         $campaign['deadline_date'] && 
-                                                         strtotime($campaign['deadline_date']) < time();
-                                        ?>
+    $pause_requests = getCampaignPauseRequests($campaign['id']);
+    $pending_requests = array_filter($pause_requests, function($req) {
+        return $req['status'] === 'pending';
+    });
+
+    
+    // CORREZIONE MIGLIORATA: Logica più robusta per rilevare campagne scadute
+    $current_time = time();
+    $deadline_time = $campaign['deadline_date'] ? strtotime($campaign['deadline_date']) : null;
+    
+    $is_expired = ($campaign['status'] === 'expired') || 
+                 ($deadline_time && $deadline_time < $current_time && 
+                  in_array($campaign['status'], ['paused', 'active']));
+
+?>
                                             <tr>
                                                 <td>
                                                     <div class="d-flex align-items-center">
@@ -482,37 +490,38 @@ if ($action === 'list') {
                                                     <strong><?php echo number_format($campaign['budget'], 2); ?> <?php echo htmlspecialchars($campaign['currency']); ?></strong>
                                                 </td>
                                                 <td>
-                                                    <?php 
-                                                    $status_badge = '';
-                                                    switch ($campaign['status']) {
-                                                        case 'active':
-                                                            $status_badge = '<span class="badge bg-success"><i class="fas fa-play me-1"></i> Attiva</span>';
-                                                            break;
-                                                        case 'paused':
-                                                            if ($is_expired) {
-                                                                $status_badge = '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
-                                                            } else {
-                                                                $status_badge = '<span class="badge bg-warning"><i class="fas fa-pause me-1"></i> In pausa</span>';
-                                                            }
-                                                            if (count($pending_requests) > 0) {
-                                                                $status_badge .= ' <span class="badge bg-danger" title="Richieste integrazioni pendenti"><i class="fas fa-exclamation-circle"></i></span>';
-                                                            }
-                                                            break;
-                                                        case 'completed':
-                                                            $status_badge = '<span class="badge bg-info"><i class="fas fa-check me-1"></i> Completata</span>';
-                                                            break;
-                                                        case 'expired':
-                                                            $status_badge = '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
-                                                            break;
-                                                        case 'draft':
-                                                            $status_badge = '<span class="badge bg-secondary"><i class="fas fa-edit me-1"></i> Bozza</span>';
-                                                            break;
-                                                        default:
-                                                            $status_badge = '<span class="badge bg-light text-dark">' . htmlspecialchars($campaign['status']) . '</span>';
-                                                    }
-                                                    echo $status_badge;
-                                                    ?>
-                                                </td>
+    <?php 
+    // CALCOLO STATO: Priorità alla scadenza
+    if ($campaign['status'] === 'expired') {
+        // Caso 1: Status esplicitamente 'expired'
+        echo '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
+    } elseif ($campaign['deadline_date'] && strtotime($campaign['deadline_date']) < time()) {
+        // Caso 2: Deadline passata per campagne active/paused
+        echo '<span class="badge bg-danger"><i class="fas fa-clock me-1"></i> Scaduta</span>';
+    } else {
+        // Caso 3: Altri stati normali
+        switch ($campaign['status']) {
+            case 'active':
+                echo '<span class="badge bg-success"><i class="fas fa-play me-1"></i> Attiva</span>';
+                break;
+            case 'paused':
+                echo '<span class="badge bg-warning"><i class="fas fa-pause me-1"></i> In pausa</span>';
+                if (count($pending_requests) > 0) {
+                    echo ' <span class="badge bg-danger" title="Richieste integrazioni pendenti"><i class="fas fa-exclamation-circle"></i></span>';
+                }
+                break;
+            case 'completed':
+                echo '<span class="badge bg-info"><i class="fas fa-check me-1"></i> Completata</span>';
+                break;
+            case 'draft':
+                echo '<span class="badge bg-secondary"><i class="fas fa-edit me-1"></i> Bozza</span>';
+                break;
+            default:
+                echo '<span class="badge bg-light text-dark">' . htmlspecialchars($campaign['status']) . '</span>';
+        }
+    }
+    ?>
+</td>
                                                 <td>
                                                     <small>
                                                         <strong>Inizio:</strong> <?php echo date('d/m/Y', strtotime($campaign['start_date'])); ?><br>
@@ -558,34 +567,34 @@ if ($action === 'list') {
                                                         </a>
                                                         
                                                         <!-- Pausa/Riprendi/Riattiva -->
-                                                        <?php if ($campaign['status'] === 'active'): ?>
-                                                            <button type="button" class="btn btn-outline-warning" 
-                                                                    data-bs-toggle="modal" 
-                                                                    data-bs-target="#pauseModal<?php echo $campaign['id']; ?>"
-                                                                    title="Metti in pausa">
-                                                                <i class="fas fa-pause"></i>
-                                                            </button>
-                                                        <?php elseif ($campaign['status'] === 'paused' && !$is_expired): ?>
-                                                            <form method="post" class="d-inline">
-                                                                <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
-                                                                <input type="hidden" name="action_type" value="resume">
-                                                                <button type="submit" class="btn btn-outline-success" 
-                                                                        onclick="return confirm('Riprendi questa campagna?')"
-                                                                        title="Riprendi">
-                                                                    <i class="fas fa-play"></i>
-                                                                </button>
-                                                            </form>
-                                                        <?php elseif ($campaign['status'] === 'expired' || $is_expired): ?>
-                                                            <form method="post" class="d-inline">
-                                                                <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
-                                                                <input type="hidden" name="action_type" value="reactivate">
-                                                                <button type="submit" class="btn btn-outline-success" 
-                                                                        onclick="return confirm('Riattivare questa campagna scaduta?')"
-                                                                        title="Riattiva">
-                                                                    <i class="fas fa-redo"></i>
-                                                                </button>
-                                                            </form>
-                                                        <?php endif; ?>
+<?php if ($campaign['status'] === 'active'): ?>
+    <button type="button" class="btn btn-outline-warning" 
+            data-bs-toggle="modal" 
+            data-bs-target="#pauseModal<?php echo $campaign['id']; ?>"
+            title="Metti in pausa">
+        <i class="fas fa-pause"></i>
+    </button>
+<?php elseif ($campaign['status'] === 'paused' && !$is_expired): ?>
+    <form method="post" class="d-inline">
+        <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
+        <input type="hidden" name="action_type" value="resume">
+        <button type="submit" class="btn btn-outline-success" 
+                onclick="return confirm('Riprendi questa campagna?')"
+                title="Riprendi">
+            <i class="fas fa-play"></i>
+        </button>
+    </form>
+<?php elseif ($campaign['status'] === 'expired' || $is_expired): ?>
+    <form method="post" class="d-inline">
+        <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
+        <input type="hidden" name="action_type" value="reactivate">
+        <button type="submit" class="btn btn-outline-success" 
+                onclick="return confirm('Riattivare questa campagna scaduta?')"
+                title="Riattiva">
+            <i class="fas fa-redo"></i>
+        </button>
+    </form>
+<?php endif; ?>
                                                         
                                                         <!-- Completa -->
                                                         <?php if (in_array($campaign['status'], ['active', 'paused']) && !$is_expired): ?>
