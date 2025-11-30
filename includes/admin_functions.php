@@ -2020,7 +2020,8 @@ function getSponsors($page = 1, $per_page = 25, $filters = []) {
     // Query per il conteggio totale
     $count_sql = "SELECT COUNT(*) as total 
                   FROM sponsors s 
-                  LEFT JOIN users u ON s.influencer_id = u.id
+                  LEFT JOIN influencers i ON s.influencer_id = i.id
+                  LEFT JOIN users u ON i.user_id = u.id
                   WHERE " . $where_sql;
     
     $stmt = $pdo->prepare($count_sql);
@@ -2028,9 +2029,13 @@ function getSponsors($page = 1, $per_page = 25, $filters = []) {
     $total = $stmt->fetchColumn();
     
     // Query per i dati
-    $sql = "SELECT s.*, u.email as influencer_email, u.name as influencer_name
+    $sql = "SELECT 
+                s.*, 
+                u.email as influencer_email, 
+                COALESCE(NULLIF(u.name, ''), u.email, 'Influencer Sconosciuto') as influencer_name
             FROM sponsors s 
-            LEFT JOIN users u ON s.influencer_id = u.id
+            LEFT JOIN influencers i ON s.influencer_id = i.id
+            LEFT JOIN users u ON i.user_id = u.id
             WHERE " . $where_sql . " 
             ORDER BY s.created_at DESC LIMIT ? OFFSET ?";
     
@@ -2058,10 +2063,14 @@ function getSponsors($page = 1, $per_page = 25, $filters = []) {
 function getSponsorById($id) {
     global $pdo;
     
-    $sql = "SELECT s.*, u.email as influencer_email, u.name as influencer_name
-        FROM sponsors s 
-        LEFT JOIN users u ON s.influencer_id = u.id
-        WHERE s.id = ? AND s.deleted_at IS NULL";
+    $sql = "SELECT 
+                s.*, 
+                u.email as influencer_email, 
+                u.name as influencer_name
+            FROM sponsors s 
+            LEFT JOIN influencers i ON s.influencer_id = i.id
+            LEFT JOIN users u ON i.user_id = u.id
+            WHERE s.id = ? AND s.deleted_at IS NULL";
     
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
