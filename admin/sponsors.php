@@ -5,6 +5,7 @@ ob_start();
 require_once '../includes/config.php';
 require_once '../includes/admin_functions.php';
 require_once '../includes/admin_header.php';
+require_once '../includes/general_settings_functions.php';
 
 // Verifica login
 checkAdminLogin();
@@ -85,7 +86,9 @@ if ($action === 'list') {
     $total_pages = $result['total_pages'];
     $total_count = $result['total'];
     $influencers_list = getAllInfluencers();
-    $categories_list = getSponsorCategories();
+    
+    // MODIFICA: Recupera le categorie dalla stessa fonte usata in general-settings.php
+    $categories_list = get_active_categories_for_brands();
     ?>
     
     <div class="container-fluid">
@@ -238,9 +241,9 @@ if ($action === 'list') {
             <select class="form-select" id="category" name="category">
                 <option value="">Tutte</option>
                 <?php foreach ($categories_list as $category): ?>
-                    <option value="<?php echo $category; ?>" 
-                            <?php echo $filters['category'] === $category ? 'selected' : ''; ?>>
-                        <?php echo htmlspecialchars($category); ?>
+                    <option value="<?php echo $category['name']; ?>" 
+                            <?php echo $filters['category'] === $category['name'] ? 'selected' : ''; ?>>
+                        <?php echo htmlspecialchars($category['name']); ?>
                     </option>
                 <?php endforeach; ?>
             </select>
@@ -493,7 +496,9 @@ if ($action === 'list') {
     
     $influencers_list = getAllInfluencers();
     $platforms = ['instagram', 'facebook', 'tiktok', 'youtube', 'twitter', 'linkedin'];
-    $categories = getSponsorCategories();
+    
+    // MODIFICA: Recupera le categorie dalla stessa fonte usata in general-settings.php
+    $categories_list = get_active_categories_for_brands();
     ?>
     
     <div class="container-fluid">
@@ -564,10 +569,10 @@ if ($action === 'list') {
                                         <label for="category" class="form-label">Categoria</label>
                                         <select class="form-select" id="category" name="category">
                                             <option value="">Seleziona categoria</option>
-                                            <?php foreach ($categories as $category): ?>
-                                                <option value="<?php echo $category; ?>" 
-                                                        <?php echo ($sponsor['category'] ?? '') === $category ? 'selected' : ''; ?>>
-                                                    <?php echo $category; ?>
+                                            <?php foreach ($categories_list as $category): ?>
+                                                <option value="<?php echo $category['name']; ?>" 
+                                                        <?php echo ($sponsor['category'] ?? '') === $category['name'] ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($category['name']); ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>

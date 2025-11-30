@@ -2010,9 +2010,28 @@ function getSponsors($page = 1, $per_page = 25, $filters = []) {
         $params[] = '%' . $filters['influencer_search'] . '%';
     }
     
+    // Normalizzazione categorie per matching corretto
     if (!empty($filters['category'])) {
+        $category = trim($filters['category']);
+        
+        // Mappa di normalizzazione per categorie con nomi diversi
+        $category_mapping = [
+            'Fitness & Wellness' => 'fitness-wellness',
+            'Education' => 'education',
+            'Beauty & Makeup' => 'Beauty & Makeup', // Mantieni come è
+            'Fashion' => 'Fashion',
+            'Lifestyle' => 'Lifestyle', 
+            'Food' => 'Food',
+            'Travel' => 'Travel',
+            'Gaming' => 'Gaming',
+            // Aggiungi altre mappature se necessario
+        ];
+        
+        // Se la categoria è nella mappa, usa il valore normalizzato, altrimenti usa l'originale
+        $normalized_category = $category_mapping[$category] ?? $category;
+        
         $where_conditions[] = "s.category = ?";
-        $params[] = $filters['category'];
+        $params[] = $normalized_category;
     }
     
     $where_sql = implode(" AND ", $where_conditions);
@@ -2160,19 +2179,16 @@ function getAllInfluencers() {
 function getSponsorCategories() {
     return [
         'Fashion',
-        'Beauty',
         'Lifestyle',
-        'Travel',
+        'Beauty & Makeup',
         'Food',
-        'Fitness',
-        'Tech',
+        'Travel',
         'Gaming',
-        'Parenting',
-        'Business',
-        'Automotive',
-        'Home & Garden',
-        'Pets',
-        'Health',
+        'Fitness & Wellness',
+        'Entertainment',
+        'Tech',
+        'Finance & Business',
+        'Pet',
         'Education'
     ];
 }
