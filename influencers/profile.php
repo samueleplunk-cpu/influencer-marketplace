@@ -202,7 +202,7 @@ require_once $header_file;
 
                 <!-- Colonna Destra: Dettagli Completi -->
                 <div class="col-md-8">
-                    <!-- Tariffa e Info Principali -->
+                     <!-- Tariffa e Info Principali -->
                     <div class="card mb-4">
                         <div class="card-header bg-info text-white">
                             <h5 class="card-title mb-0">Informazioni Collaborazione</h5>
@@ -228,6 +228,69 @@ require_once $header_file;
                             </div>
                         </div>
                     </div>
+
+                    <!-- Sponsor Recenti -->
+                    <?php
+                    // Recupera gli sponsor recenti dell'influencer
+                    $recent_sponsors = [];
+                    if ($influencer) {
+                        try {
+                            $stmt = $pdo->prepare("
+                                SELECT id, title, image_url, budget, currency, created_at
+                                FROM sponsors 
+                                WHERE influencer_id = ? 
+                                AND status = 'active'
+                                AND deleted_at IS NULL
+                                ORDER BY created_at DESC 
+                                LIMIT 3
+                            ");
+                            $stmt->execute([$influencer['id']]);
+                            $recent_sponsors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                        } catch (PDOException $e) {
+                            // Silenzioso in caso di errore
+                        }
+                    }
+                    ?>
+
+                    <?php if (!empty($recent_sponsors)): ?>
+                        <div class="card mb-4">
+                            <div class="card-header bg-secondary text-white">
+                                <h5 class="card-title mb-0">Sponsor Recenti</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <?php foreach ($recent_sponsors as $sponsor): ?>
+                                        <div class="col-md-4 mb-3">
+                                            <div class="card h-100">
+                                                <div class="card-body text-center">
+                                                    <?php if (!empty($sponsor['image_url'])): ?>
+                                                        <img src="/infl/uploads/<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
+                                                             class="rounded mb-3" 
+                                                             alt="<?php echo htmlspecialchars($sponsor['title']); ?>"
+                                                             style="width: 100%; height: 120px; object-fit: cover;">
+                                                    <?php else: ?>
+                                                        <div class="bg-light rounded d-flex align-items-center justify-content-center mb-3" 
+                                                             style="width: 100%; height: 120px;">
+                                                            <span class="text-muted">Nessuna immagine</span>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                    
+                                                    <h6 class="card-title"><?php echo htmlspecialchars($sponsor['title']); ?></h6>
+                                                    <p class="card-text text-success fw-bold">
+                                                        €<?php echo number_format($sponsor['budget'], 2); ?>
+                                                    </p>
+                                                    <a href="/infl/influencers/sponsors/view.php?id=<?php echo $sponsor['id']; ?>" 
+                                                       class="btn btn-outline-primary btn-sm">
+                                                        Visualizza dettagli
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
 
                     <!-- Biografia -->
                     <?php if (!empty($influencer['bio'])): ?>
