@@ -321,16 +321,16 @@ if ($influencer) {
                         <div class="card h-100">
                             <div class="card-body text-center">
                                 <?php if (!empty($sponsor['image_url'])): ?>
-                                    <img src="/infl/uploads/<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
-                                         class="rounded mb-3" 
-                                         alt="<?php echo htmlspecialchars($sponsor['title']); ?>"
-                                         style="width: 100%; height: 120px; object-fit: cover;">
-                                <?php else: ?>
-                                    <img src="/infl/uploads/placeholder/sponsor_influencer_dashboard.png" 
-                                         class="rounded mb-3" 
-                                         alt="Placeholder sponsor"
-                                         style="width: 100%; height: 120px; object-fit: cover;">
-                                <?php endif; ?>
+    <img src="/infl/uploads/sponsor/<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
+         class="rounded mb-3" 
+         alt="<?php echo htmlspecialchars($sponsor['title']); ?>"
+         style="width: 100%; height: 120px; object-fit: cover;">
+<?php else: ?>
+    <img src="/infl/uploads/placeholder/sponsor_influencer_dashboard.png" 
+         class="rounded mb-3" 
+         alt="Placeholder sponsor"
+         style="width: 100%; height: 120px; object-fit: cover;">
+<?php endif; ?>
                                 
                                 <h6 class="card-title"><?php echo htmlspecialchars($sponsor['title']); ?></h6>
                                 <p class="card-text text-success fw-bold">

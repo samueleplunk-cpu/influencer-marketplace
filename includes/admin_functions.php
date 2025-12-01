@@ -167,6 +167,27 @@ function buildQueryString($filters) {
 }
 
 /**
+ * Genera una password casuale sicura
+ */
+function generateRandomPassword($length = 12) {
+    $chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+    $password = '';
+    
+    // Assicura almeno una lettera maiuscola, una minuscola e un numero
+    $password .= 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[random_int(0, 25)];
+    $password .= 'abcdefghijklmnopqrstuvwxyz'[random_int(0, 25)];
+    $password .= '0123456789'[random_int(0, 9)];
+    
+    // Riempi il resto
+    for ($i = 3; $i < $length; $i++) {
+        $password .= $chars[random_int(0, strlen($chars) - 1)];
+    }
+    
+    // Mescola i caratteri
+    return str_shuffle($password);
+}
+
+/**
  * Ottiene gli influencer con paginazione e filtri
  */
 function getInfluencers($page = 1, $per_page = 15, $filters = []) {
@@ -259,22 +280,61 @@ function getInfluencerById($id) {
 }
 
 /**
+ * Valida la complessità della password
+ */
+function validatePasswordStrength($password) {
+    if (strlen($password) < 6) {
+        return "La password deve avere almeno 6 caratteri";
+    }
+    
+    // Controlla se contiene almeno una lettera
+    if (!preg_match('/[a-zA-Z]/', $password)) {
+        return "La password deve contenere almeno una lettera";
+    }
+    
+    // Controlla se contiene almeno un numero
+    if (!preg_match('/[0-9]/', $password)) {
+        return "La password deve contenere almeno un numero";
+    }
+    
+    return true;
+}
+
+/**
  * Crea o aggiorna un influencer
  */
 function saveInfluencer($data, $id = null) {
     global $pdo;
     
     if ($id) {
-        // Update
-        $sql = "UPDATE users SET name = ?, email = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        return $stmt->execute([$data['name'], $data['email'], $data['is_active'], $id]);
+        // Update - con gestione password opzionale
+        if (!empty($data['password'])) {
+            $sql = "UPDATE users SET name = ?, email = ?, password = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
+            $password_hash = password_hash($data['password'], PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare($sql);
+            return $stmt->execute([$data['name'], $data['email'], $password_hash, $data['is_active'], $id]);
+        } else {
+            $sql = "UPDATE users SET name = ?, email = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            return $stmt->execute([$data['name'], $data['email'], $data['is_active'], $id]);
+        }
     } else {
-        // Insert
+        // Insert - password obbligatoria per nuovo influencer
         $sql = "INSERT INTO users (name, email, password, user_type, is_active, created_at) VALUES (?, ?, ?, 'influencer', ?, NOW())";
-        $password_hash = password_hash('password123', PASSWORD_DEFAULT); // Password temporanea
+        
+        // PRIMA VERSIONE SEMPLICE: usa password di default se non fornita
+        $password = !empty($data['password']) ? $data['password'] : 'password123';
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        
         $stmt = $pdo->prepare($sql);
-        return $stmt->execute([$data['name'], $data['email'], $password_hash, $data['is_active']]);
+        $result = $stmt->execute([$data['name'], $data['email'], $password_hash, $data['is_active']]);
+        
+        // Opzionale: log per debug
+        if ($result && empty($data['password'])) {
+            error_log("Nuovo influencer creato con password di default: 'password123'");
+        }
+        
+        return $result;
     }
 }
 

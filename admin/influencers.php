@@ -18,11 +18,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'is_active' => isset($_POST['is_active']) ? 1 : 0
         ];
         
+        // Gestione password per nuovo influencer (ADD)
+        if ($action === 'add') {
+            if (isset($_POST['generate_password']) && $_POST['generate_password'] == 'on') {
+                // Usa password generata
+                if (!empty($_POST['generated_password'])) {
+                    $data['password'] = $_POST['generated_password'];
+                } else {
+                    // Genera una nuova password casuale
+                    $data['password'] = generateRandomPassword();
+                }
+            } elseif (!empty($_POST['password'])) {
+                // Usa password inserita manualmente
+                $data['password'] = $_POST['password'];
+            } else {
+                $message = '<div class="alert alert-danger">È necessario specificare una password per il nuovo influencer</div>';
+            }
+        }
+        
+        // Gestione password per modifica influencer (EDIT)
+        if ($action === 'edit' && !empty($_POST['password'])) {
+            $data['password'] = $_POST['password'];
+        }
+        
+        // Validazione password se presente
+        if (!empty($data['password'])) {
+            $password_validation = validatePasswordStrength($data['password']);
+            if ($password_validation !== true) {
+                $message = '<div class="alert alert-danger">' . $password_validation . '</div>';
+            }
+        }
+        
         if (empty($data['name']) || empty($data['email'])) {
             $message = '<div class="alert alert-danger">Nome ed email sono obbligatori</div>';
         } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             $message = '<div class="alert alert-danger">Email non valida</div>';
-        } else {
+        } elseif (empty($message)) {
             $success = saveInfluencer($data, $id);
             if ($success) {
                 $message = '<div class="alert alert-success">Influencer salvato con successo!</div>';
@@ -391,6 +422,7 @@ elseif ($action === 'add' || $action === 'edit') {
                     <div class="card-body">
                         <form method="post">
                             <div class="row">
+                                <!-- Colonna sinistra: Dati base -->
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="name" class="form-label">Nome <span class="text-danger">*</span></label>
@@ -398,25 +430,137 @@ elseif ($action === 'add' || $action === 'edit') {
                                                value="<?php echo htmlspecialchars($influencer['name'] ?? ''); ?>" 
                                                required>
                                     </div>
-                                </div>
-                                
-                                <div class="col-md-6">
+                                    
                                     <div class="mb-3">
                                         <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
                                         <input type="email" class="form-control" id="email" name="email" 
                                                value="<?php echo htmlspecialchars($influencer['email'] ?? ''); ?>" 
                                                required>
                                     </div>
+                                    
+                                    <!-- Campo Password - Versione ADD -->
+                                    <?php if ($action === 'add'): ?>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">
+                                            Password <span class="text-danger">*</span>
+                                            <small class="text-muted">(obbligatoria per nuovo account)</small>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="password" name="password" 
+                                                   placeholder="Inserisci password per l'influencer"
+                                                   minlength="6" required>
+                                            <button type="button" class="btn btn-outline-secondary toggle-password" 
+                                                    data-target="password">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">
+                                            La password deve avere almeno 6 caratteri, contenere almeno una lettera e un numero
+                                        </div>
+                                        
+                                        <!-- Opzione per generare password casuale -->
+                                        <div class="form-check mt-2">
+                                            <input type="checkbox" class="form-check-input" id="generate_password" name="generate_password">
+                                            <label class="form-check-label" for="generate_password">
+                                                Genera password casuale automaticamente
+                                            </label>
+                                        </div>
+                                        
+                                        <!-- Campo per mostrare password generata -->
+                                        <div id="generated_password_container" class="mt-2" style="display: none;">
+                                            <div class="alert alert-info">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <strong>Password generata:</strong>
+                                                        <span id="generated_password_display" class="font-monospace"></span>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="copy_password">
+                                                        <i class="fas fa-copy"></i> Copia
+                                                    </button>
+                                                </div>
+                                                <small class="d-block mt-1">Salva questa password! Non sarà più visibile dopo la creazione.</small>
+                                            </div>
+                                            <input type="hidden" name="generated_password" id="generated_password">
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+                                    
+                                    <!-- Campo Password - Versione EDIT -->
+                                    <?php if ($action === 'edit'): ?>
+                                    <div class="mb-3">
+                                        <label for="password" class="form-label">
+                                            Password 
+                                            <small class="text-muted">(lascia vuoto per mantenere l'attuale)</small>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="password" name="password" 
+                                                   placeholder="Nuova password (opzionale)"
+                                                   minlength="6">
+                                            <button type="button" class="btn btn-outline-secondary toggle-password" 
+                                                    data-target="password">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </div>
+                                        <div class="form-text">
+                                            Inserisci una nuova password solo se vuoi cambiarla
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="mb-3 form-check">
+                                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active" 
+                                               <?php echo ($influencer['is_active'] ?? 1) ? 'checked' : ''; ?>>
+                                        <label class="form-check-label" for="is_active">Account attivo</label>
+                                    </div>
+                                </div>
+                                
+                                <!-- Colonna destra: Anteprima Immagine Profilo -->
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Immagine Profilo</label>
+                                        <div class="text-center">
+                                            <?php
+                                            $avatar_url = '../uploads/placeholder/user_placeholder.png';
+                                            if ($action === 'edit' && !empty($influencer['avatar'])) {
+                                                $avatar_url = htmlspecialchars($influencer['avatar']);
+                                            }
+                                            ?>
+                                            <img src="<?php echo $avatar_url; ?>" 
+                                                 class="img-thumbnail rounded-circle mb-3" 
+                                                 id="avatar-preview"
+                                                 style="width: 200px; height: 200px; object-fit: cover;"
+                                                 alt="Anteprima immagine profilo">
+                                            <div class="text-muted">
+                                                <small>
+                                                    <?php if ($action === 'edit' && !empty($influencer['avatar'])): ?>
+                                                        Immagine profilo corrente
+                                                    <?php else: ?>
+                                                        Immagine placeholder - l'influencer può cambiarla dal proprio profilo
+                                                    <?php endif; ?>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <?php if ($action === 'edit'): ?>
+                                    <div class="card bg-light">
+                                        <div class="card-body">
+                                            <h6 class="card-title">Informazioni Account</h6>
+                                            <ul class="list-unstyled small">
+                                                <li><strong>ID:</strong> <?php echo $influencer['id']; ?></li>
+                                                <li><strong>Registrato il:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['created_at'])); ?></li>
+                                                <li><strong>Ultimo aggiornamento:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['updated_at'])); ?></li>
+                                                <?php if ($influencer['last_login']): ?>
+                                                    <li><strong>Ultimo login:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['last_login'])); ?></li>
+                                                <?php endif; ?>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                             
-                            <div class="mb-3 form-check">
-                                <input type="checkbox" class="form-check-input" id="is_active" name="is_active" 
-                                       <?php echo ($influencer['is_active'] ?? 1) ? 'checked' : ''; ?>>
-                                <label class="form-check-label" for="is_active">Account attivo</label>
-                            </div>
-                            
-                            <div class="d-flex gap-2">
+                            <div class="d-flex gap-2 mt-4">
                                 <button type="submit" name="save_influencer" class="btn btn-primary">
                                     <i class="fas fa-save"></i> Salva
                                 </button>
@@ -429,17 +573,126 @@ elseif ($action === 'add' || $action === 'edit') {
         </div>
     </div>
     
+    <script>
+    // Funzione per mostrare/nascondere password
+    document.addEventListener('DOMContentLoaded', function() {
+        // Toggle password visibility
+        document.querySelectorAll('.toggle-password').forEach(button => {
+            button.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const passwordInput = document.getElementById(targetId);
+                const icon = this.querySelector('i');
+                
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
+        });
+        
+        // Generazione password casuale (solo per ADD)
+        const generatePasswordCheckbox = document.getElementById('generate_password');
+        const passwordInput = document.getElementById('password');
+        const generatedPasswordContainer = document.getElementById('generated_password_container');
+        const generatedPasswordDisplay = document.getElementById('generated_password_display');
+        const generatedPasswordInput = document.getElementById('generated_password');
+        const copyPasswordButton = document.getElementById('copy_password');
+        
+        if (generatePasswordCheckbox && passwordInput) {
+            generatePasswordCheckbox.addEventListener('change', function() {
+                if (this.checked) {
+                    // Disabilita input manuale
+                    passwordInput.disabled = true;
+                    passwordInput.required = false;
+                    passwordInput.placeholder = 'Password verrà generata automaticamente';
+                    
+                    // Genera password casuale
+                    const randomPassword = generateRandomPassword();
+                    generatedPasswordDisplay.textContent = randomPassword;
+                    generatedPasswordInput.value = randomPassword;
+                    generatedPasswordContainer.style.display = 'block';
+                } else {
+                    // Riabilita input manuale
+                    passwordInput.disabled = false;
+                    passwordInput.required = true;
+                    passwordInput.placeholder = 'Inserisci password per l\'influencer';
+                    passwordInput.focus();
+                    
+                    generatedPasswordContainer.style.display = 'none';
+                    generatedPasswordInput.value = '';
+                }
+            });
+        }
+        
+        // Funzione per copiare password
+        if (copyPasswordButton) {
+            copyPasswordButton.addEventListener('click', function() {
+                const password = generatedPasswordInput.value;
+                navigator.clipboard.writeText(password).then(() => {
+                    const originalIcon = this.querySelector('i');
+                    const originalText = this.innerHTML;
+                    
+                    this.innerHTML = '<i class="fas fa-check"></i> Copiata!';
+                    this.classList.remove('btn-outline-secondary');
+                    this.classList.add('btn-success');
+                    
+                    setTimeout(() => {
+                        this.innerHTML = originalText;
+                        this.classList.remove('btn-success');
+                        this.classList.add('btn-outline-secondary');
+                    }, 2000);
+                });
+            });
+        }
+        
+        // Validazione password per nuovo influencer
+        if (passwordInput) {
+            passwordInput.addEventListener('input', function() {
+                if (!generatePasswordCheckbox || !generatePasswordCheckbox.checked) {
+                    if (this.value.length > 0 && this.value.length < 6) {
+                        this.setCustomValidity('La password deve avere almeno 6 caratteri');
+                    } else {
+                        this.setCustomValidity('');
+                    }
+                }
+            });
+        }
+        
+        // Funzione per generare password casuale
+        function generateRandomPassword(length = 12) {
+            const charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*';
+            let password = '';
+            
+            // Assicura almeno una lettera maiuscola, una minuscola e un numero
+            password += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)];
+            password += 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)];
+            password += '0123456789'[Math.floor(Math.random() * 10)];
+            
+            // Riempi il resto
+            for (let i = 3; i < length; i++) {
+                password += charset[Math.floor(Math.random() * charset.length)];
+            }
+            
+            // Mescola i caratteri
+            return password.split('').sort(() => Math.random() - 0.5).join('');
+        }
+        
+        // Esponi la funzione globalmente se necessario
+        window.generateRandomPassword = generateRandomPassword;
+    });
+    
+    function confirmDeleteInfluencer() {
+        return confirm('⚠️ ELIMINAZIONE DEFINITIVA ⚠️\n\nSei sicuro di voler eliminare PERMANENTEMENTE questo influencer?\n\nQuesta azione cancellerà:\n• Tutti i dati dell\'influencer\n• Le immagini del profilo\n• Le relazioni con le campagne\n• Tutte le conversazioni\n\n❌ Questa operazione NON può essere annullata!');
+    }
+    </script>
+    
     <?php
 }
 
-// Script JavaScript per la conferma di eliminazione
-?>
-<script>
-function confirmDeleteInfluencer() {
-    return confirm('⚠️ ELIMINAZIONE DEFINITIVA ⚠️\n\nSei sicuro di voler eliminare PERMANENTEMENTE questo influencer?\n\nQuesta azione cancellerà:\n• Tutti i dati dell\'influencer\n• Le immagini del profilo\n• Le relazioni con le campagne\n• Tutte le conversazioni\n\n❌ Questa operazione NON può essere annullata!');
-}
-</script>
-
-<?php
 require_once '../includes/admin_footer.php';
 ?>
