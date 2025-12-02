@@ -194,62 +194,73 @@ function getInfluencers($page = 1, $per_page = 15, $filters = []) {
     global $pdo;
     
     $offset = ($page - 1) * $per_page;
-    $where_conditions = ["user_type = 'influencer'"];
+    $where_conditions = ["u.user_type = 'influencer'"];
     $params = [];
     
     // Filtro per stato
     if (!empty($filters['status'])) {
         switch($filters['status']) {
             case 'active':
-                $where_conditions[] = "is_active = 1 AND deleted_at IS NULL AND is_blocked = 0 AND (is_suspended = 0 OR suspension_end < NOW())";
+                $where_conditions[] = "u.is_active = 1 AND u.deleted_at IS NULL AND u.is_blocked = 0 AND (u.is_suspended = 0 OR u.suspension_end < NOW())";
                 break;
             case 'suspended':
-                $where_conditions[] = "is_suspended = 1 AND deleted_at IS NULL AND suspension_end >= NOW()";
+                $where_conditions[] = "u.is_suspended = 1 AND u.deleted_at IS NULL AND u.suspension_end >= NOW()";
                 break;
             case 'blocked':
-                $where_conditions[] = "is_blocked = 1 AND deleted_at IS NULL";
+                $where_conditions[] = "u.is_blocked = 1 AND u.deleted_at IS NULL";
                 break;
             case 'deleted':
-                $where_conditions[] = "deleted_at IS NOT NULL";
+                $where_conditions[] = "u.deleted_at IS NOT NULL";
                 break;
             case 'inactive':
-                $where_conditions[] = "is_active = 0 AND deleted_at IS NULL";
+                $where_conditions[] = "u.is_active = 0 AND u.deleted_at IS NULL";
                 break;
         }
     } else {
         // Di default mostra solo utenti non eliminati
-        $where_conditions[] = "deleted_at IS NULL";
+        $where_conditions[] = "u.deleted_at IS NULL";
     }
     
     // Filtro per data
     if (!empty($filters['date_from'])) {
-        $where_conditions[] = "created_at >= ?";
+        $where_conditions[] = "u.created_at >= ?";
         $params[] = $filters['date_from'];
     }
     
     if (!empty($filters['date_to'])) {
-        $where_conditions[] = "created_at <= ?";
+        $where_conditions[] = "u.created_at <= ?";
         $params[] = $filters['date_to'] . ' 23:59:59';
     }
     
     // Ricerca per nome/email
     if (!empty($filters['search'])) {
-        $where_conditions[] = "(name LIKE ? OR email LIKE ?)";
+        // Cerca sia in users.name che in influencers.full_name
+        $where_conditions[] = "(u.name LIKE ? OR u.email LIKE ? OR i.full_name LIKE ?)";
         $search_term = "%{$filters['search']}%";
+        $params[] = $search_term;
         $params[] = $search_term;
         $params[] = $search_term;
     }
     
     $where_sql = implode(' AND ', $where_conditions);
     
-    // Query per il conteggio totale
-    $count_sql = "SELECT COUNT(*) as total FROM users WHERE $where_sql";
+    // Query per il conteggio totale - CORREZIONE: Aggiungi JOIN anche qui
+    $count_sql = "SELECT COUNT(*) as total 
+                  FROM users u 
+                  LEFT JOIN influencers i ON u.id = i.user_id
+                  WHERE $where_sql";
     $count_stmt = $pdo->prepare($count_sql);
     $count_stmt->execute($params);
     $total_count = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
     
-    // Query per i dati
-    $sql = "SELECT * FROM users WHERE $where_sql ORDER BY created_at DESC LIMIT ? OFFSET ?";
+    // Query per i dati con JOIN alla tabella influencers
+    $sql = "SELECT u.*, 
+                   COALESCE(NULLIF(i.full_name, ''), u.name) as display_name,
+                   i.profile_image as influencer_avatar
+            FROM users u 
+            LEFT JOIN influencers i ON u.id = i.user_id
+            WHERE $where_sql 
+            ORDER BY u.created_at DESC LIMIT ? OFFSET ?";
     $params[] = $per_page;
     $params[] = $offset;
     
@@ -272,7 +283,13 @@ function getInfluencers($page = 1, $per_page = 15, $filters = []) {
 function getInfluencerById($id) {
     global $pdo;
     
-    $sql = "SELECT * FROM users WHERE id = ? AND user_type = 'influencer'";
+    // MODIFICA: Aggiungi JOIN con influencers
+    $sql = "SELECT u.*, 
+                   COALESCE(NULLIF(i.full_name, ''), u.name) as display_name,
+                   i.profile_image as influencer_avatar
+            FROM users u 
+            LEFT JOIN influencers i ON u.id = i.user_id
+            WHERE u.id = ? AND u.user_type = 'influencer'";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
     

@@ -205,20 +205,11 @@ if ($action === 'list') {
                                             <tr>
                                                 <td><?php echo $influencer['id']; ?></td>
                                                 <td>
-                                                    <div class="d-flex align-items-center">
-                                                        <?php if (!empty($influencer['avatar'])): ?>
-                                                            <img src="<?php echo htmlspecialchars($influencer['avatar']); ?>" 
-                                                                 class="rounded-circle me-2" width="32" height="32" 
-                                                                 alt="<?php echo htmlspecialchars($influencer['name']); ?>">
-                                                        <?php else: ?>
-                                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-2" 
-                                                                 style="width: 32px; height: 32px;">
-                                                                <i class="fas fa-user text-white"></i>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                        <?php echo htmlspecialchars($influencer['name']); ?>
-                                                    </div>
-                                                </td>
+    <?php 
+    $display_name = $influencer['display_name'] ?? $influencer['name'];
+    echo htmlspecialchars($display_name); 
+    ?>
+</td>
                                                 <td><?php echo htmlspecialchars($influencer['email']); ?></td>
                                                 <td>
                                                     <?php 
@@ -355,9 +346,12 @@ if ($action === 'list') {
                             <div class="col-8"><?php echo $influencer['id']; ?></div>
                         </div>
                         <div class="row mb-2">
-                            <div class="col-4"><strong>Nome:</strong></div>
-                            <div class="col-8"><?php echo htmlspecialchars($influencer['name']); ?></div>
-                        </div>
+    <div class="col-4"><strong>Nome:</strong></div>
+    <div class="col-8"><?php 
+        $display_name = $influencer['display_name'] ?? $influencer['name'];
+        echo htmlspecialchars($display_name); 
+    ?></div>
+</div>
                         <div class="row">
                             <div class="col-4"><strong>Email:</strong></div>
                             <div class="col-8"><?php echo htmlspecialchars($influencer['email']); ?></div>
