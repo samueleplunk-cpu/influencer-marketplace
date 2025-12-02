@@ -118,9 +118,8 @@ if ($action === 'list') {
     
     $filters = [
         'status' => $_GET['status'] ?? '',
-        'search' => $_GET['search'] ?? '',
-        'date_from' => $_GET['date_from'] ?? '',
-        'date_to' => $_GET['date_to'] ?? ''
+        'search' => $_GET['search'] ?? ''
+        // Rimosso i filtri date_from e date_to
     ];
     
     $result = getInfluencers($page, $per_page, $filters);
@@ -150,14 +149,14 @@ if ($action === 'list') {
                         <form method="get" class="row g-3">
                             <input type="hidden" name="action" value="list">
                             
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label for="search" class="form-label">Cerca</label>
                                 <input type="text" class="form-control" id="search" name="search" 
                                        value="<?php echo htmlspecialchars($filters['search']); ?>" 
                                        placeholder="Nome o email...">
                             </div>
                             
-                            <div class="col-md-3">
+                            <div class="col-md-4">
                                 <label for="status" class="form-label">Stato</label>
                                 <select class="form-select" id="status" name="status">
                                     <option value="">Tutti</option>
@@ -169,20 +168,9 @@ if ($action === 'list') {
                                 </select>
                             </div>
                             
-                            <div class="col-md-2">
-                                <label for="date_from" class="form-label">Da data</label>
-                                <input type="date" class="form-control" id="date_from" name="date_from" 
-                                       value="<?php echo htmlspecialchars($filters['date_from']); ?>">
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="date_to" class="form-label">A data</label>
-                                <input type="date" class="form-control" id="date_to" name="date_to" 
-                                       value="<?php echo htmlspecialchars($filters['date_to']); ?>">
-                            </div>
-                            
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-outline-primary w-100">Applica</button>
+                            <div class="col-md-4 d-flex align-items-end gap-2">
+                                <button type="submit" class="btn btn-outline-primary w-50">Applica</button>
+                                <a href="?action=list" class="btn btn-outline-danger w-50">Reset</a>
                             </div>
                         </form>
                     </div>
@@ -251,7 +239,7 @@ if ($action === 'list') {
                                                 </td>
                                                 <td><?php echo date('d/m/Y H:i', strtotime($influencer['created_at'])); ?></td>
                                                 <td>
-                                                    <div class="btn-group btn-group-sm">
+                                                    <div class="d-flex gap-1">
                                                         <a href="?action=edit&id=<?php echo $influencer['id']; ?>" 
                                                            class="btn btn-outline-primary" title="Modifica">
                                                             <i class="fas fa-edit"></i>
@@ -302,15 +290,12 @@ if ($action === 'list') {
                                                                 </form>
                                                             <?php endif; ?>
                                                             
-                                                            <form method="post" class="d-inline">
-                                                                <input type="hidden" name="influencer_id" value="<?php echo $influencer['id']; ?>">
-                                                                <input type="hidden" name="action_type" value="delete">
-                                                                <button type="submit" class="btn btn-outline-dark" 
-                                                                        onclick="return confirmDeleteInfluencer()"
-                                                                        title="Elimina completamente">
-                                                                    <i class="fas fa-trash"></i>
-                                                                </button>
-                                                            </form>
+                                                            <!-- Pulsante Elimina completamente (APRE il modal) -->
+                                                            <button type="button" class="btn btn-outline-dark" 
+                                                                    data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $influencer['id']; ?>"
+                                                                    title="Elimina completamente">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
                                                         <?php endif; ?>
                                                     </div>
                                                     
@@ -346,6 +331,74 @@ if ($action === 'list') {
                                                         </div>
                                                     </div>
                                                     <?php endif; ?>
+                                                    
+                                                    <!-- Modal Eliminazione Definitiva -->
+<div class="modal fade" id="deleteModal<?php echo $influencer['id']; ?>" tabindex="-1" 
+     aria-labelledby="deleteModalLabel<?php echo $influencer['id']; ?>" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel<?php echo $influencer['id']; ?>">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Conferma Eliminazione Permanente
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <strong>Dati Influencer da Eliminare</strong>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-2">
+                            <div class="col-4"><strong>ID:</strong></div>
+                            <div class="col-8"><?php echo $influencer['id']; ?></div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-4"><strong>Nome:</strong></div>
+                            <div class="col-8"><?php echo htmlspecialchars($influencer['name']); ?></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-4"><strong>Email:</strong></div>
+                            <div class="col-8"><?php echo htmlspecialchars($influencer['email']); ?></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card border-danger mb-3">
+                    <div class="card-header bg-danger-subtle text-danger">
+                        <strong><i class="fas fa-times-circle me-1"></i> Verranno eliminati definitivamente:</strong>
+                    </div>
+                    <div class="card-body">
+                        <ul class="mb-0">
+                            <li>Tutti i dati dell'influencer</li>
+                            <li>Le immagini del profilo</li>
+                            <li>Le relazioni con le campagne</li>
+                            <li>Tutte le conversazioni</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    <strong>Questa operazione NON può essere annullata!</strong>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i> Annulla
+                </button>
+                <form method="post" class="d-inline">
+                    <input type="hidden" name="influencer_id" value="<?php echo $influencer['id']; ?>">
+                    <input type="hidden" name="action_type" value="delete">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-1"></i> Conferma Eliminazione
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
@@ -685,10 +738,6 @@ elseif ($action === 'add' || $action === 'edit') {
         // Esponi la funzione globalmente se necessario
         window.generateRandomPassword = generateRandomPassword;
     });
-    
-    function confirmDeleteInfluencer() {
-        return confirm('⚠️ ELIMINAZIONE DEFINITIVA ⚠️\n\nSei sicuro di voler eliminare PERMANENTEMENTE questo influencer?\n\nQuesta azione cancellerà:\n• Tutti i dati dell\'influencer\n• Le immagini del profilo\n• Le relazioni con le campagne\n• Tutte le conversazioni\n\n❌ Questa operazione NON può essere annullata!');
-    }
     </script>
     
     <?php
