@@ -49,21 +49,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         
-        if (empty($data['name']) || empty($data['email'])) {
-            $message = '<div class="alert alert-danger">Nome ed email sono obbligatori</div>';
-        } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $message = '<div class="alert alert-danger">Email non valida</div>';
-        } elseif (empty($message)) {
-            $success = saveInfluencer($data, $id);
-            if ($success) {
-                $message = '<div class="alert alert-success">Influencer salvato con successo!</div>';
-                if (!$id) {
-                    $action = 'list';
-                }
-            } else {
-                $message = '<div class="alert alert-danger">Errore nel salvataggio</div>';
-            }
+        if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+    $message = '<div class="alert alert-danger">Email non valida</div>';
+} elseif (empty($message)) {
+    $success = saveInfluencer($data, $id);
+    if ($success) {
+        $message = '<div class="alert alert-success">Influencer salvato con successo!</div>';
+        if (!$id) {
+            $action = 'list';
         }
+    } else {
+        $message = '<div class="alert alert-danger">Errore nel salvataggio</div>';
+    }
+}
     }
     
     // Gestione azioni rapide
@@ -472,18 +470,19 @@ elseif ($action === 'add' || $action === 'edit') {
                                 <!-- Colonna sinistra: Dati base -->
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="name" class="form-label">Nome <span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control" id="name" name="name" 
-                                               value="<?php echo htmlspecialchars($influencer['name'] ?? ''); ?>" 
-                                               required>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
-                                        <input type="email" class="form-control" id="email" name="email" 
-                                               value="<?php echo htmlspecialchars($influencer['email'] ?? ''); ?>" 
-                                               required>
-                                    </div>
+    <label for="name" class="form-label">Nome <span class="text-muted">(opzionale)</span></label>
+    <input type="text" class="form-control" id="name" name="name" 
+           value="<?php 
+           $display_value = !empty($influencer['display_name']) ? $influencer['display_name'] : ($influencer['name'] ?? '');
+           echo htmlspecialchars($display_value); 
+           ?>">
+</div>
+
+<div class="mb-3">
+    <label for="email" class="form-label">Email <span class="text-muted">(opzionale)</span></label>
+    <input type="email" class="form-control" id="email" name="email" 
+           value="<?php echo htmlspecialchars($influencer['email'] ?? ''); ?>">
+</div>
                                     
                                     <!-- Campo Password - Versione ADD -->
                                     <?php if ($action === 'add'): ?>
@@ -559,51 +558,89 @@ elseif ($action === 'add' || $action === 'edit') {
                                                <?php echo ($influencer['is_active'] ?? 1) ? 'checked' : ''; ?>>
                                         <label class="form-check-label" for="is_active">Account attivo</label>
                                     </div>
+                                    
+                                    <!-- SEZIONE "Informazioni Account"-->
+<?php if ($action === 'edit'): ?>
+<?php
+// Ottieni l'ID dalla tabella influencers (non user_id)
+global $pdo;
+$influencer_sql = "SELECT i.id FROM influencers i WHERE i.user_id = ?";
+$influencer_stmt = $pdo->prepare($influencer_sql);
+$influencer_stmt->execute([$id]);
+$influencer_row = $influencer_stmt->fetch(PDO::FETCH_ASSOC);
+$actual_influencer_id = $influencer_row ? $influencer_row['id'] : null;
+
+// Conta gli sponsor
+$total_sponsors = $actual_influencer_id ? countInfluencerTotalSponsors($actual_influencer_id) : 0;
+$active_sponsors = $actual_influencer_id ? countInfluencerActiveSponsors($actual_influencer_id) : 0;
+?>
+<div class="card bg-light mt-3">
+    <div class="card-body">
+        <h6 class="card-title">Informazioni Account</h6>
+        <ul class="list-unstyled small">
+            <li><strong>ID:</strong> <?php echo $influencer['id']; ?></li>
+            <li><strong>Registrato il:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['created_at'])); ?></li>
+            <li><strong>Ultimo aggiornamento:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['updated_at'])); ?></li>
+            <!-- NUOVE VOCI SPONSOR -->
+            <li><strong>Sponsor totali:</strong> <?php echo $total_sponsors; ?></li>
+            <li><strong>Sponsor attivi:</strong> <?php echo $active_sponsors; ?></li>
+            <?php if ($influencer['last_login']): ?>
+                <li><strong>Ultimo login:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['last_login'])); ?></li>
+            <?php endif; ?>
+        </ul>
+    </div>
+</div>
+<?php endif; ?>
                                 </div>
                                 
-                                <!-- Colonna destra: Anteprima Immagine Profilo -->
+                                <!-- Colonna destra: SOLO Anteprima Immagine Profilo (senza testo) -->
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">Immagine Profilo</label>
                                         <div class="text-center">
                                             <?php
-                                            $avatar_url = '../uploads/placeholder/user_placeholder.png';
-                                            if ($action === 'edit' && !empty($influencer['avatar'])) {
-                                                $avatar_url = htmlspecialchars($influencer['avatar']);
+                                            // Placeholder specifico per admin nella pagina edit
+                                            $placeholder_admin = '../uploads/placeholder/influencer_admin_edit.png';
+                                            
+                                            // Placeholder generico come fallback
+                                            $placeholder_generic = '../uploads/placeholder/user_placeholder.png';
+                                            
+                                            // Verifica quale placeholder esiste
+                                            $placeholder_path = dirname(__DIR__) . '/uploads/placeholder/influencer_admin_edit.png';
+                                            $placeholder_to_use = file_exists($placeholder_path) ? $placeholder_admin : $placeholder_generic;
+                                            
+                                            $avatar_url = $placeholder_to_use;
+                                            
+                                            if ($action === 'edit' && $influencer) {
+                                                // Priorità 1: immagine profilo caricata dall'influencer (tabella influencers)
+                                                if (!empty($influencer['influencer_avatar'])) {
+                                                    $avatar_path = '../uploads/' . htmlspecialchars($influencer['influencer_avatar']);
+                                                    // Verifica se il file esiste fisicamente
+                                                    $full_path = dirname(__DIR__) . '/uploads/' . $influencer['influencer_avatar'];
+                                                    if (file_exists($full_path)) {
+                                                        $avatar_url = $avatar_path;
+                                                    }
+                                                } 
+                                                // Priorità 2: avatar legacy dalla tabella users
+                                                elseif (!empty($influencer['avatar'])) {
+                                                    $avatar_path = '../uploads/' . htmlspecialchars($influencer['avatar']);
+                                                    // Verifica se il file esiste fisicamente
+                                                    $full_path = dirname(__DIR__) . '/uploads/' . $influencer['avatar'];
+                                                    if (file_exists($full_path)) {
+                                                        $avatar_url = $avatar_path;
+                                                    }
+                                                }
                                             }
                                             ?>
                                             <img src="<?php echo $avatar_url; ?>" 
                                                  class="img-thumbnail rounded-circle mb-3" 
                                                  id="avatar-preview"
                                                  style="width: 200px; height: 200px; object-fit: cover;"
-                                                 alt="Anteprima immagine profilo">
-                                            <div class="text-muted">
-                                                <small>
-                                                    <?php if ($action === 'edit' && !empty($influencer['avatar'])): ?>
-                                                        Immagine profilo corrente
-                                                    <?php else: ?>
-                                                        Immagine placeholder - l'influencer può cambiarla dal proprio profilo
-                                                    <?php endif; ?>
-                                                </small>
-                                            </div>
+                                                 alt="Anteprima immagine profilo"
+                                                 onerror="this.onerror=null; this.src='<?php echo $placeholder_to_use; ?>';">
+                                            <!-- L'immagine rimane visibile ma SENZA testo sotto -->
                                         </div>
                                     </div>
-                                    
-                                    <?php if ($action === 'edit'): ?>
-                                    <div class="card bg-light">
-                                        <div class="card-body">
-                                            <h6 class="card-title">Informazioni Account</h6>
-                                            <ul class="list-unstyled small">
-                                                <li><strong>ID:</strong> <?php echo $influencer['id']; ?></li>
-                                                <li><strong>Registrato il:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['created_at'])); ?></li>
-                                                <li><strong>Ultimo aggiornamento:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['updated_at'])); ?></li>
-                                                <?php if ($influencer['last_login']): ?>
-                                                    <li><strong>Ultimo login:</strong> <?php echo date('d/m/Y H:i', strtotime($influencer['last_login'])); ?></li>
-                                                <?php endif; ?>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                             

@@ -283,13 +283,14 @@ function getInfluencers($page = 1, $per_page = 15, $filters = []) {
 function getInfluencerById($id) {
     global $pdo;
     
-    // MODIFICA: Aggiungi JOIN con influencers
     $sql = "SELECT u.*, 
                    COALESCE(NULLIF(i.full_name, ''), u.name) as display_name,
+                   i.full_name as influencer_full_name,
                    i.profile_image as influencer_avatar
             FROM users u 
             LEFT JOIN influencers i ON u.id = i.user_id
             WHERE u.id = ? AND u.user_type = 'influencer'";
+    
     $stmt = $pdo->prepare($sql);
     $stmt->execute([$id]);
     
@@ -325,33 +326,106 @@ function saveInfluencer($data, $id = null) {
     
     if ($id) {
         // Update - con gestione password opzionale
+        
+        // PRIMA: Gestisci il nome - separa la logica per users e influencers
+        $name = !empty($data['name']) ? trim($data['name']) : null;
+        $email = !empty($data['email']) ? trim($data['email']) : null;
+        
         if (!empty($data['password'])) {
+            // Se c'è password, aggiorna tutto
             $sql = "UPDATE users SET name = ?, email = ?, password = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
             $password_hash = password_hash($data['password'], PASSWORD_DEFAULT);
             $stmt = $pdo->prepare($sql);
-            return $stmt->execute([$data['name'], $data['email'], $password_hash, $data['is_active'], $id]);
+            $result = $stmt->execute([$name, $email, $password_hash, $data['is_active'], $id]);
+            
+            if ($result) {
+                // Ora aggiorna la tabella influencers se necessario
+                updateInfluencerFullName($id, $name);
+            }
+            return $result;
         } else {
+            // Se non c'è password
             $sql = "UPDATE users SET name = ?, email = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
             $stmt = $pdo->prepare($sql);
-            return $stmt->execute([$data['name'], $data['email'], $data['is_active'], $id]);
+            $result = $stmt->execute([$name, $email, $data['is_active'], $id]);
+            
+            if ($result) {
+                // Aggiorna la tabella influencers se necessario
+                updateInfluencerFullName($id, $name);
+            }
+            return $result;
         }
     } else {
         // Insert - password obbligatoria per nuovo influencer
         $sql = "INSERT INTO users (name, email, password, user_type, is_active, created_at) VALUES (?, ?, ?, 'influencer', ?, NOW())";
         
-        // PRIMA VERSIONE SEMPLICE: usa password di default se non fornita
         $password = !empty($data['password']) ? $data['password'] : 'password123';
         $password_hash = password_hash($password, PASSWORD_DEFAULT);
         
+        $name = !empty($data['name']) ? trim($data['name']) : null;
+        $email = !empty($data['email']) ? trim($data['email']) : null;
+        
         $stmt = $pdo->prepare($sql);
-        $result = $stmt->execute([$data['name'], $data['email'], $password_hash, $data['is_active']]);
+        $result = $stmt->execute([$name, $email, $password_hash, $data['is_active']]);
         
         // Opzionale: log per debug
         if ($result && empty($data['password'])) {
             error_log("Nuovo influencer creato con password di default: 'password123'");
         }
         
+        // Crea record nella tabella influencers con il nome
+        if ($result) {
+            $user_id = $pdo->lastInsertId();
+            createInfluencerRecord($user_id, $name);
+        }
+        
         return $result;
+    }
+}
+
+/**
+ * Funzione helper per aggiornare full_name nella tabella influencers
+ */
+function updateInfluencerFullName($user_id, $name) {
+    global $pdo;
+    
+    try {
+        // Prima controlla se esiste già un record nella tabella influencers
+        $check_sql = "SELECT id FROM influencers WHERE user_id = ?";
+        $check_stmt = $pdo->prepare($check_sql);
+        $check_stmt->execute([$user_id]);
+        $exists = $check_stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($exists) {
+            // Aggiorna il record esistente
+            $update_sql = "UPDATE influencers SET full_name = ?, updated_at = NOW() WHERE user_id = ?";
+            $update_stmt = $pdo->prepare($update_sql);
+            return $update_stmt->execute([$name, $user_id]);
+        } else {
+            // Crea un nuovo record
+            $insert_sql = "INSERT INTO influencers (user_id, full_name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())";
+            $insert_stmt = $pdo->prepare($insert_sql);
+            return $insert_stmt->execute([$user_id, $name]);
+        }
+    } catch (Exception $e) {
+        error_log("Errore nell'aggiornamento di influencers.full_name: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Funzione helper per creare record nella tabella influencers per nuovi utenti
+ */
+function createInfluencerRecord($user_id, $full_name) {
+    global $pdo;
+    
+    try {
+        $sql = "INSERT INTO influencers (user_id, full_name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())";
+        $stmt = $pdo->prepare($sql);
+        return $stmt->execute([$user_id, $full_name]);
+    } catch (Exception $e) {
+        error_log("Errore nella creazione del record influencer: " . $e->getMessage());
+        return false;
     }
 }
 
@@ -2363,6 +2437,53 @@ function deleteSponsorImage($image_url) {
                 }
             }
         }
+    }
+}
+
+/**
+ * Conta gli sponsor totali di un influencer (attivi, bozze, eliminati)
+ */
+function countInfluencerTotalSponsors($influencer_id) {
+    global $pdo;
+    
+    try {
+        // Usa la tabella influencers per ottenere l'ID influencer
+        // L'ID passato è user_id, quindi dobbiamo ottenere l'ID dalla tabella influencers
+        $sql = "SELECT 
+                (SELECT COUNT(*) FROM sponsors WHERE influencer_id = ?) as total_sponsors";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$influencer_id]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $result ? (int)$result['total_sponsors'] : 0;
+    } catch (PDOException $e) {
+        error_log("Errore conteggio sponsor totali: " . $e->getMessage());
+        return 0;
+    }
+}
+
+/**
+ * Conta gli sponsor attivi di un influencer
+ */
+function countInfluencerActiveSponsors($influencer_id) {
+    global $pdo;
+    
+    try {
+        // Conta solo sponsor con status = 'active' e non eliminati
+        $sql = "SELECT COUNT(*) 
+                FROM sponsors 
+                WHERE influencer_id = ? 
+                AND status = 'active' 
+                AND deleted_at IS NULL";
+        
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$influencer_id]);
+        
+        return (int)$stmt->fetchColumn();
+    } catch (PDOException $e) {
+        error_log("Errore conteggio sponsor attivi: " . $e->getMessage());
+        return 0;
     }
 }
 ?>
