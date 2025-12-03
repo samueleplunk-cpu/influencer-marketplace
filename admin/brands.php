@@ -168,7 +168,7 @@ if ($action === 'list') {
                                     <thead>
                                         <tr>
                                             <th>ID</th>
-                                            <th>Azienda</th> <!-- MODIFICATO: da "Nome" a "Azienda" -->
+                                            <th>Azienda</th> <!-- MODIFICATO: ora mostra nome azienda invece del nome contatto -->
                                             <th>Email</th>
                                             <th>Stato</th>
                                             <th>Data Registrazione</th>
@@ -180,7 +180,13 @@ if ($action === 'list') {
                                             <tr>
                                                 <td><?php echo $brand['id']; ?></td>
                                                 <td>
-                                                    <?php echo htmlspecialchars($brand['name']); ?> <!-- MODIFICATO: solo nome testuale -->
+                                                    <?php 
+                                                    // MODIFICATO: Mostra il nome azienda con fallback al nome contatto
+                                                    $company_name = !empty($brand['company_display_name']) 
+                                                        ? $brand['company_display_name'] 
+                                                        : $brand['name'];
+                                                    echo htmlspecialchars($company_name); 
+                                                    ?>
                                                 </td>
                                                 <td><?php echo htmlspecialchars($brand['email']); ?></td>
                                                 <td>
@@ -321,12 +327,20 @@ if ($action === 'list') {
                                                                                 <div class="col-8"><?php echo $brand['id']; ?></div>
                                                                             </div>
                                                                             <div class="row mb-2">
-                                                                                <div class="col-4"><strong>Nome:</strong></div>
+                                                                                <div class="col-4"><strong>Nome Contatto:</strong></div>
                                                                                 <div class="col-8"><?php echo htmlspecialchars($brand['name']); ?></div>
                                                                             </div>
                                                                             <div class="row mb-2">
                                                                                 <div class="col-4"><strong>Azienda:</strong></div>
-                                                                                <div class="col-8"><?php echo htmlspecialchars($brand['company_name'] ?? 'N/A'); ?></div>
+                                                                                <div class="col-8">
+                                                                                    <?php 
+                                                                                    // MODIFICATO: Mostra il nome azienda con fallback
+                                                                                    $company_name = !empty($brand['company_display_name']) 
+                                                                                        ? $brand['company_display_name'] 
+                                                                                        : (!empty($brand['company_name']) ? $brand['company_name'] : 'N/A');
+                                                                                    echo htmlspecialchars($company_name);
+                                                                                    ?>
+                                                                                </div>
                                                                             </div>
                                                                             <div class="row">
                                                                                 <div class="col-4"><strong>Email:</strong></div>
