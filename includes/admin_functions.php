@@ -616,6 +616,174 @@ function deleteInfluencerImages($avatar) {
 }
 
 /**
+ * Elimina completamente un brand e tutti i dati correlati
+ */
+function deleteBrandCompletely($user_id) {
+    global $pdo;
+    
+    try {
+        $pdo->beginTransaction();
+        
+        // 1. Ottieni informazioni sul brand prima di eliminare
+        $stmt = $pdo->prepare("
+            SELECT u.* 
+            FROM users u 
+            WHERE u.id = ? AND u.user_type = 'brand'
+        ");
+        $stmt->execute([$user_id]);
+        $brand = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$brand) {
+            throw new Exception("Brand non trovato");
+        }
+        
+        $avatar = $brand['avatar'];
+        
+        // 2. Elimina i file immagine dal filesystem
+        if (!empty($avatar)) {
+            deleteBrandImages($avatar);
+        }
+        
+        // 3. Elimina tutte le campagne del brand (hard delete)
+        try {
+            $stmt = $pdo->prepare("SELECT id FROM campaigns WHERE brand_id = ?");
+            $stmt->execute([$user_id]);
+            $campaigns = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!empty($campaigns)) {
+                // Elimina le viste delle campagne
+                $placeholders = str_repeat('?,', count($campaigns) - 1) . '?';
+                $stmt = $pdo->prepare("DELETE FROM campaign_views WHERE campaign_id IN ($placeholders)");
+                $stmt->execute($campaigns);
+                
+                // Elimina gli inviti delle campagne
+                $stmt = $pdo->prepare("DELETE FROM campaign_invitations WHERE campaign_id IN ($placeholders)");
+                $stmt->execute($campaigns);
+                
+                // Elimina le richieste di pausa e documenti correlati
+                $stmt = $pdo->prepare("SELECT id FROM campaign_pause_requests WHERE campaign_id IN ($placeholders)");
+                $stmt->execute($campaigns);
+                $pause_requests = $stmt->fetchAll(PDO::FETCH_COLUMN);
+                
+                if (!empty($pause_requests)) {
+                    $pr_placeholders = str_repeat('?,', count($pause_requests) - 1) . '?';
+                    
+                    // Elimina i documenti delle richieste di pausa
+                    $stmt = $pdo->prepare("DELETE FROM campaign_pause_documents WHERE pause_request_id IN ($pr_placeholders)");
+                    $stmt->execute($pause_requests);
+                    
+                    // Elimina le richieste di pausa
+                    $stmt = $pdo->prepare("DELETE FROM campaign_pause_requests WHERE id IN ($pr_placeholders)");
+                    $stmt->execute($pause_requests);
+                }
+                
+                // Elimina le campagne
+                $stmt = $pdo->prepare("DELETE FROM campaigns WHERE id IN ($placeholders)");
+                $stmt->execute($campaigns);
+            }
+        } catch (Exception $e) {
+            // Log dell'errore ma continua con l'eliminazione
+            error_log("Errore nell'eliminazione delle campagne del brand $user_id: " . $e->getMessage());
+        }
+        
+        // 4. Elimina conversazioni e messaggi del brand
+        try {
+            $stmt = $pdo->prepare("SELECT id FROM conversations WHERE brand_id = ?");
+            $stmt->execute([$user_id]);
+            $conversations = $stmt->fetchAll(PDO::FETCH_COLUMN);
+            
+            if (!empty($conversations)) {
+                $placeholders = str_repeat('?,', count($conversations) - 1) . '?';
+                $stmt = $pdo->prepare("DELETE FROM messages WHERE conversation_id IN ($placeholders)");
+                $stmt->execute($conversations);
+                
+                $stmt = $pdo->prepare("DELETE FROM conversations WHERE brand_id = ?");
+                $stmt->execute([$user_id]);
+            }
+        } catch (Exception $e) {
+            // Log dell'errore ma continua con l'eliminazione
+            error_log("Errore nell'eliminazione delle conversazioni del brand $user_id: " . $e->getMessage());
+        }
+        
+        // 5. Elimina eventuali relazioni con influencer (matching)
+        try {
+            $stmt = $pdo->prepare("DELETE FROM matching WHERE brand_id = ?");
+            $stmt->execute([$user_id]);
+        } catch (Exception $e) {
+            // Log dell'errore ma continua con l'eliminazione
+            error_log("Errore nell'eliminazione dei matching del brand $user_id: " . $e->getMessage());
+        }
+        
+        // 6. Elimina l'utente associato (hard delete)
+        $stmt = $pdo->prepare("DELETE FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        
+        $pdo->commit();
+        return true;
+        
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("Errore eliminazione completa brand $user_id: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Elimina i file immagine del brand dal filesystem
+ */
+function deleteBrandImages($avatar) {
+    if (empty($avatar)) {
+        return;
+    }
+    
+    $base_path = dirname(__DIR__) . '/';
+    
+    // Lista dei possibili percorsi dove potrebbe trovarsi l'immagine
+    $possible_paths = [
+        $base_path . 'uploads/brands/' . $avatar,
+        $base_path . 'uploads/profiles/' . $avatar,
+        $base_path . 'brands/uploads/' . $avatar,
+        $base_path . 'uploads/' . $avatar,
+        $base_path . $avatar
+    ];
+    
+    foreach ($possible_paths as $file_path) {
+        if (file_exists($file_path) && is_file($file_path)) {
+            try {
+                unlink($file_path);
+                error_log("Eliminato file brand: $file_path");
+            } catch (Exception $e) {
+                error_log("Errore eliminazione file brand $file_path: " . $e->getMessage());
+            }
+        }
+    }
+    
+    // Elimina anche le thumbnail se esistono
+    $filename = pathinfo($avatar, PATHINFO_FILENAME);
+    $extension = pathinfo($avatar, PATHINFO_EXTENSION);
+    
+    $thumbnail_patterns = [
+        $base_path . 'uploads/brands/thumb_*' . $filename . '*',
+        $base_path . 'uploads/profiles/thumb_*' . $filename . '*',
+        $base_path . 'brands/uploads/thumb_*' . $filename . '*',
+        $base_path . 'uploads/thumb_*' . $filename . '*'
+    ];
+    
+    foreach ($thumbnail_patterns as $pattern) {
+        foreach (glob($pattern) as $thumbnail) {
+            if (file_exists($thumbnail) && is_file($thumbnail)) {
+                try {
+                    unlink($thumbnail);
+                    error_log("Eliminata thumbnail brand: $thumbnail");
+                } catch (Exception $e) {
+                    error_log("Errore eliminazione thumbnail brand $thumbnail: " . $e->getMessage());
+                }
+            }
+        }
+    }
+}
+
+/**
  * Ottiene i brands con paginazione e filtri
  */
 function getBrands($page = 1, $per_page = 15, $filters = []) {

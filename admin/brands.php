@@ -67,7 +67,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
             case 'delete':
                 updateBrandStatus($brand_id, 'delete');
-                $message = '<div class="alert alert-info">Brand eliminato</div>';
+                $message = '<div class="alert alert-info">Brand eliminato (soft delete)</div>';
+                break;
+                
+            case 'delete_completely':
+                $success = deleteBrandCompletely($brand_id);
+                if ($success) {
+                    $message = '<div class="alert alert-info">Brand eliminato completamente dal sistema</div>';
+                } else {
+                    $message = '<div class="alert alert-danger">Errore nell\'eliminazione del brand</div>';
+                }
                 break;
                 
             case 'restore':
@@ -244,15 +253,12 @@ if ($action === 'list') {
                 </form>
             <?php endif; ?>
             
-            <form method="post" class="d-inline">
-                <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                <input type="hidden" name="action_type" value="delete">
-                <button type="submit" class="btn btn-outline-dark btn-sm" 
-                        onclick="return confirm('Sei sicuro di voler eliminare questo brand?')"
-                        title="Elimina">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </form>
+            <!-- Pulsante Elimina completamente (APRE il modal) -->
+            <button type="button" class="btn btn-outline-dark btn-sm" 
+                    data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $brand['id']; ?>"
+                    title="Elimina completamente">
+                <i class="fas fa-trash"></i>
+            </button>
         <?php endif; ?>
     </div>
                                                     
@@ -291,6 +297,79 @@ if ($action === 'list') {
                                                         </div>
                                                     </div>
                                                     <?php endif; ?>
+                                                    
+                                                    <!-- Modal Eliminazione Definitiva -->
+                                                    <div class="modal fade" id="deleteModal<?php echo $brand['id']; ?>" tabindex="-1" 
+                                                         aria-labelledby="deleteModalLabel<?php echo $brand['id']; ?>" aria-hidden="true">
+                                                        <div class="modal-dialog modal-dialog-centered">
+                                                            <div class="modal-content">
+                                                                <div class="modal-header bg-danger text-white">
+                                                                    <h5 class="modal-title" id="deleteModalLabel<?php echo $brand['id']; ?>">
+                                                                        <i class="fas fa-exclamation-triangle me-2"></i>
+                                                                        Conferma Eliminazione Permanente
+                                                                    </h5>
+                                                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                </div>
+                                                                <div class="modal-body">
+                                                                    <div class="card mb-3">
+                                                                        <div class="card-header bg-light">
+                                                                            <strong>Dati Brand da Eliminare</strong>
+                                                                        </div>
+                                                                        <div class="card-body">
+                                                                            <div class="row mb-2">
+                                                                                <div class="col-4"><strong>ID:</strong></div>
+                                                                                <div class="col-8"><?php echo $brand['id']; ?></div>
+                                                                            </div>
+                                                                            <div class="row mb-2">
+                                                                                <div class="col-4"><strong>Nome:</strong></div>
+                                                                                <div class="col-8"><?php echo htmlspecialchars($brand['name']); ?></div>
+                                                                            </div>
+                                                                            <div class="row mb-2">
+                                                                                <div class="col-4"><strong>Azienda:</strong></div>
+                                                                                <div class="col-8"><?php echo htmlspecialchars($brand['company_name'] ?? 'N/A'); ?></div>
+                                                                            </div>
+                                                                            <div class="row">
+                                                                                <div class="col-4"><strong>Email:</strong></div>
+                                                                                <div class="col-8"><?php echo htmlspecialchars($brand['email']); ?></div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div class="card border-danger mb-3">
+                                                                        <div class="card-header bg-danger-subtle text-danger">
+                                                                            <strong><i class="fas fa-times-circle me-1"></i> Verranno eliminati definitivamente:</strong>
+                                                                        </div>
+                                                                        <div class="card-body">
+                                                                            <ul class="mb-0">
+                                                                                <li>Tutti i dati del brand dal database</li>
+                                                                                <li>L'email del brand (potrà registrarsi nuovamente)</li>
+                                                                                <li>Le immagini/avatar del brand</li>
+                                                                                <li>Le campagne pubblicate dal brand</li>
+                                                                                <li>Tutti i dati correlati</li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                    
+                                                                    <div class="alert alert-warning">
+                                                                        <i class="fas fa-exclamation-circle me-1"></i>
+                                                                        <strong>Questa operazione NON può essere annullata!</strong>
+                                                                    </div>
+                                                                </div>
+                                                                <div class="modal-footer">
+                                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                                        <i class="fas fa-times me-1"></i> Annulla
+                                                                    </button>
+                                                                    <form method="post" class="d-inline">
+                                                                        <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                                                                        <input type="hidden" name="action_type" value="delete_completely">
+                                                                        <button type="submit" class="btn btn-danger">
+                                                                            <i class="fas fa-trash me-1"></i> Conferma Eliminazione
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         <?php endforeach; ?>
