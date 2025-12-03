@@ -84,11 +84,9 @@ if ($action === 'list') {
     $per_page = 15;
     
     $filters = [
-        'status' => $_GET['status'] ?? '',
-        'search' => $_GET['search'] ?? '',
-        'date_from' => $_GET['date_from'] ?? '',
-        'date_to' => $_GET['date_to'] ?? ''
-    ];
+    'status' => $_GET['status'] ?? '',
+    'search' => $_GET['search'] ?? ''
+];
     
     $result = getBrands($page, $per_page, $filters);
     $brands = $result['data'];
@@ -109,52 +107,40 @@ if ($action === 'list') {
                 <?php echo $message; ?>
                 
                 <!-- Filtri -->
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h5 class="card-title mb-0">Filtri</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" class="row g-3">
-                            <input type="hidden" name="action" value="list">
-                            
-                            <div class="col-md-3">
-                                <label for="search" class="form-label">Cerca</label>
-                                <input type="text" class="form-control" id="search" name="search" 
-                                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
-                                       placeholder="Nome, email o azienda...">
-                            </div>
-                            
-                            <div class="col-md-3">
-                                <label for="status" class="form-label">Stato</label>
-                                <select class="form-select" id="status" name="status">
-                                    <option value="">Tutti</option>
-                                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
-                                    <option value="inactive" <?php echo $filters['status'] === 'inactive' ? 'selected' : ''; ?>>Inattivi</option>
-                                    <option value="suspended" <?php echo $filters['status'] === 'suspended' ? 'selected' : ''; ?>>Sospesi</option>
-                                    <option value="blocked" <?php echo $filters['status'] === 'blocked' ? 'selected' : ''; ?>>Bloccati</option>
-                                    <option value="deleted" <?php echo $filters['status'] === 'deleted' ? 'selected' : ''; ?>>Eliminati</option>
-                                </select>
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="date_from" class="form-label">Da data</label>
-                                <input type="date" class="form-control" id="date_from" name="date_from" 
-                                       value="<?php echo htmlspecialchars($filters['date_from']); ?>">
-                            </div>
-                            
-                            <div class="col-md-2">
-                                <label for="date_to" class="form-label">A data</label>
-                                <input type="date" class="form-control" id="date_to" name="date_to" 
-                                       value="<?php echo htmlspecialchars($filters['date_to']); ?>">
-                            </div>
-                            
-                            <div class="col-md-2 d-flex align-items-end">
-                                <button type="submit" class="btn btn-outline-primary w-100">Applica</button>
-                                <a href="?action=list" class="btn btn-outline-secondary ms-2">Reset</a>
-                            </div>
-                        </form>
-                    </div>
-                </div>
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Filtri</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <input type="hidden" name="action" value="list">
+            
+            <div class="col-md-4">
+                <label for="search" class="form-label">Cerca</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
+                       placeholder="Nome, email o azienda...">
+            </div>
+            
+            <div class="col-md-4">
+                <label for="status" class="form-label">Stato</label>
+                <select class="form-select" id="status" name="status">
+                    <option value="">Tutti</option>
+                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
+                    <option value="inactive" <?php echo $filters['status'] === 'inactive' ? 'selected' : ''; ?>>Inattivi</option>
+                    <option value="suspended" <?php echo $filters['status'] === 'suspended' ? 'selected' : ''; ?>>Sospesi</option>
+                    <option value="blocked" <?php echo $filters['status'] === 'blocked' ? 'selected' : ''; ?>>Bloccati</option>
+                    <option value="deleted" <?php echo $filters['status'] === 'deleted' ? 'selected' : ''; ?>>Eliminati</option>
+                </select>
+            </div>
+            
+            <div class="col-md-4 d-flex gap-2">
+                <button type="submit" class="btn btn-outline-primary flex-fill">Applica</button>
+                <a href="?action=list" class="btn btn-outline-secondary flex-fill">Reset</a>
+            </div>
+        </form>
+    </div>
+</div>
                 
                 <!-- Tabella Brands -->
                 <div class="card">
@@ -173,9 +159,8 @@ if ($action === 'list') {
                                     <thead>
                                         <tr>
                                             <th>ID</th>
-                                            <th>Nome</th>
+                                            <th>Azienda</th> <!-- MODIFICATO: da "Nome" a "Azienda" -->
                                             <th>Email</th>
-                                            <th>Azienda</th>
                                             <th>Stato</th>
                                             <th>Data Registrazione</th>
                                             <th>Azioni</th>
@@ -186,28 +171,9 @@ if ($action === 'list') {
                                             <tr>
                                                 <td><?php echo $brand['id']; ?></td>
                                                 <td>
-                                                    <div class="d-flex align-items-center">
-                                                        <?php if (!empty($brand['avatar'])): ?>
-                                                            <img src="<?php echo htmlspecialchars($brand['avatar']); ?>" 
-                                                                 class="rounded-circle me-2" width="32" height="32" 
-                                                                 alt="<?php echo htmlspecialchars($brand['name']); ?>">
-                                                        <?php else: ?>
-                                                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2" 
-                                                                 style="width: 32px; height: 32px;">
-                                                                <i class="fas fa-building text-white"></i>
-                                                            </div>
-                                                        <?php endif; ?>
-                                                        <?php echo htmlspecialchars($brand['name']); ?>
-                                                    </div>
+                                                    <?php echo htmlspecialchars($brand['name']); ?> <!-- MODIFICATO: solo nome testuale -->
                                                 </td>
                                                 <td><?php echo htmlspecialchars($brand['email']); ?></td>
-                                                <td>
-                                                    <?php if (!empty($brand['company_name'])): ?>
-                                                        <?php echo htmlspecialchars($brand['company_name']); ?>
-                                                    <?php else: ?>
-                                                        <span class="text-muted">-</span>
-                                                    <?php endif; ?>
-                                                </td>
                                                 <td>
                                                     <?php 
                                                     $status_badge = '';
@@ -227,68 +193,68 @@ if ($action === 'list') {
                                                 </td>
                                                 <td><?php echo date('d/m/Y H:i', strtotime($brand['created_at'])); ?></td>
                                                 <td>
-                                                    <div class="btn-group btn-group-sm">
-                                                        <a href="?action=edit&id=<?php echo $brand['id']; ?>" 
-                                                           class="btn btn-outline-primary" title="Modifica">
-                                                            <i class="fas fa-edit"></i>
-                                                        </a>
-                                                        
-                                                        <?php if ($brand['deleted_at']): ?>
-                                                            <form method="post" class="d-inline">
-                                                                <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                                                                <input type="hidden" name="action_type" value="restore">
-                                                                <button type="submit" class="btn btn-outline-success" title="Ripristina">
-                                                                    <i class="fas fa-undo"></i>
-                                                                </button>
-                                                            </form>
-                                                        <?php else: ?>
-                                                            <?php if ($brand['is_suspended']): ?>
-                                                                <form method="post" class="d-inline">
-                                                                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                                                                    <input type="hidden" name="action_type" value="unsuspend">
-                                                                    <button type="submit" class="btn btn-outline-warning" title="Rimuovi sospensione">
-                                                                        <i class="fas fa-play"></i>
-                                                                    </button>
-                                                                </form>
-                                                            <?php else: ?>
-                                                                <button type="button" class="btn btn-outline-warning" 
-                                                                        data-bs-toggle="modal" data-bs-target="#suspendModal<?php echo $brand['id']; ?>"
-                                                                        title="Sospendi">
-                                                                    <i class="fas fa-pause"></i>
-                                                                </button>
-                                                            <?php endif; ?>
-                                                            
-                                                            <?php if ($brand['is_blocked']): ?>
-                                                                <form method="post" class="d-inline">
-                                                                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                                                                    <input type="hidden" name="action_type" value="unblock">
-                                                                    <button type="submit" class="btn btn-outline-info" title="Sblocca">
-                                                                        <i class="fas fa-unlock"></i>
-                                                                    </button>
-                                                                </form>
-                                                            <?php else: ?>
-                                                                <form method="post" class="d-inline">
-                                                                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                                                                    <input type="hidden" name="action_type" value="block">
-                                                                    <button type="submit" class="btn btn-outline-danger" 
-                                                                            onclick="return confirm('Sei sicuro di voler bloccare questo brand?')"
-                                                                            title="Blocca">
-                                                                        <i class="fas fa-ban"></i>
-                                                                    </button>
-                                                                </form>
-                                                            <?php endif; ?>
-                                                            
-                                                            <form method="post" class="d-inline">
-                                                                <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                                                                <input type="hidden" name="action_type" value="delete">
-                                                                <button type="submit" class="btn btn-outline-dark" 
-                                                                        onclick="return confirm('Sei sicuro di voler eliminare questo brand?')"
-                                                                        title="Elimina">
-                                                                    <i class="fas fa-trash"></i>
-                                                                </button>
-                                                            </form>
-                                                        <?php endif; ?>
-                                                    </div>
+                                                    <div class="d-flex gap-1 flex-wrap">
+        <a href="?action=edit&id=<?php echo $brand['id']; ?>" 
+           class="btn btn-outline-primary btn-sm" title="Modifica">
+            <i class="fas fa-edit"></i>
+        </a>
+        
+        <?php if ($brand['deleted_at']): ?>
+            <form method="post" class="d-inline">
+                <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                <input type="hidden" name="action_type" value="restore">
+                <button type="submit" class="btn btn-outline-success btn-sm" title="Ripristina">
+                    <i class="fas fa-undo"></i>
+                </button>
+            </form>
+        <?php else: ?>
+            <?php if ($brand['is_suspended']): ?>
+                <form method="post" class="d-inline">
+                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                    <input type="hidden" name="action_type" value="unsuspend">
+                    <button type="submit" class="btn btn-outline-warning btn-sm" title="Rimuovi sospensione">
+                        <i class="fas fa-play"></i>
+                    </button>
+                </form>
+            <?php else: ?>
+                <button type="button" class="btn btn-outline-warning btn-sm" 
+                        data-bs-toggle="modal" data-bs-target="#suspendModal<?php echo $brand['id']; ?>"
+                        title="Sospendi">
+                    <i class="fas fa-pause"></i>
+                </button>
+            <?php endif; ?>
+            
+            <?php if ($brand['is_blocked']): ?>
+                <form method="post" class="d-inline">
+                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                    <input type="hidden" name="action_type" value="unblock">
+                    <button type="submit" class="btn btn-outline-info btn-sm" title="Sblocca">
+                        <i class="fas fa-unlock"></i>
+                    </button>
+                </form>
+            <?php else: ?>
+                <form method="post" class="d-inline">
+                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                    <input type="hidden" name="action_type" value="block">
+                    <button type="submit" class="btn btn-outline-danger btn-sm" 
+                            onclick="return confirm('Sei sicuro di voler bloccare questo brand?')"
+                            title="Blocca">
+                        <i class="fas fa-ban"></i>
+                    </button>
+                </form>
+            <?php endif; ?>
+            
+            <form method="post" class="d-inline">
+                <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                <input type="hidden" name="action_type" value="delete">
+                <button type="submit" class="btn btn-outline-dark btn-sm" 
+                        onclick="return confirm('Sei sicuro di voler eliminare questo brand?')"
+                        title="Elimina">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </form>
+        <?php endif; ?>
+    </div>
                                                     
                                                     <!-- Modal Sospensione -->
                                                     <?php if (!$brand['deleted_at'] && !$brand['is_suspended']): ?>

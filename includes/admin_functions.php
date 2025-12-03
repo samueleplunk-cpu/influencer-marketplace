@@ -649,17 +649,6 @@ function getBrands($page = 1, $per_page = 15, $filters = []) {
         $where_conditions[] = "deleted_at IS NULL";
     }
     
-    // Filtro per data
-    if (!empty($filters['date_from'])) {
-        $where_conditions[] = "created_at >= ?";
-        $params[] = $filters['date_from'];
-    }
-    
-    if (!empty($filters['date_to'])) {
-        $where_conditions[] = "created_at <= ?";
-        $params[] = $filters['date_to'] . ' 23:59:59';
-    }
-    
     // Ricerca per nome/email/azienda
     if (!empty($filters['search'])) {
         $where_conditions[] = "(name LIKE ? OR email LIKE ? OR company_name LIKE ?)";
