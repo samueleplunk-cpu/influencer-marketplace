@@ -327,10 +327,6 @@ if ($action === 'list') {
                                                                                 <div class="col-8"><?php echo $brand['id']; ?></div>
                                                                             </div>
                                                                             <div class="row mb-2">
-                                                                                <div class="col-4"><strong>Nome Contatto:</strong></div>
-                                                                                <div class="col-8"><?php echo htmlspecialchars($brand['name']); ?></div>
-                                                                            </div>
-                                                                            <div class="row mb-2">
                                                                                 <div class="col-4"><strong>Azienda:</strong></div>
                                                                                 <div class="col-8">
                                                                                     <?php 
@@ -362,11 +358,6 @@ if ($action === 'list') {
                                                                                 <li>Tutti i dati correlati</li>
                                                                             </ul>
                                                                         </div>
-                                                                    </div>
-                                                                    
-                                                                    <div class="alert alert-warning">
-                                                                        <i class="fas fa-exclamation-circle me-1"></i>
-                                                                        <strong>Questa operazione NON può essere annullata!</strong>
                                                                     </div>
                                                                 </div>
                                                                 <div class="modal-footer">
@@ -445,6 +436,7 @@ if ($action === 'list') {
 // Pagina aggiungi/modifica brand
 elseif ($action === 'add' || $action === 'edit') {
     $brand = null;
+    $brand_details = null; // Per i dettagli dalla tabella brands
     $title = $action === 'add' ? 'Aggiungi Brand' : 'Modifica Brand';
     
     if ($action === 'edit' && $id) {
@@ -452,6 +444,17 @@ elseif ($action === 'add' || $action === 'edit') {
         if (!$brand) {
             header('Location: brands.php');
             exit;
+        }
+        
+        // Recupera i dettagli aggiuntivi dalla tabella brands (dove c'è il logo)
+        try {
+            global $pdo;
+            $stmt = $pdo->prepare("SELECT logo FROM brands WHERE user_id = ?");
+            $stmt->execute([$id]);
+            $brand_details = $stmt->fetch(PDO::FETCH_ASSOC);
+        } catch (PDOException $e) {
+            error_log("Errore nel recupero del logo brand: " . $e->getMessage());
+            $brand_details = null;
         }
     }
     ?>
@@ -471,37 +474,216 @@ elseif ($action === 'add' || $action === 'edit') {
                 <div class="card">
                     <div class="card-body">
                         <form method="post">
+                            <?php if ($action === 'edit'): ?>
+                            <!-- Layout a 2 colonne solo per EDIT -->
                             <div class="row">
-                                <div class="col-md-6">
+                                <!-- Colonna Sinistra: Form -->
+                                <div class="col-md-8">
+                                    <div class="row">
+                                        <div class="col-12">
+                                            <div class="mb-3">
+                                                <label for="name" class="form-label">Nome Contatto <span class="text-danger">*</span></label>
+                                                <input type="text" class="form-control" id="name" name="name" 
+                                                       value="<?php echo htmlspecialchars($brand['name'] ?? ''); ?>" 
+                                                       required>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                                                <input type="email" class="form-control" id="email" name="email" 
+                                                       value="<?php echo htmlspecialchars($brand['email'] ?? ''); ?>" 
+                                                       required>
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="company_name" class="form-label">Nome Azienda</label>
+                                                <input type="text" class="form-control" id="company_name" name="company_name" 
+                                                       value="<?php echo htmlspecialchars($brand['company_name'] ?? ''); ?>">
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="website" class="form-label">Sito Web</label>
+                                                <input type="url" class="form-control" id="website" name="website" 
+                                                       value="<?php echo htmlspecialchars($brand['website'] ?? ''); ?>"
+                                                       placeholder="https://">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">Descrizione</label>
+                                        <textarea class="form-control" id="description" name="description" 
+                                                  rows="4"><?php echo htmlspecialchars($brand['description'] ?? ''); ?></textarea>
+                                        <div class="form-text">Breve descrizione del brand e delle sue attività</div>
+                                    </div>
+                                    
+                                    <div class="mb-3 form-check form-switch">
+                                        <input type="checkbox" class="form-check-input" id="is_active" name="is_active" 
+                                               <?php echo ($brand['is_active'] ?? 1) ? 'checked' : ''; ?>>
+                                        <label class="form-check-label" for="is_active">Account attivo</label>
+                                        <div class="form-text">Se disattivato, il brand non potrà accedere al sistema</div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Colonna Destra: Immagine del brand -->
+                                <div class="col-md-4">
+                                    <div class="card">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">Logo del Brand</h5>
+                                        </div>
+                                        <div class="card-body text-center">
+                                            <?php
+                                            // Determina l'immagine da mostrare
+                                            $logo_path = null;
+                                            $image_to_show = null;
+                                            $placeholder_path = '/infl/uploads/placeholder/brand_admin_edit.png';
+                                            
+                                            if ($brand_details && !empty($brand_details['logo'])) {
+                                                // Gestione corretta dei percorsi
+                                                $logo_from_db = $brand_details['logo'];
+                                                
+                                                // Rimuove eventuali slash iniziali
+                                                $logo_from_db = ltrim($logo_from_db, '/');
+                                                
+                                                // Prova diversi percorsi possibili
+                                                $possible_paths = [
+                                                    '/infl/' . $logo_from_db, // percorso completo con /infl/
+                                                    '/' . $logo_from_db,     // percorso relativo alla root
+                                                    '/infl/uploads/brands/' . basename($logo_from_db), // solo nome file in directory brands
+                                                ];
+                                                
+                                                // Aggiungi anche il percorso originale dal DB
+                                                if (strpos($logo_from_db, 'infl/') === 0) {
+                                                    $possible_paths[] = '/' . $logo_from_db;
+                                                } else {
+                                                    $possible_paths[] = '/infl/' . $logo_from_db;
+                                                }
+                                                
+                                                // Cerca il file in tutti i percorsi possibili
+                                                foreach ($possible_paths as $possible_path) {
+                                                    $full_path = $_SERVER['DOCUMENT_ROOT'] . $possible_path;
+                                                    if (file_exists($full_path)) {
+                                                        $logo_path = $possible_path;
+                                                        $image_to_show = $possible_path;
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                            
+                                            // Se non abbiamo trovato un'immagine valida, usa il placeholder
+                                            if (!$image_to_show) {
+                                                $image_to_show = $placeholder_path;
+                                            }
+                                            ?>
+                                            
+                                            <div class="mb-3">
+                                                <img src="<?php echo $image_to_show; ?>" 
+                                                     alt="Logo Brand" 
+                                                     class="img-fluid rounded" 
+                                                     style="max-height: 200px; max-width: 100%;">
+                                            </div>
+                                            
+                                            <?php if ($logo_path): ?>
+                                                <div class="alert alert-info mb-2">
+                                                    <small><i class="fas fa-info-circle"></i> Il brand ha caricato un'immagine personalizzata.</small>
+                                                </div>
+                                                <div class="mb-2">
+                                                    <small class="text-muted">
+                                                        <strong>Percorso:</strong><br>
+                                                        <code><?php echo htmlspecialchars($logo_path); ?></code>
+                                                    </small>
+                                                </div>
+                                                <a href="<?php echo $logo_path; ?>" 
+                                                   target="_blank" 
+                                                   class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-external-link-alt"></i> Apri immagine
+                                                </a>
+                                            <?php else: ?>
+                                                <div class="alert alert-warning mb-2">
+                                                    <small><i class="fas fa-exclamation-triangle"></i> Il brand non ha caricato un'immagine. Viene mostrato il placeholder.</small>
+                                                </div>
+                                            <?php endif; ?>
+                                            
+                                            <?php if ($action === 'edit'): ?>
+                                            <hr>
+                                            <div class="mt-3">
+                                                <small class="text-muted">
+                                                    <strong>Note:</strong> Il brand può aggiornare il logo dalla sua area personale.<br>
+                                                    <a href="/infl/brands/edit-profile.php" target="_blank" class="text-decoration-none">
+                                                        <i class="fas fa-external-link-alt"></i> Vai alla pagina di modifica profilo
+                                                    </a>
+                                                </small>
+                                            </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Informazioni aggiuntive per debug (facoltativo) -->
+                                    <?php if (false): // Imposta true per debug ?>
+                                    <div class="card mt-3">
+                                        <div class="card-header">
+                                            <h6 class="card-title mb-0">Debug Info</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <small class="text-muted">
+                                                <strong>Brand ID:</strong> <?php echo $id; ?><br>
+                                                <strong>Logo dal DB:</strong> <?php echo htmlspecialchars($brand_details['logo'] ?? 'NULL'); ?><br>
+                                                <strong>Document Root:</strong> <?php echo $_SERVER['DOCUMENT_ROOT']; ?><br>
+                                                <strong>Percorsi testati:</strong><br>
+                                                <?php
+                                                if ($brand_details && !empty($brand_details['logo'])) {
+                                                    $logo_from_db = ltrim($brand_details['logo'], '/');
+                                                    $paths = [
+                                                        '/infl/' . $logo_from_db,
+                                                        '/' . $logo_from_db,
+                                                        '/infl/uploads/brands/' . basename($logo_from_db),
+                                                    ];
+                                                    
+                                                    if (strpos($logo_from_db, 'infl/') === 0) {
+                                                        $paths[] = '/' . $logo_from_db;
+                                                    } else {
+                                                        $paths[] = '/infl/' . $logo_from_db;
+                                                    }
+                                                    
+                                                    foreach ($paths as $path) {
+                                                        $full_path = $_SERVER['DOCUMENT_ROOT'] . $path;
+                                                        $exists = file_exists($full_path) ? 'SI' : 'NO';
+                                                        echo htmlspecialchars($path) . ' → ' . $exists . '<br>';
+                                                    }
+                                                }
+                                                ?>
+                                                <strong>Immagine selezionata:</strong> <?php echo htmlspecialchars($image_to_show); ?>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
+                            
+                            <?php else: ?>
+                            <!-- Layout a singola colonna per ADD -->
+                            <div class="row">
+                                <div class="col-12">
                                     <div class="mb-3">
                                         <label for="name" class="form-label">Nome Contatto <span class="text-danger">*</span></label>
                                         <input type="text" class="form-control" id="name" name="name" 
                                                value="<?php echo htmlspecialchars($brand['name'] ?? ''); ?>" 
                                                required>
-                                        <div class="form-text">Il nome della persona di riferimento</div>
                                     </div>
-                                </div>
-                                
-                                <div class="col-md-6">
+                                    
                                     <div class="mb-3">
                                         <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
                                         <input type="email" class="form-control" id="email" name="email" 
                                                value="<?php echo htmlspecialchars($brand['email'] ?? ''); ?>" 
                                                required>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row">
-                                <div class="col-md-6">
+                                    
                                     <div class="mb-3">
                                         <label for="company_name" class="form-label">Nome Azienda</label>
                                         <input type="text" class="form-control" id="company_name" name="company_name" 
                                                value="<?php echo htmlspecialchars($brand['company_name'] ?? ''); ?>">
                                     </div>
-                                </div>
-                                
-                                <div class="col-md-6">
+                                    
                                     <div class="mb-3">
                                         <label for="website" class="form-label">Sito Web</label>
                                         <input type="url" class="form-control" id="website" name="website" 
@@ -525,7 +707,6 @@ elseif ($action === 'add' || $action === 'edit') {
                                 <div class="form-text">Se disattivato, il brand non potrà accedere al sistema</div>
                             </div>
                             
-                            <?php if ($action === 'add'): ?>
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle"></i>
                                 Alla creazione verrà generata una password temporanea che il brand potrà cambiare al primo accesso.
