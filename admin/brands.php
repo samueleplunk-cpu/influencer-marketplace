@@ -16,24 +16,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'name' => trim($_POST['name']),
             'email' => trim($_POST['email']),
             'company_name' => trim($_POST['company_name'] ?? ''),
-            'website' => trim($_POST['website'] ?? ''),
-            'description' => trim($_POST['description'] ?? ''),
             'is_active' => isset($_POST['is_active']) ? 1 : 0
         ];
         
-        if (empty($data['name']) || empty($data['email'])) {
-            $message = '<div class="alert alert-danger">Nome ed email sono obbligatori</div>';
-        } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-            $message = '<div class="alert alert-danger">Email non valida</div>';
-        } else {
-            $success = saveBrand($data, $id);
-            if ($success) {
-                $message = '<div class="alert alert-success">Brand salvato con successo!</div>';
-                if (!$id) {
-                    $action = 'list';
-                }
+        // Aggiungi password se fornita
+        if (!empty(trim($_POST['password'] ?? ''))) {
+            $data['password'] = trim($_POST['password']);
+        }
+        
+        // Per azione "add" (nuovo brand), mantieni la validazione
+        // Per azione "edit" (modifica), rimuovi la validazione obbligatoria
+        if ($action === 'add') {
+            if (empty($data['name']) || empty($data['email'])) {
+                $message = '<div class="alert alert-danger">Nome ed email sono obbligatori</div>';
+            } elseif (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                $message = '<div class="alert alert-danger">Email non valida</div>';
             } else {
-                $message = '<div class="alert alert-danger">Errore nel salvataggio</div>';
+                $success = saveBrand($data, $id);
+                if ($success) {
+                    $message = '<div class="alert alert-success">Brand salvato con successo!</div>';
+                    if (!$id) {
+                        $action = 'list';
+                    }
+                } else {
+                    $message = '<div class="alert alert-danger">Errore nel salvataggio</div>';
+                }
+            }
+        } else {
+            // Per edit, valida solo l'email se fornita
+            if (!empty($data['email']) && !filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+                $message = '<div class="alert alert-danger">Email non valida</div>';
+            } else {
+                $success = saveBrand($data, $id);
+                if ($success) {
+                    $message = '<div class="alert alert-success">Brand salvato con successo!</div>';
+                    if (!$id) {
+                        $action = 'list';
+                    }
+                } else {
+                    $message = '<div class="alert alert-danger">Errore nel salvataggio</div>';
+                }
             }
         }
     }
@@ -93,9 +115,9 @@ if ($action === 'list') {
     $per_page = 15;
     
     $filters = [
-    'status' => $_GET['status'] ?? '',
-    'search' => $_GET['search'] ?? ''
-];
+        'status' => $_GET['status'] ?? '',
+        'search' => $_GET['search'] ?? ''
+    ];
     
     $result = getBrands($page, $per_page, $filters);
     $brands = $result['data'];
@@ -116,40 +138,40 @@ if ($action === 'list') {
                 <?php echo $message; ?>
                 
                 <!-- Filtri -->
-<div class="card mb-4">
-    <div class="card-header">
-        <h5 class="card-title mb-0">Filtri</h5>
-    </div>
-    <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
-            <input type="hidden" name="action" value="list">
-            
-            <div class="col-md-4">
-                <label for="search" class="form-label">Cerca</label>
-                <input type="text" class="form-control" id="search" name="search" 
-                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
-                       placeholder="Nome, email o azienda...">
-            </div>
-            
-            <div class="col-md-4">
-                <label for="status" class="form-label">Stato</label>
-                <select class="form-select" id="status" name="status">
-                    <option value="">Tutti</option>
-                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
-                    <option value="inactive" <?php echo $filters['status'] === 'inactive' ? 'selected' : ''; ?>>Inattivi</option>
-                    <option value="suspended" <?php echo $filters['status'] === 'suspended' ? 'selected' : ''; ?>>Sospesi</option>
-                    <option value="blocked" <?php echo $filters['status'] === 'blocked' ? 'selected' : ''; ?>>Bloccati</option>
-                    <option value="deleted" <?php echo $filters['status'] === 'deleted' ? 'selected' : ''; ?>>Eliminati</option>
-                </select>
-            </div>
-            
-            <div class="col-md-4 d-flex gap-2">
-                <button type="submit" class="btn btn-outline-primary flex-fill">Applica</button>
-                <a href="?action=list" class="btn btn-outline-secondary flex-fill">Reset</a>
-            </div>
-        </form>
-    </div>
-</div>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Filtri</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" class="row g-3 align-items-end">
+                            <input type="hidden" name="action" value="list">
+                            
+                            <div class="col-md-4">
+                                <label for="search" class="form-label">Cerca</label>
+                                <input type="text" class="form-control" id="search" name="search" 
+                                       value="<?php echo htmlspecialchars($filters['search']); ?>" 
+                                       placeholder="Nome, email o azienda...">
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="status" class="form-label">Stato</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="">Tutti</option>
+                                    <option value="active" <?php echo $filters['status'] === 'active' ? 'selected' : ''; ?>>Attivi</option>
+                                    <option value="inactive" <?php echo $filters['status'] === 'inactive' ? 'selected' : ''; ?>>Inattivi</option>
+                                    <option value="suspended" <?php echo $filters['status'] === 'suspended' ? 'selected' : ''; ?>>Sospesi</option>
+                                    <option value="blocked" <?php echo $filters['status'] === 'blocked' ? 'selected' : ''; ?>>Bloccati</option>
+                                    <option value="deleted" <?php echo $filters['status'] === 'deleted' ? 'selected' : ''; ?>>Eliminati</option>
+                                </select>
+                            </div>
+                            
+                            <div class="col-md-4 d-flex gap-2">
+                                <button type="submit" class="btn btn-outline-primary flex-fill">Applica</button>
+                                <a href="?action=list" class="btn btn-outline-secondary flex-fill">Reset</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
                 
                 <!-- Tabella Brands -->
                 <div class="card">
@@ -168,7 +190,7 @@ if ($action === 'list') {
                                     <thead>
                                         <tr>
                                             <th>ID</th>
-                                            <th>Azienda</th> <!-- MODIFICATO: ora mostra nome azienda invece del nome contatto -->
+                                            <th>Azienda</th>
                                             <th>Email</th>
                                             <th>Stato</th>
                                             <th>Data Registrazione</th>
@@ -181,7 +203,6 @@ if ($action === 'list') {
                                                 <td><?php echo $brand['id']; ?></td>
                                                 <td>
                                                     <?php 
-                                                    // MODIFICATO: Mostra il nome azienda con fallback al nome contatto
                                                     $company_name = !empty($brand['company_display_name']) 
                                                         ? $brand['company_display_name'] 
                                                         : $brand['name'];
@@ -209,64 +230,64 @@ if ($action === 'list') {
                                                 <td><?php echo date('d/m/Y H:i', strtotime($brand['created_at'])); ?></td>
                                                 <td>
                                                     <div class="d-flex gap-1 flex-wrap">
-        <a href="?action=edit&id=<?php echo $brand['id']; ?>" 
-           class="btn btn-outline-primary btn-sm" title="Modifica">
-            <i class="fas fa-edit"></i>
-        </a>
-        
-        <?php if ($brand['deleted_at']): ?>
-            <form method="post" class="d-inline">
-                <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                <input type="hidden" name="action_type" value="restore">
-                <button type="submit" class="btn btn-outline-success btn-sm" title="Ripristina">
-                    <i class="fas fa-undo"></i>
-                </button>
-            </form>
-        <?php else: ?>
-            <?php if ($brand['is_suspended']): ?>
-                <form method="post" class="d-inline">
-                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                    <input type="hidden" name="action_type" value="unsuspend">
-                    <button type="submit" class="btn btn-outline-warning btn-sm" title="Rimuovi sospensione">
-                        <i class="fas fa-play"></i>
-                    </button>
-                </form>
-            <?php else: ?>
-                <button type="button" class="btn btn-outline-warning btn-sm" 
-                        data-bs-toggle="modal" data-bs-target="#suspendModal<?php echo $brand['id']; ?>"
-                        title="Sospendi">
-                    <i class="fas fa-pause"></i>
-                </button>
-            <?php endif; ?>
-            
-            <?php if ($brand['is_blocked']): ?>
-                <form method="post" class="d-inline">
-                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                    <input type="hidden" name="action_type" value="unblock">
-                    <button type="submit" class="btn btn-outline-info btn-sm" title="Sblocca">
-                        <i class="fas fa-unlock"></i>
-                    </button>
-                </form>
-            <?php else: ?>
-                <form method="post" class="d-inline">
-                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
-                    <input type="hidden" name="action_type" value="block">
-                    <button type="submit" class="btn btn-outline-danger btn-sm" 
-                            onclick="return confirm('Sei sicuro di voler bloccare questo brand?')"
-                            title="Blocca">
-                        <i class="fas fa-ban"></i>
-                    </button>
-                </form>
-            <?php endif; ?>
-            
-            <!-- Pulsante Elimina completamente (APRE il modal) -->
-            <button type="button" class="btn btn-outline-dark btn-sm" 
-                    data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $brand['id']; ?>"
-                    title="Elimina completamente">
-                <i class="fas fa-trash"></i>
-            </button>
-        <?php endif; ?>
-    </div>
+                                                        <a href="?action=edit&id=<?php echo $brand['id']; ?>" 
+                                                           class="btn btn-outline-primary btn-sm" title="Modifica">
+                                                            <i class="fas fa-edit"></i>
+                                                        </a>
+                                                        
+                                                        <?php if ($brand['deleted_at']): ?>
+                                                            <form method="post" class="d-inline">
+                                                                <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                                                                <input type="hidden" name="action_type" value="restore">
+                                                                <button type="submit" class="btn btn-outline-success btn-sm" title="Ripristina">
+                                                                    <i class="fas fa-undo"></i>
+                                                                </button>
+                                                            </form>
+                                                        <?php else: ?>
+                                                            <?php if ($brand['is_suspended']): ?>
+                                                                <form method="post" class="d-inline">
+                                                                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                                                                    <input type="hidden" name="action_type" value="unsuspend">
+                                                                    <button type="submit" class="btn btn-outline-warning btn-sm" title="Rimuovi sospensione">
+                                                                        <i class="fas fa-play"></i>
+                                                                    </button>
+                                                                </form>
+                                                            <?php else: ?>
+                                                                <button type="button" class="btn btn-outline-warning btn-sm" 
+                                                                        data-bs-toggle="modal" data-bs-target="#suspendModal<?php echo $brand['id']; ?>"
+                                                                        title="Sospendi">
+                                                                    <i class="fas fa-pause"></i>
+                                                                </button>
+                                                            <?php endif; ?>
+                                                            
+                                                            <?php if ($brand['is_blocked']): ?>
+                                                                <form method="post" class="d-inline">
+                                                                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                                                                    <input type="hidden" name="action_type" value="unblock">
+                                                                    <button type="submit" class="btn btn-outline-info btn-sm" title="Sblocca">
+                                                                        <i class="fas fa-unlock"></i>
+                                                                    </button>
+                                                                </form>
+                                                            <?php else: ?>
+                                                                <form method="post" class="d-inline">
+                                                                    <input type="hidden" name="brand_id" value="<?php echo $brand['id']; ?>">
+                                                                    <input type="hidden" name="action_type" value="block">
+                                                                    <button type="submit" class="btn btn-outline-danger btn-sm" 
+                                                                            onclick="return confirm('Sei sicuro di voler bloccare questo brand?')"
+                                                                            title="Blocca">
+                                                                        <i class="fas fa-ban"></i>
+                                                                    </button>
+                                                                </form>
+                                                            <?php endif; ?>
+                                                            
+                                                            <!-- Pulsante Elimina completamente (APRE il modal) -->
+                                                            <button type="button" class="btn btn-outline-dark btn-sm" 
+                                                                    data-bs-toggle="modal" data-bs-target="#deleteModal<?php echo $brand['id']; ?>"
+                                                                    title="Elimina completamente">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        <?php endif; ?>
+                                                    </div>
                                                     
                                                     <!-- Modal Sospensione -->
                                                     <?php if (!$brand['deleted_at'] && !$brand['is_suspended']): ?>
@@ -330,7 +351,6 @@ if ($action === 'list') {
                                                                                 <div class="col-4"><strong>Azienda:</strong></div>
                                                                                 <div class="col-8">
                                                                                     <?php 
-                                                                                    // MODIFICATO: Mostra il nome azienda con fallback
                                                                                     $company_name = !empty($brand['company_display_name']) 
                                                                                         ? $brand['company_display_name'] 
                                                                                         : (!empty($brand['company_name']) ? $brand['company_name'] : 'N/A');
@@ -482,46 +502,54 @@ elseif ($action === 'add' || $action === 'edit') {
                                     <div class="row">
                                         <div class="col-12">
                                             <div class="mb-3">
-                                                <label for="name" class="form-label">Nome Contatto <span class="text-danger">*</span></label>
+                                                <label for="name" class="form-label">Azienda</label>
                                                 <input type="text" class="form-control" id="name" name="name" 
-                                                       value="<?php echo htmlspecialchars($brand['name'] ?? ''); ?>" 
-                                                       required>
+                                                       value="<?php echo htmlspecialchars($brand['name'] ?? ''); ?>">
                                             </div>
                                             
                                             <div class="mb-3">
-                                                <label for="email" class="form-label">Email <span class="text-danger">*</span></label>
+                                                <label for="email" class="form-label">Email</label>
                                                 <input type="email" class="form-control" id="email" name="email" 
-                                                       value="<?php echo htmlspecialchars($brand['email'] ?? ''); ?>" 
-                                                       required>
+                                                       value="<?php echo htmlspecialchars($brand['email'] ?? ''); ?>">
                                             </div>
                                             
                                             <div class="mb-3">
-                                                <label for="company_name" class="form-label">Nome Azienda</label>
-                                                <input type="text" class="form-control" id="company_name" name="company_name" 
-                                                       value="<?php echo htmlspecialchars($brand['company_name'] ?? ''); ?>">
-                                            </div>
-                                            
-                                            <div class="mb-3">
-                                                <label for="website" class="form-label">Sito Web</label>
-                                                <input type="url" class="form-control" id="website" name="website" 
-                                                       value="<?php echo htmlspecialchars($brand['website'] ?? ''); ?>"
-                                                       placeholder="https://">
+                                                <label for="password" class="form-label">Password</label>
+                                                <input type="password" class="form-control" id="password" name="password" 
+                                                       placeholder="Lasciare vuoto per non modificare">
+                                                <div class="form-text">Inserisci una nuova password per cambiarla</div>
                                             </div>
                                         </div>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="description" class="form-label">Descrizione</label>
-                                        <textarea class="form-control" id="description" name="description" 
-                                                  rows="4"><?php echo htmlspecialchars($brand['description'] ?? ''); ?></textarea>
-                                        <div class="form-text">Breve descrizione del brand e delle sue attività</div>
-                                    </div>
-                                    
                                     <div class="mb-3 form-check form-switch">
                                         <input type="checkbox" class="form-check-input" id="is_active" name="is_active" 
                                                <?php echo ($brand['is_active'] ?? 1) ? 'checked' : ''; ?>>
                                         <label class="form-check-label" for="is_active">Account attivo</label>
-                                        <div class="form-text">Se disattivato, il brand non potrà accedere al sistema</div>
+                                    </div>
+                                    
+                                    <!-- Sezione Informazioni Account -->
+                                    <div class="card mt-4">
+                                        <div class="card-header">
+                                            <h6 class="mb-0">Informazioni Account</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Creato il:</small><br>
+                                                        <strong><?php echo date('d/m/Y H:i', strtotime($brand['created_at'])); ?></strong>
+                                                    </div>
+                                                </div>
+                                                <?php if ($brand['updated_at'] && $brand['updated_at'] != $brand['created_at']): ?>
+                                                <div class="col-md-6">
+                                                    <div class="mb-2">
+                                                        <small class="text-muted">Modificato il:</small><br>
+                                                        <strong><?php echo date('d/m/Y H:i', strtotime($brand['updated_at'])); ?></strong>
+                                                    </div>
+                                                </div>
+                                                <?php endif; ?>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
@@ -582,81 +610,8 @@ elseif ($action === 'add' || $action === 'edit') {
                                                      class="img-fluid rounded" 
                                                      style="max-height: 200px; max-width: 100%;">
                                             </div>
-                                            
-                                            <?php if ($logo_path): ?>
-                                                <div class="alert alert-info mb-2">
-                                                    <small><i class="fas fa-info-circle"></i> Il brand ha caricato un'immagine personalizzata.</small>
-                                                </div>
-                                                <div class="mb-2">
-                                                    <small class="text-muted">
-                                                        <strong>Percorso:</strong><br>
-                                                        <code><?php echo htmlspecialchars($logo_path); ?></code>
-                                                    </small>
-                                                </div>
-                                                <a href="<?php echo $logo_path; ?>" 
-                                                   target="_blank" 
-                                                   class="btn btn-outline-primary btn-sm">
-                                                    <i class="fas fa-external-link-alt"></i> Apri immagine
-                                                </a>
-                                            <?php else: ?>
-                                                <div class="alert alert-warning mb-2">
-                                                    <small><i class="fas fa-exclamation-triangle"></i> Il brand non ha caricato un'immagine. Viene mostrato il placeholder.</small>
-                                                </div>
-                                            <?php endif; ?>
-                                            
-                                            <?php if ($action === 'edit'): ?>
-                                            <hr>
-                                            <div class="mt-3">
-                                                <small class="text-muted">
-                                                    <strong>Note:</strong> Il brand può aggiornare il logo dalla sua area personale.<br>
-                                                    <a href="/infl/brands/edit-profile.php" target="_blank" class="text-decoration-none">
-                                                        <i class="fas fa-external-link-alt"></i> Vai alla pagina di modifica profilo
-                                                    </a>
-                                                </small>
-                                            </div>
-                                            <?php endif; ?>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Informazioni aggiuntive per debug (facoltativo) -->
-                                    <?php if (false): // Imposta true per debug ?>
-                                    <div class="card mt-3">
-                                        <div class="card-header">
-                                            <h6 class="card-title mb-0">Debug Info</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <small class="text-muted">
-                                                <strong>Brand ID:</strong> <?php echo $id; ?><br>
-                                                <strong>Logo dal DB:</strong> <?php echo htmlspecialchars($brand_details['logo'] ?? 'NULL'); ?><br>
-                                                <strong>Document Root:</strong> <?php echo $_SERVER['DOCUMENT_ROOT']; ?><br>
-                                                <strong>Percorsi testati:</strong><br>
-                                                <?php
-                                                if ($brand_details && !empty($brand_details['logo'])) {
-                                                    $logo_from_db = ltrim($brand_details['logo'], '/');
-                                                    $paths = [
-                                                        '/infl/' . $logo_from_db,
-                                                        '/' . $logo_from_db,
-                                                        '/infl/uploads/brands/' . basename($logo_from_db),
-                                                    ];
-                                                    
-                                                    if (strpos($logo_from_db, 'infl/') === 0) {
-                                                        $paths[] = '/' . $logo_from_db;
-                                                    } else {
-                                                        $paths[] = '/infl/' . $logo_from_db;
-                                                    }
-                                                    
-                                                    foreach ($paths as $path) {
-                                                        $full_path = $_SERVER['DOCUMENT_ROOT'] . $path;
-                                                        $exists = file_exists($full_path) ? 'SI' : 'NO';
-                                                        echo htmlspecialchars($path) . ' → ' . $exists . '<br>';
-                                                    }
-                                                }
-                                                ?>
-                                                <strong>Immagine selezionata:</strong> <?php echo htmlspecialchars($image_to_show); ?>
-                                            </small>
-                                        </div>
-                                    </div>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                             
@@ -683,23 +638,8 @@ elseif ($action === 'add' || $action === 'edit') {
                                         <input type="text" class="form-control" id="company_name" name="company_name" 
                                                value="<?php echo htmlspecialchars($brand['company_name'] ?? ''); ?>">
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        <label for="website" class="form-label">Sito Web</label>
-                                        <input type="url" class="form-control" id="website" name="website" 
-                                               value="<?php echo htmlspecialchars($brand['website'] ?? ''); ?>"
-                                               placeholder="https://">
-                                    </div>
                                 </div>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="description" class="form-label">Descrizione</label>
-                                <textarea class="form-control" id="description" name="description" 
-                                          rows="4"><?php echo htmlspecialchars($brand['description'] ?? ''); ?></textarea>
-                                <div class="form-text">Breve descrizione del brand e delle sue attività</div>
-                            </div>
-                            
+                            </div>                            
                             <div class="mb-3 form-check form-switch">
                                 <input type="checkbox" class="form-check-input" id="is_active" name="is_active" 
                                        <?php echo ($brand['is_active'] ?? 1) ? 'checked' : ''; ?>>
@@ -718,17 +658,6 @@ elseif ($action === 'add' || $action === 'edit') {
                                     <i class="fas fa-save"></i> Salva
                                 </button>
                                 <a href="?action=list" class="btn btn-secondary">Annulla</a>
-                                
-                                <?php if ($action === 'edit' && $brand): ?>
-                                <div class="ms-auto">
-                                    <small class="text-muted">
-                                        Creato il: <?php echo date('d/m/Y H:i', strtotime($brand['created_at'])); ?>
-                                        <?php if ($brand['updated_at'] && $brand['updated_at'] != $brand['created_at']): ?>
-                                            <br>Modificato il: <?php echo date('d/m/Y H:i', strtotime($brand['updated_at'])); ?>
-                                        <?php endif; ?>
-                                    </small>
-                                </div>
-                                <?php endif; ?>
                             </div>
                         </form>
                     </div>

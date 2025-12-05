@@ -891,33 +891,56 @@ function saveBrand($data, $id = null) {
     global $pdo;
     
     if ($id) {
-        // Update
-        $sql = "UPDATE users SET name = ?, email = ?, company_name = ?, website = ?, description = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
-        $stmt = $pdo->prepare($sql);
-        return $stmt->execute([
-            $data['name'], 
-            $data['email'], 
-            $data['company_name'],
-            $data['website'],
-            $data['description'],
-            $data['is_active'],
-            $id
-        ]);
+        // Update - con gestione password opzionale
+        if (isset($data['password']) && !empty(trim($data['password']))) {
+            // Se c'è una nuova password, aggiorna anche quella
+            $sql = "UPDATE users SET name = ?, email = ?, company_name = ?, password = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
+            $password_hash = password_hash($data['password'], PASSWORD_DEFAULT);
+            $stmt = $pdo->prepare($sql);
+            return $stmt->execute([
+                $data['name'], 
+                $data['email'], 
+                $data['company_name'],
+                $password_hash,
+                $data['is_active'],
+                $id
+            ]);
+        } else {
+            // Se non c'è password, aggiorna solo gli altri campi
+            $sql = "UPDATE users SET name = ?, email = ?, company_name = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
+            $stmt = $pdo->prepare($sql);
+            return $stmt->execute([
+                $data['name'], 
+                $data['email'], 
+                $data['company_name'],
+                $data['is_active'],
+                $id
+            ]);
+        }
     } else {
-        // Insert
-        $sql = "INSERT INTO users (name, email, password, user_type, company_name, website, description, is_active, created_at) 
-                VALUES (?, ?, ?, 'brand', ?, ?, ?, ?, NOW())";
-        $password_hash = password_hash('password123', PASSWORD_DEFAULT); // Password temporanea
+        // Insert - genera password casuale se non fornita
+        $sql = "INSERT INTO users (name, email, password, user_type, company_name, is_active, created_at) 
+                VALUES (?, ?, ?, 'brand', ?, ?, NOW())";
+        
+        // Usa password generata casualmente invece di 'password123'
+        $password = generateRandomPassword(12);
+        $password_hash = password_hash($password, PASSWORD_DEFAULT);
+        
         $stmt = $pdo->prepare($sql);
-        return $stmt->execute([
+        $result = $stmt->execute([
             $data['name'], 
             $data['email'], 
             $password_hash,
             $data['company_name'],
-            $data['website'],
-            $data['description'],
             $data['is_active']
         ]);
+        
+        // Opzionale: log per debug
+        if ($result) {
+            error_log("Nuovo brand creato con password generata: $password");
+        }
+        
+        return $result;
     }
 }
 
