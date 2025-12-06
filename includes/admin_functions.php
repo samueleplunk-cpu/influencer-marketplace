@@ -897,25 +897,85 @@ function saveBrand($data, $id = null) {
             $sql = "UPDATE users SET name = ?, email = ?, company_name = ?, password = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
             $password_hash = password_hash($data['password'], PASSWORD_DEFAULT);
             $stmt = $pdo->prepare($sql);
-            return $stmt->execute([
-                $data['name'], 
+            
+            // Esegui l'aggiornamento su users
+            $user_result = $stmt->execute([
+                $data['name'], // Nome contatto (ora separato dal campo azienda)
                 $data['email'], 
-                $data['company_name'],
+                $data['company_name'], // Questo ora è users.company_name (backup se brands.company_name è vuoto)
                 $password_hash,
                 $data['is_active'],
                 $id
             ]);
+            
+            // MODIFICA: Aggiorna anche brands.company_name se esiste il record
+            if ($user_result) {
+                try {
+                    // Controlla se esiste già un record nella tabella brands
+                    $check_sql = "SELECT id FROM brands WHERE user_id = ?";
+                    $check_stmt = $pdo->prepare($check_sql);
+                    $check_stmt->execute([$id]);
+                    $brand_exists = $check_stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($brand_exists) {
+                        // Aggiorna il record esistente nella tabella brands
+                        $update_sql = "UPDATE brands SET company_name = ?, updated_at = NOW() WHERE user_id = ?";
+                        $update_stmt = $pdo->prepare($update_sql);
+                        $update_stmt->execute([$data['company_name'], $id]);
+                    } else {
+                        // Crea un nuovo record nella tabella brands
+                        $insert_sql = "INSERT INTO brands (user_id, company_name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())";
+                        $insert_stmt = $pdo->prepare($insert_sql);
+                        $insert_stmt->execute([$id, $data['company_name']]);
+                    }
+                } catch (PDOException $e) {
+                    error_log("Errore nell'aggiornamento di brands.company_name: " . $e->getMessage());
+                    // Non blocchiamo l'operazione se fallisce l'aggiornamento della tabella brands
+                }
+            }
+            
+            return $user_result;
         } else {
             // Se non c'è password, aggiorna solo gli altri campi
             $sql = "UPDATE users SET name = ?, email = ?, company_name = ?, is_active = ?, updated_at = NOW() WHERE id = ?";
             $stmt = $pdo->prepare($sql);
-            return $stmt->execute([
-                $data['name'], 
+            
+            // Esegui l'aggiornamento su users
+            $user_result = $stmt->execute([
+                $data['name'], // Nome contatto (ora separato dal campo azienda)
                 $data['email'], 
-                $data['company_name'],
+                $data['company_name'], // Questo ora è users.company_name (backup se brands.company_name è vuoto)
                 $data['is_active'],
                 $id
             ]);
+            
+            // MODIFICA: Aggiorna anche brands.company_name se esiste il record
+            if ($user_result) {
+                try {
+                    // Controlla se esiste già un record nella tabella brands
+                    $check_sql = "SELECT id FROM brands WHERE user_id = ?";
+                    $check_stmt = $pdo->prepare($check_sql);
+                    $check_stmt->execute([$id]);
+                    $brand_exists = $check_stmt->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($brand_exists) {
+                        // Aggiorna il record esistente nella tabella brands
+                        $update_sql = "UPDATE brands SET company_name = ?, updated_at = NOW() WHERE user_id = ?";
+                        $update_stmt = $pdo->prepare($update_sql);
+                        $update_stmt->execute([$data['company_name'], $id]);
+                    } else {
+                        // Crea un nuovo record nella tabella brands
+                        $insert_sql = "INSERT INTO brands (user_id, company_name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())";
+                        $insert_stmt = $pdo->prepare($insert_sql);
+                        $insert_stmt->execute([$id, $data['company_name']]);
+                    }
+                } catch (PDOException $e) {
+                    error_log("Errore nell'aggiornamento di brands.company_name: " . $e->getMessage());
+                    // Non blocchiamo l'operazione se fallisce l'aggiornamento della tabella brands
+                }
+            }
+            
+            return $user_result;
         }
     } else {
         // Insert - genera password casuale se non fornita
@@ -935,8 +995,18 @@ function saveBrand($data, $id = null) {
             $data['is_active']
         ]);
         
-        // Opzionale: log per debug
+        // MODIFICA: Crea anche il record nella tabella brands se l'inserimento su users ha successo
         if ($result) {
+            try {
+                $user_id = $pdo->lastInsertId();
+                $insert_sql = "INSERT INTO brands (user_id, company_name, created_at, updated_at) VALUES (?, ?, NOW(), NOW())";
+                $insert_stmt = $pdo->prepare($insert_sql);
+                $insert_stmt->execute([$user_id, $data['company_name']]);
+            } catch (PDOException $e) {
+                error_log("Errore nella creazione del record in brands: " . $e->getMessage());
+                // Non blocchiamo l'operazione se fallisce la creazione nella tabella brands
+            }
+            
             error_log("Nuovo brand creato con password generata: $password");
         }
         

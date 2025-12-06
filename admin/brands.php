@@ -456,7 +456,11 @@ if ($action === 'list') {
 // Pagina aggiungi/modifica brand
 elseif ($action === 'add' || $action === 'edit') {
     $brand = null;
-    $brand_details = null; // Per i dettagli dalla tabella brands
+    $brand_details = null;
+    $campaign_stats = [
+        'total_campaigns' => 0,
+        'active_campaigns' => 0
+    ];
     $title = $action === 'add' ? 'Aggiungi Brand' : 'Modifica Brand';
     
     if ($action === 'edit' && $id) {
@@ -469,13 +473,40 @@ elseif ($action === 'add' || $action === 'edit') {
         // Recupera i dettagli aggiuntivi dalla tabella brands (dove c'è il logo)
         try {
             global $pdo;
-            $stmt = $pdo->prepare("SELECT logo FROM brands WHERE user_id = ?");
+            $stmt = $pdo->prepare("SELECT logo, company_name as brands_company_name FROM brands WHERE user_id = ?");
             $stmt->execute([$id]);
             $brand_details = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            // CORREZIONE: Prima otteniamo l'ID della tabella brands associato all'utente
+            $stmt = $pdo->prepare("SELECT id FROM brands WHERE user_id = ?");
+            $stmt->execute([$id]);
+            $brand_record = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($brand_record && isset($brand_record['id'])) {
+                $brand_table_id = $brand_record['id'];
+                
+                // Conta campagne totali (incluse bozze, attive, pubbliche, etc.)
+                $stmt = $pdo->prepare("SELECT COUNT(*) as total_campaigns FROM campaigns WHERE brand_id = ? AND deleted_at IS NULL");
+                $stmt->execute([$brand_table_id]);
+                $campaign_stats['total_campaigns'] = $stmt->fetchColumn();
+                
+                // Conta campagne attive (stato 'active' e non scadute)
+                $stmt = $pdo->prepare("SELECT COUNT(*) as active_campaigns FROM campaigns WHERE brand_id = ? AND status = 'active' AND deleted_at IS NULL");
+                $stmt->execute([$brand_table_id]);
+                $campaign_stats['active_campaigns'] = $stmt->fetchColumn();
+            } else {
+                // Se non esiste record nella tabella brands, le campagne sono 0
+                $campaign_stats['total_campaigns'] = 0;
+                $campaign_stats['active_campaigns'] = 0;
+            }
+            
         } catch (PDOException $e) {
-            error_log("Errore nel recupero del logo brand: " . $e->getMessage());
+            error_log("Errore nel recupero del logo brand o statistiche campagne: " . $e->getMessage());
             $brand_details = null;
         }
+        
+        // Recupera il nome azienda corretto (company_display_name dalla funzione getBrandById)
+        $company_display_name = $brand['company_display_name'] ?? '';
     }
     ?>
     
@@ -501,10 +532,20 @@ elseif ($action === 'add' || $action === 'edit') {
                                 <div class="col-md-8">
                                     <div class="row">
                                         <div class="col-12">
+                                            <!-- Campo Azienda senza frasi esplicative -->
                                             <div class="mb-3">
-                                                <label for="name" class="form-label">Azienda</label>
-                                                <input type="text" class="form-control" id="name" name="name" 
+                                                <label for="company_name" class="form-label">Azienda</label>
+                                                <input type="text" class="form-control" id="company_name" name="company_name" 
+                                                       value="<?php echo htmlspecialchars($company_display_name); ?>">
+                                            </div>
+                                            
+                                            <div class="mb-3">
+                                                <label for="contact_name" class="form-label">Nome Contatto</label>
+                                                <input type="text" class="form-control" id="contact_name" name="name" 
                                                        value="<?php echo htmlspecialchars($brand['name'] ?? ''); ?>">
+                                                <div class="form-text">
+                                                    Nome della persona di contatto dell'azienda.
+                                                </div>
                                             </div>
                                             
                                             <div class="mb-3">
@@ -527,27 +568,34 @@ elseif ($action === 'add' || $action === 'edit') {
                                         <label class="form-check-label" for="is_active">Account attivo</label>
                                     </div>
                                     
-                                    <!-- Sezione Informazioni Account -->
+                                    <!-- MODIFICA APPLICATA: Sezione Informazioni Account con layout verticale e statistiche campagne -->
                                     <div class="card mt-4">
                                         <div class="card-header">
                                             <h6 class="mb-0">Informazioni Account</h6>
                                         </div>
                                         <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-6">
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Creato il:</small><br>
-                                                        <strong><?php echo date('d/m/Y H:i', strtotime($brand['created_at'])); ?></strong>
-                                                    </div>
-                                                </div>
-                                                <?php if ($brand['updated_at'] && $brand['updated_at'] != $brand['created_at']): ?>
-                                                <div class="col-md-6">
-                                                    <div class="mb-2">
-                                                        <small class="text-muted">Modificato il:</small><br>
-                                                        <strong><?php echo date('d/m/Y H:i', strtotime($brand['updated_at'])); ?></strong>
-                                                    </div>
-                                                </div>
-                                                <?php endif; ?>
+                                            <!-- Layout verticale invece di layout a 2 colonne -->
+                                            <div class="mb-2">
+                                                <small class="text-muted">Creato il:</small><br>
+                                                <strong><?php echo date('d/m/Y H:i', strtotime($brand['created_at'])); ?></strong>
+                                            </div>
+                                            
+                                            <?php if ($brand['updated_at'] && $brand['updated_at'] != $brand['created_at']): ?>
+                                            <div class="mb-2">
+                                                <small class="text-muted">Modificato il:</small><br>
+                                                <strong><?php echo date('d/m/Y H:i', strtotime($brand['updated_at'])); ?></strong>
+                                            </div>
+                                            <?php endif; ?>
+                                            
+                                            <!-- Nuove voci statistiche campagne -->
+                                            <div class="mb-2">
+                                                <small class="text-muted">Campagne totali:</small><br>
+                                                <strong><?php echo $campaign_stats['total_campaigns']; ?></strong>
+                                            </div>
+                                            
+                                            <div class="mb-0">
+                                                <small class="text-muted">Campagne attive:</small><br>
+                                                <strong><?php echo $campaign_stats['active_campaigns']; ?></strong>
                                             </div>
                                         </div>
                                     </div>
@@ -616,7 +664,7 @@ elseif ($action === 'add' || $action === 'edit') {
                             </div>
                             
                             <?php else: ?>
-                            <!-- Layout a singola colonna per ADD -->
+                            <!-- Layout a singola colonna per ADD (NON MODIFICATO) -->
                             <div class="row">
                                 <div class="col-12">
                                     <div class="mb-3">
