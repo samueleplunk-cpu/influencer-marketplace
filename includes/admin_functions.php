@@ -568,7 +568,7 @@ function deleteInfluencerImages($avatar) {
         return;
     }
     
-    $base_path = dirname(__DIR__) . '/';
+    $base_path = $_SERVER['DOCUMENT_ROOT'] . '/infl/';
     
     // Lista dei possibili percorsi dove potrebbe trovarsi l'immagine
     $possible_paths = [
@@ -736,7 +736,7 @@ function deleteBrandImages($avatar) {
         return;
     }
     
-    $base_path = dirname(__DIR__) . '/';
+    $base_path = $_SERVER['DOCUMENT_ROOT'] . '/infl/';
     
     // Lista dei possibili percorsi dove potrebbe trovarsi l'immagine
     $possible_paths = [

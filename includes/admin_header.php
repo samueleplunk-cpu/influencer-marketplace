@@ -177,13 +177,18 @@ $is_administration_page = in_array(basename($_SERVER['PHP_SELF']), ['users.php']
                                             <i class="fas fa-bullhorn me-2"></i> Campagne Brand
                                         </a>
                                     </li>
-                                    <!-- NUOVO MENU SPONSOR INFLUENCER -->
                                     <li class="nav-item">
                                         <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'sponsors.php' ? 'active' : ''; ?>" 
                                            href="/infl/admin/sponsors.php">
                                             <i class="fas fa-star me-2"></i> Sponsor Influencer
                                         </a>
                                     </li>
+									<li class="nav-item">
+    <a class="nav-link <?php echo basename($_SERVER['PHP_SELF']) == 'messages.php' || basename($_SERVER['PHP_SELF']) == 'conversation.php' ? 'active' : ''; ?>" 
+       href="/infl/admin/messages.php">
+        <i class="fas fa-comment-alt me-2"></i> Messaggi
+    </a>
+</li>
                                 </ul>
                             </div>
                         </li>
