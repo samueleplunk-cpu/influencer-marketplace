@@ -6,23 +6,14 @@ $per_page = 25;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $per_page;
 
-// Ottieni il conteggio totale delle conversazioni (RIMOSSO deleted_at IS NULL)
-try {
-    $count_sql = "SELECT COUNT(*) as total FROM conversations";
-    $count_stmt = $pdo->prepare($count_sql);
-    $count_stmt->execute();
-    $total_conversations = $count_stmt->fetch(PDO::FETCH_ASSOC)['total'];
-} catch (PDOException $e) {
-    $total_conversations = 0;
-    error_log("Errore conteggio conversazioni: " . $e->getMessage());
-}
+// Recupera i valori dei filtri
+$brand_filter = isset($_GET['brand_filter']) ? trim($_GET['brand_filter']) : '';
+$influencer_filter = isset($_GET['influencer_filter']) ? trim($_GET['influencer_filter']) : '';
+$campaign_filter = isset($_GET['campaign_filter']) ? trim($_GET['campaign_filter']) : '';
 
-// Calcola paginazione
-$total_pages = ceil($total_conversations / $per_page);
-
-// Ottieni le conversazioni per la pagina corrente
+// Ottieni tutte le conversazioni senza filtri (per filtrare dopo)
 try {
-    // Query corretta: gestisce il caso in cui non trova brand/influencer
+    // Query originale senza filtri
     $sql = "
         SELECT 
             c.id as conversation_id,
@@ -32,7 +23,7 @@ try {
             c.influencer_id,
             c.campaign_id,
             
-            -- Brand info (corretta per recuperare company_name dalla tabella brands)
+            -- Brand info
             COALESCE(
                 (SELECT b.company_name FROM brands b WHERE b.id = c.brand_id LIMIT 1),
                 (SELECT u.name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
@@ -40,32 +31,34 @@ try {
                 CONCAT('Brand #', c.brand_id)
             ) as brand_name,
             
-            -- Brand user_id (se esiste)
+            -- Brand user_id
             (SELECT u.id FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1) as brand_user_id,
             
-            -- Influencer info (con fallback)
+            -- Influencer info
             COALESCE(
                 (SELECT i.full_name FROM influencers i WHERE i.id = c.influencer_id LIMIT 1),
                 (SELECT u.name FROM users u JOIN influencers i ON u.id = i.user_id WHERE i.id = c.influencer_id LIMIT 1),
                 CONCAT('Influencer #', c.influencer_id)
             ) as influencer_name,
             
-            -- Influencer user_id (se esiste)
+            -- Influencer user_id
             (SELECT u.id FROM users u JOIN influencers i ON u.id = i.user_id WHERE i.id = c.influencer_id LIMIT 1) as influencer_user_id,
             
-            -- Campagna (se esiste)
-            (SELECT name FROM campaigns WHERE id = c.campaign_id LIMIT 1) as campaign_name,
+            -- Campagna
+            COALESCE(
+                (SELECT name FROM campaigns WHERE id = c.campaign_id LIMIT 1),
+                'Nessuna campagna'
+            ) as campaign_name,
             
             -- Conta messaggi totali
             (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) as total_messages,
             
-            -- Conta messaggi non letti (per brand)
+            -- Conta messaggi non letti
             (SELECT COUNT(*) FROM messages m 
              WHERE m.conversation_id = c.id 
              AND m.is_read = 0 
              AND m.sender_type = 'influencer') as unread_by_brand,
              
-            -- Conta messaggi non letti (per influencer)
             (SELECT COUNT(*) FROM messages m 
              WHERE m.conversation_id = c.id 
              AND m.is_read = 0 
@@ -73,18 +66,97 @@ try {
             
         FROM conversations c
         ORDER BY c.updated_at DESC
-        LIMIT :limit OFFSET :offset
     ";
     
     $stmt = $pdo->prepare($sql);
-    $stmt->bindValue(':limit', $per_page, PDO::PARAM_INT);
-    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
     $stmt->execute();
-    $conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $all_conversations = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
-    $conversations = [];
+    $all_conversations = [];
     error_log("Errore recupero conversazioni: " . $e->getMessage());
+}
+
+// Applica i filtri localmente
+$filtered_conversations = $all_conversations;
+
+if ($brand_filter !== '' || $influencer_filter !== '' || $campaign_filter !== '') {
+    $filtered_conversations = array_filter($all_conversations, function($conv) use ($brand_filter, $influencer_filter, $campaign_filter) {
+        $matches = false;
+        
+        // Applica filtri in OR
+        if ($brand_filter !== '') {
+            $brand_name = strtolower($conv['brand_name']);
+            if (stripos($brand_name, strtolower($brand_filter)) !== false) {
+                $matches = true;
+            }
+        }
+        
+        if (!$matches && $influencer_filter !== '') {
+            $influencer_name = strtolower($conv['influencer_name']);
+            if (stripos($influencer_name, strtolower($influencer_filter)) !== false) {
+                $matches = true;
+            }
+        }
+        
+        if (!$matches && $campaign_filter !== '') {
+            $campaign_name = strtolower($conv['campaign_name']);
+            $search_term = strtolower($campaign_filter);
+            
+            if ($campaign_filter === 'Nessuna campagna') {
+                if ($campaign_name === 'nessuna campagna') {
+                    $matches = true;
+                }
+            } else {
+                if (stripos($campaign_name, $search_term) !== false) {
+                    $matches = true;
+                }
+            }
+        }
+        
+        // Se nessun filtro è specificato, mostra tutto
+        if ($brand_filter === '' && $influencer_filter === '' && $campaign_filter === '') {
+            $matches = true;
+        }
+        
+        return $matches;
+    });
+    
+    // Reindex array
+    $filtered_conversations = array_values($filtered_conversations);
+}
+
+// Calcola conteggio totale
+$total_conversations = count($filtered_conversations);
+
+// Calcola paginazione
+$total_pages = ceil($total_conversations / $per_page);
+
+// Prendi solo le conversazioni per la pagina corrente
+$start_index = ($page - 1) * $per_page;
+$conversations = array_slice($filtered_conversations, $start_index, $per_page);
+
+// Funzione per generare URL con i filtri mantenuti
+function buildUrlWithFilters($page = null) {
+    $params = [];
+    
+    if ($page !== null) {
+        $params['page'] = $page;
+    }
+    
+    if (isset($_GET['brand_filter']) && $_GET['brand_filter'] !== '') {
+        $params['brand_filter'] = $_GET['brand_filter'];
+    }
+    
+    if (isset($_GET['influencer_filter']) && $_GET['influencer_filter'] !== '') {
+        $params['influencer_filter'] = $_GET['influencer_filter'];
+    }
+    
+    if (isset($_GET['campaign_filter']) && $_GET['campaign_filter'] !== '') {
+        $params['campaign_filter'] = $_GET['campaign_filter'];
+    }
+    
+    return !empty($params) ? '?' . http_build_query($params) : '';
 }
 ?>
 
@@ -97,6 +169,69 @@ try {
                 <?php echo $total_conversations; ?> conversazioni
             </span>
         </div>
+    </div>
+</div>
+
+<!-- Filtri di ricerca -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Filtra conversazioni</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="" class="row g-3 align-items-end">
+            <!-- Brand Filter (20%) -->
+            <div class="col-md-2 col-lg-2">
+                <label for="brand_filter" class="form-label">
+                    <i class="fas fa-building me-1"></i> Brand
+                </label>
+                <input type="text" 
+                       class="form-control" 
+                       id="brand_filter" 
+                       name="brand_filter" 
+                       value="<?php echo htmlspecialchars($brand_filter); ?>"
+                       placeholder="Cerca brand...">
+            </div>
+            
+            <!-- Influencer Filter (20%) -->
+            <div class="col-md-2 col-lg-2">
+                <label for="influencer_filter" class="form-label">
+                    <i class="fas fa-user-check me-1"></i> Influencer
+                </label>
+                <input type="text" 
+                       class="form-control" 
+                       id="influencer_filter" 
+                       name="influencer_filter" 
+                       value="<?php echo htmlspecialchars($influencer_filter); ?>"
+                       placeholder="Cerca influencer...">
+            </div>
+            
+            <!-- Campaign Filter (20%) -->
+            <div class="col-md-2 col-lg-2">
+                <label for="campaign_filter" class="form-label">
+                    <i class="fas fa-bullhorn me-1"></i> Campagna
+                </label>
+                <input type="text" 
+                       class="form-control" 
+                       id="campaign_filter" 
+                       name="campaign_filter" 
+                       value="<?php echo htmlspecialchars($campaign_filter); ?>"
+                       placeholder="Cerca campagna...">
+            </div>
+            
+            <!-- Apply Filters Button (20%) -->
+            <div class="col-md-2 col-lg-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i> Applica Filtri
+                </button>
+            </div>
+            
+            <!-- Reset Filters Button (20%) -->
+            <div class="col-md-2 col-lg-2">
+                <a href="?page=1" class="btn btn-outline-secondary w-100">
+                    <i class="fas fa-redo me-1"></i> Reset Filtri
+                </a>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -117,7 +252,13 @@ try {
             <div class="text-center py-5">
                 <i class="fas fa-comments fa-3x text-muted mb-3"></i>
                 <h4>Nessuna conversazione trovata</h4>
-                <p class="text-muted">Non ci sono ancora conversazioni tra brand e influencer.</p>
+                <p class="text-muted">
+                    <?php if ($brand_filter !== '' || $influencer_filter !== '' || $campaign_filter !== ''): ?>
+                        Prova a modificare i criteri di ricerca.
+                    <?php else: ?>
+                        Non ci sono ancora conversazioni tra brand e influencer.
+                    <?php endif; ?>
+                </p>
             </div>
         <?php else: ?>
             <div class="table-responsive">
@@ -135,7 +276,7 @@ try {
                     <tbody>
                         <?php foreach ($conversations as $conv): ?>
                             <?php 
-                            // Calcola messaggi non letti totali (per visualizzazione admin)
+                            // Calcola messaggi non letti totali
                             $unread_total = max(
                                 intval($conv['unread_by_brand'] ?? 0),
                                 intval($conv['unread_by_influencer'] ?? 0)
@@ -185,7 +326,7 @@ try {
                                 </td>
                                 
                                 <td>
-                                    <?php if ($conv['campaign_name']): ?>
+                                    <?php if ($conv['campaign_name'] && $conv['campaign_name'] !== 'Nessuna campagna'): ?>
                                         <div class="d-flex align-items-center">
                                             <div class="flex-shrink-0 me-2">
                                                 <i class="fas fa-bullhorn text-warning"></i>
@@ -240,14 +381,14 @@ try {
                     <ul class="pagination justify-content-center">
                         <!-- Prima pagina -->
                         <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=1" aria-label="Prima">
+                            <a class="page-link" href="<?php echo buildUrlWithFilters(1); ?>" aria-label="Prima">
                                 <i class="fas fa-angle-double-left"></i>
                             </a>
                         </li>
                         
                         <!-- Pagina precedente -->
                         <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo $page - 1; ?>" aria-label="Precedente">
+                            <a class="page-link" href="<?php echo buildUrlWithFilters($page - 1); ?>" aria-label="Precedente">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
                         </li>
@@ -260,7 +401,7 @@ try {
                         
                         for ($i = $start_page; $i <= $end_page; $i++): ?>
                             <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
-                                <a class="page-link" href="?page=<?php echo $i; ?>">
+                                <a class="page-link" href="<?php echo buildUrlWithFilters($i); ?>">
                                     <?php echo $i; ?>
                                 </a>
                             </li>
@@ -268,14 +409,14 @@ try {
                         
                         <!-- Pagina successiva -->
                         <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo $page + 1; ?>" aria-label="Successiva">
+                            <a class="page-link" href="<?php echo buildUrlWithFilters($page + 1); ?>" aria-label="Successiva">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
                         </li>
                         
                         <!-- Ultima pagina -->
                         <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
-                            <a class="page-link" href="?page=<?php echo $total_pages; ?>" aria-label="Ultima">
+                            <a class="page-link" href="<?php echo buildUrlWithFilters($total_pages); ?>" aria-label="Ultima">
                                 <i class="fas fa-angle-double-right"></i>
                             </a>
                         </li>
@@ -285,6 +426,9 @@ try {
                     <div class="text-center mt-2">
                         <small class="text-muted">
                             Mostrando <?php echo count($conversations); ?> di <?php echo $total_conversations; ?> conversazioni
+                            <?php if ($brand_filter !== '' || $influencer_filter !== '' || $campaign_filter !== ''): ?>
+                                (filtrate)
+                            <?php endif; ?>
                         </small>
                     </div>
                 </nav>
