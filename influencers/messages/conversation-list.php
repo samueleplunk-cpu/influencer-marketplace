@@ -108,9 +108,16 @@ require_once $header_file;
                                class="list-group-item list-group-item-action <?php echo $bg_class; ?>">
                                 <div class="d-flex w-100 justify-content-between">
                                     <div class="d-flex align-items-center">
-                                        <!-- Immagine profilo brand - CORRETTA -->
+                                        <!-- Immagine profilo brand - MODIFICATO PER SUPPORTARE PLACEHOLDER -->
                                         <?php 
-                                        $brand_image_path = get_image_path($conversation['brand_image'] ?? '', 'brand');
+                                        $brand_image = $conversation['brand_image'] ?? '';
+                                        if (!empty($brand_image)) {
+                                            // Se c'è un'immagine caricata, usa quella
+                                            $brand_image_path = get_image_path($brand_image, 'brand');
+                                        } else {
+                                            // Se NON c'è immagine caricata, usa il placeholder specificato
+                                            $brand_image_path = '/infl/uploads/placeholder/brand_admin_edit.png';
+                                        }
                                         ?>
                                         <img src="<?php echo htmlspecialchars($brand_image_path); ?>" 
                                              class="rounded-circle me-3" width="50" height="50" alt="Brand Logo"

@@ -175,16 +175,20 @@ require_once $header_file;
                             <i class="fas fa-building me-2"></i>Brand
                         </h5>
                         <div class="d-flex align-items-center">
-                            <?php if (!empty($conversation['brand_image']) && image_exists($conversation['brand_image'])): ?>
-                                <img src="<?php echo get_image_path($conversation['brand_image'], 'brand'); ?>" 
-                                     class="rounded-circle me-3" width="60" height="60" alt="Brand Logo" 
-                                     style="object-fit: cover;">
-                            <?php else: ?>
-                                <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3" 
-                                     style="width: 60px; height: 60px;">
-                                    <i class="fas fa-building text-muted fa-lg"></i>
-                                </div>
-                            <?php endif; ?>
+                            <?php 
+                            $brand_image = $conversation['brand_image'] ?? '';
+                            if (!empty($brand_image)) {
+                                // Se c'è un'immagine caricata, usa quella
+                                $brand_image_path = get_image_path($brand_image, 'brand');
+                            } else {
+                                // Se NON c'è immagine caricata, usa il placeholder specificato
+                                $brand_image_path = '/infl/uploads/placeholder/brand_admin_edit.png';
+                            }
+                            ?>
+                            <img src="<?php echo htmlspecialchars($brand_image_path); ?>" 
+                                 class="rounded-circle me-3" width="60" height="60" alt="Brand Logo" 
+                                 style="object-fit: cover;"
+                                 onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('brand'); ?>';">
                             <div>
                                 <strong class="h6"><?php echo htmlspecialchars($conversation['brand_name']); ?></strong>
                                 <?php if (!empty($conversation['brand_description'])): ?>
@@ -270,25 +274,33 @@ require_once $header_file;
                             $bubble_class = $is_own_message ? 'bg-primary text-white' : 'bg-light';
                             $time_class = $is_own_message ? 'text-white-50' : 'text-muted';
                             
-                            // Usa l'immagine fissa del profilo invece di cercarla per ogni messaggio
-                            $sender_image = $is_own_message ? $influencer_image : $conversation['brand_image'];
-                            $sender_image_type = $is_own_message ? 'influencer' : 'brand';
+                            // Gestione immagine del mittente
+                            if ($is_own_message) {
+                                // Se è l'influencer (messaggio proprio)
+                                $sender_image = $influencer_image;
+                                $sender_image_type = 'influencer';
+                                $image_path = get_image_path($sender_image, $sender_image_type);
+                            } else {
+                                // Se è il brand
+                                $brand_image = $conversation['brand_image'] ?? '';
+                                if (!empty($brand_image)) {
+                                    // Se c'è un'immagine caricata, usa quella
+                                    $image_path = get_image_path($brand_image, 'brand');
+                                } else {
+                                    // Se NON c'è immagine caricata, usa il placeholder specificato
+                                    $image_path = '/infl/uploads/placeholder/brand_admin_edit.png';
+                                }
+                            }
                             ?>
                             
                             <div class="message mb-4 <?php echo $message_class; ?>" id="message-<?php echo $message['id']; ?>">
                                 <div class="d-flex <?php echo $is_own_message ? 'justify-content-end' : 'justify-content-start'; ?>">
                                     <?php if (!$is_own_message): ?>
-                                        <!-- Avatar brand - usa sempre il logo del brand -->
-                                        <?php if (!empty($sender_image) && image_exists($sender_image)): ?>
-                                            <img src="<?php echo get_image_path($sender_image, $sender_image_type); ?>" 
-                                                 class="rounded-circle me-3" width="40" height="40" alt="Brand Logo"
-                                                 style="object-fit: cover;">
-                                        <?php else: ?>
-                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
-                                                 style="width: 40px; height: 40px;">
-                                                <i class="fas fa-building text-white"></i>
-                                            </div>
-                                        <?php endif; ?>
+                                        <!-- Avatar brand - usa placeholder se non c'è immagine -->
+                                        <img src="<?php echo htmlspecialchars($image_path); ?>" 
+                                             class="rounded-circle me-3" width="40" height="40" alt="Brand Logo"
+                                             style="object-fit: cover;"
+                                             onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('brand'); ?>';">
                                     <?php endif; ?>
                                     
                                     <div class="message-bubble <?php echo $bubble_class; ?> rounded-3 p-3 position-relative" 
@@ -321,17 +333,11 @@ require_once $header_file;
                                     </div>
                                     
                                     <?php if ($is_own_message): ?>
-                                        <!-- Avatar proprio (influencer) - usa sempre l'immagine del profilo influencer -->
-                                        <?php if (!empty($sender_image) && image_exists($sender_image)): ?>
-                                            <img src="<?php echo get_image_path($sender_image, $sender_image_type); ?>" 
-                                                 class="rounded-circle ms-3" width="40" height="40" alt="Profile"
-                                                 style="object-fit: cover;">
-                                        <?php else: ?>
-                                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center ms-3" 
-                                                 style="width: 40px; height: 40px;">
-                                                <i class="fas fa-user text-white"></i>
-                                            </div>
-                                        <?php endif; ?>
+                                        <!-- Avatar proprio (influencer) - usa l'immagine del profilo influencer -->
+                                        <img src="<?php echo htmlspecialchars($image_path); ?>" 
+                                             class="rounded-circle ms-3" width="40" height="40" alt="Profile"
+                                             style="object-fit: cover;"
+                                             onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('influencer'); ?>';">
                                     <?php endif; ?>
                                 </div>
                             </div>

@@ -594,26 +594,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="form-help">Formati supportati: JPG, PNG, GIF (max 5MB)</div>
                 
                 <div class="current-image">
-                    <p><strong>Immagine attuale:</strong></p>
-                    <?php if (!empty($influencer['profile_image'])): ?>
-                        <?php
-                        $image_path = '/infl/uploads/' . $influencer['profile_image'];
-                        $full_image_path = dirname(__DIR__) . '/uploads/' . $influencer['profile_image'];
-                        ?>
-                        <?php if (file_exists($full_image_path)): ?>
-                            <img src="<?php echo htmlspecialchars($image_path); ?>" 
-                                 alt="Immagine profilo attuale">
-                        <?php else: ?>
-                            <div class="image-placeholder">
-                                Immagine non trovata sul server
-                            </div>
-                        <?php endif; ?>
-                    <?php else: ?>
-                        <div class="image-placeholder">
-                            Nessuna immagine
-                        </div>
-                    <?php endif; ?>
-                </div>
+    <p><strong>Immagine attuale:</strong></p>
+    <?php 
+    $current_image_src = '/infl/uploads/placeholder/influencer_admin_edit.png';
+    $has_custom_image = false;
+    
+    if (!empty($influencer['profile_image'])) {
+        $full_image_path = dirname(__DIR__) . '/uploads/' . $influencer['profile_image'];
+        if (file_exists($full_image_path)) {
+            $current_image_src = '/infl/uploads/' . $influencer['profile_image'];
+            $has_custom_image = true;
+        }
+    }
+    ?>
+    
+    <img src="<?php echo htmlspecialchars($current_image_src); ?>" 
+         alt="<?php echo $has_custom_image ? 'Immagine profilo attuale' : 'Placeholder profilo'; ?>"
+         style="max-width: 150px; max-height: 150px; border-radius: 50%; border: 3px solid #e1e5e9; object-fit: cover;">
+    
+    <?php if ($has_custom_image): ?>
+        <p class="form-help mt-2">Immagine personalizzata caricata</p>
+    <?php else: ?>
+        <p class="form-help mt-2">Placeholder predefinito - carica una tua immagine</p>
+    <?php endif; ?>
+</div>
             </div>
 
             <div class="button-group">

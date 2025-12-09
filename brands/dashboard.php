@@ -173,45 +173,58 @@ if (!empty($brand['logo'])) {
                         </div>
                         <div class="card-body">
                             <!-- Logo del Brand -->
-                            <?php if (!empty($brand['logo'])): ?>
-                                <?php if ($logo_exists): ?>
-                                    <div class="text-center mb-4">
-                                        <img src="<?php echo htmlspecialchars($logo_url); ?>" 
-                                             alt="Logo <?php echo htmlspecialchars($brand['company_name'] ?? 'Azienda'); ?>" 
-                                             class="img-fluid rounded brand-logo"
-                                             style="max-height: 120px; max-width: 200px;">
-                                        <div class="mt-2">
-                                            <small class="text-muted">
-                                                <i class="fas fa-check-circle text-success"></i>
-                                                Logo caricato
+                            <div class="text-center mb-4">
+                                <?php 
+                                // Determina quale immagine mostrare
+                                $display_logo_url = '/infl/uploads/placeholder/brand_admin_edit.png'; // Placeholder predefinito
+                                
+                                if (!empty($brand['logo'])) {
+                                    if ($logo_exists) {
+                                        // Logo personalizzato caricato dall'utente
+                                        $display_logo_url = $logo_url;
+                                        $logo_status = 'personalizzato';
+                                    } else {
+                                        // Logo nel database ma file non trovato - mostra placeholder
+                                        $logo_status = 'non trovato';
+                                    }
+                                } else {
+                                    // Nessun logo nel database - mostra placeholder
+                                    $logo_status = 'non caricato';
+                                }
+                                ?>
+                                
+                                <img src="<?php echo htmlspecialchars($display_logo_url); ?>" 
+                                     alt="Logo <?php echo htmlspecialchars($brand['company_name'] ?? 'Azienda'); ?>" 
+                                     class="img-fluid rounded brand-logo"
+                                     style="max-height: 120px; max-width: 200px;">
+                                
+                                <div class="mt-2">
+                                    <?php if (isset($logo_status) && $logo_status === 'personalizzato'): ?>
+                                        <small class="text-muted">
+                                            <i class="fas fa-check-circle text-success"></i>
+                                            Logo personalizzato
+                                        </small>
+                                    <?php elseif (isset($logo_status) && $logo_status === 'non trovato'): ?>
+                                        <div class="alert alert-warning p-2 mt-2">
+                                            <small>
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                Logo nel database ma file non trovato
                                             </small>
+                                            <div>
+                                                <a href="edit-profile.php" class="btn btn-sm btn-warning mt-1">
+                                                    Ricarica Logo
+                                                </a>
+                                            </div>
                                         </div>
-                                    </div>
-                                <?php else: ?>
-                                    <div class="text-center mb-4">
-                                        <div class="alert alert-warning p-3">
-                                            <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
-                                            <p class="small mb-2">Logo nel database ma file non trovato</p>
-                                            <small class="text-muted d-block mb-2">
-                                                File: <?php echo htmlspecialchars($logo_filename); ?>
-                                            </small>
-                                            <a href="edit-profile.php" class="btn btn-sm btn-warning">
-                                                Ricarica Logo
+                                    <?php else: ?>
+                                        <div class="mt-1">
+                                            <a href="edit-profile.php" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-upload"></i> Carica Logo Personalizzato
                                             </a>
                                         </div>
-                                    </div>
-                                <?php endif; ?>
-                            <?php else: ?>
-                                <div class="text-center mb-4">
-                                    <div class="brand-logo-placeholder p-4">
-                                        <i class="fas fa-camera fa-3x text-muted mb-3"></i>
-                                        <p class="text-muted small mb-2">Nessun logo caricato</p>
-                                        <a href="edit-profile.php" class="btn btn-sm btn-outline-primary">
-                                            <i class="fas fa-upload"></i> Carica Logo
-                                        </a>
-                                    </div>
+                                    <?php endif; ?>
                                 </div>
-                            <?php endif; ?>
+                            </div>
                             
                             <div class="mb-3">
                                 <strong>Azienda:</strong>
@@ -251,7 +264,9 @@ if (!empty($brand['logo'])) {
                                     if (!empty($brand['description'])) $completed++;
                                     if (!empty($brand['website'])) $completed++;
                                     if (!empty($brand['company_size'])) $completed++;
-                                    if (!empty($brand['logo']) && $logo_exists) $completed++; // Solo se il file esiste veramente
+                                    // Il logo è considerato "completato" solo se ha caricato un'immagine personalizzata
+                                    // Il placeholder predefinito non conta come completamento
+                                    if (!empty($brand['logo']) && $logo_exists) $completed++;
                                     echo $completed . '/' . $total;
                                     ?>
                                 </span>

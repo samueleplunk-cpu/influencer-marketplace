@@ -32,7 +32,7 @@ check_admin_session_timeout();
 // Determina se siamo nella pagina settings per mantenere il menu aperto
 $is_settings_page = basename($_SERVER['PHP_SELF']) == 'settings.php';
 $is_notifications_page = basename($_SERVER['PHP_SELF']) == 'notifications.php';
-$is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php', 'sponsors.php']);
+$is_moderation_page = in_array(basename($_SERVER['PHP_SELF']), ['moderation.php', 'brand-campaigns.php', 'sponsors.php', 'messages.php', 'conversation.php']);
 $is_pages_menu_page = basename($_SERVER['PHP_SELF']) == 'pages-menu.php';
 $is_general_settings_page = basename($_SERVER['PHP_SELF']) == 'general-settings.php';
 // NUOVA VARIABILE PER AMMINISTRAZIONE

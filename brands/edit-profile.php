@@ -270,34 +270,44 @@ require_once $header_file;
                                 
                                 <!-- Area Upload Logo -->
                                 <div id="logoUploadArea">
-                                    <!-- Logo attuale -->
-                                    <?php if (!empty($brand['logo'])): ?>
-                                        <div id="currentLogoSection" class="mb-3">
-                                            <p class="text-muted">Logo attuale:</p>
-                                            <img src="/infl/<?php echo htmlspecialchars($brand['logo']); ?>" 
-                                                 alt="Logo attuale" 
-                                                 class="img-thumbnail mb-2" 
-                                                 style="max-height: 150px;">
-                                            <div class="d-flex gap-2">
-                                                <button type="button" class="btn btn-outline-primary btn-sm" id="changeLogoBtn">
+                                    <!-- Logo attuale o placeholder -->
+                                    <div id="currentLogoSection" class="mb-3">
+                                        <?php 
+                                        // Determina quale immagine mostrare
+                                        $current_logo_url = '/infl/uploads/placeholder/brand_admin_edit.png';
+                                        $has_custom_logo = false;
+                                        
+                                        if (!empty($brand['logo'])) {
+                                            // Verifica se il file esiste fisicamente
+                                            $logo_full_path = dirname(__DIR__) . '/' . $brand['logo'];
+                                            if (file_exists($logo_full_path)) {
+                                                $current_logo_url = '/infl/' . $brand['logo'];
+                                                $has_custom_logo = true;
+                                            }
+                                        }
+                                        ?>
+                                        
+                                        <img src="<?php echo htmlspecialchars($current_logo_url); ?>" 
+                                             alt="<?php echo $has_custom_logo ? 'Logo attuale' : 'Logo'; ?>" 
+                                             class="img-thumbnail mb-2" 
+                                             style="max-height: 150px;">
+                                        
+                                        <div class="d-flex gap-2">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" id="changeLogoBtn">
+                                                <?php if ($has_custom_logo): ?>
                                                     📝 Cambia Immagine
-                                                </button>
+                                                <?php else: ?>
+                                                    📁 Carica Immagine Personalizzata
+                                                <?php endif; ?>
+                                            </button>
+                                            
+                                            <?php if ($has_custom_logo): ?>
                                                 <button type="button" class="btn btn-outline-danger btn-sm" id="removeCurrentLogoBtn">
                                                     🗑️ Rimuovi Immagine
                                                 </button>
-                                            </div>
+                                            <?php endif; ?>
                                         </div>
-                                    <?php else: ?>
-                                        <!-- Se non c'è logo, mostra pulsante per caricare -->
-                                        <div id="noLogoSection" class="mb-3">
-                                            <div class="alert alert-info">
-                                                <small>Nessun logo caricato. Gli influencer vedranno un'immagine predefinita.</small>
-                                            </div>
-                                            <button type="button" class="btn btn-outline-primary" id="uploadLogoBtn">
-                                                📁 Scegli Immagine
-                                            </button>
-                                        </div>
-                                    <?php endif; ?>
+                                    </div>
                                     
                                     <!-- Input file nascosto -->
                                     <input type="file" class="form-control d-none" id="logo" name="logo" 
@@ -321,7 +331,7 @@ require_once $header_file;
                                 </div>
                                 
                                 <div class="form-text">
-                                    Formati supportati: JPG, PNG, GIF. Dimensione massima: 2MB. <!-- MODIFICATO: 2MB invece di 5MB -->
+                                    Formati supportati: JPG, PNG, GIF. Dimensione massima: 2MB.
                                 </div>
                             </div>
                         </div>
@@ -424,21 +434,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const previewImage = document.getElementById('previewImage');
     const removeLogoField = document.getElementById('removeLogoField');
     const currentLogoSection = document.getElementById('currentLogoSection');
-    const noLogoSection = document.getElementById('noLogoSection');
     
     // Elementi dei pulsanti
     const changeLogoBtn = document.getElementById('changeLogoBtn');
     const removeCurrentLogoBtn = document.getElementById('removeCurrentLogoBtn');
-    const uploadLogoBtn = document.getElementById('uploadLogoBtn');
     const changeImageBtn = document.getElementById('changeImageBtn');
     const removeImageBtn = document.getElementById('removeImageBtn');
-    
-    // Gestione click su "Scegli Immagine" (quando non c'è logo)
-    if (uploadLogoBtn) {
-        uploadLogoBtn.addEventListener('click', function() {
-            logoInput.click();
-        });
-    }
     
     // Gestione click su "Cambia Immagine" (logo attuale)
     if (changeLogoBtn) {
@@ -452,12 +453,8 @@ document.addEventListener('DOMContentLoaded', function() {
         removeCurrentLogoBtn.addEventListener('click', function() {
             if (confirm('Sei sicuro di voler rimuovere il logo attuale?')) {
                 removeLogoField.value = '1';
-                // Nascondi la sezione del logo attuale
-                if (currentLogoSection) {
-                    currentLogoSection.style.display = 'none';
-                }
-                // Mostra la sezione senza logo
-                showNoLogoSection();
+                // Aggiorna la sezione del logo corrente con placeholder
+                showPlaceholderLogo();
             }
         });
     }
@@ -479,7 +476,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 currentLogoSection.style.display = 'block';
             } else {
                 logoPreviewContainer.style.display = 'none';
-                showNoLogoSection();
+                showPlaceholderLogo();
             }
         });
     }
@@ -511,12 +508,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     previewImage.src = e.target.result;
                     logoPreviewContainer.style.display = 'block';
                     
-                    // Nascondi le altre sezioni
+                    // Nascondi la sezione del logo attuale
                     if (currentLogoSection) {
                         currentLogoSection.style.display = 'none';
-                    }
-                    if (noLogoSection) {
-                        noLogoSection.style.display = 'none';
                     }
                     
                     // Reset del campo remove_logo se stiamo caricando una nuova immagine
@@ -535,28 +529,24 @@ document.addEventListener('DOMContentLoaded', function() {
         removeLogoField.value = '0';
     }
     
-    // Funzione per mostrare la sezione senza logo
-    function showNoLogoSection() {
-        if (noLogoSection) {
-            noLogoSection.style.display = 'block';
-        } else {
-            // Se non esiste, creala dinamicamente
-            const logoUploadArea = document.getElementById('logoUploadArea');
-            const newNoLogoSection = document.createElement('div');
-            newNoLogoSection.id = 'noLogoSection';
-            newNoLogoSection.className = 'mb-3';
-            newNoLogoSection.innerHTML = `
-                <div class="alert alert-info">
-                    <small>Nessun logo caricato. Gli influencer vedranno un'immagine predefinita.</small>
+    // Funzione per mostrare il placeholder
+    function showPlaceholderLogo() {
+        if (currentLogoSection) {
+            currentLogoSection.innerHTML = `
+                <img src="/infl/uploads/placeholder/brand_admin_edit.png" 
+                     alt="Logo" 
+                     class="img-thumbnail mb-2" 
+                     style="max-height: 150px;">
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" id="changeLogoBtn">
+                        📁 Carica Immagine Personalizzata
+                    </button>
                 </div>
-                <button type="button" class="btn btn-outline-primary" id="uploadLogoBtn">
-                    📁 Scegli Immagine
-                </button>
             `;
-            logoUploadArea.appendChild(newNoLogoSection);
+            currentLogoSection.style.display = 'block';
             
             // Re-attach event listener al nuovo pulsante
-            document.getElementById('uploadLogoBtn').addEventListener('click', function() {
+            document.getElementById('changeLogoBtn').addEventListener('click', function() {
                 logoInput.click();
             });
         }

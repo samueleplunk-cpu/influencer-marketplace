@@ -297,7 +297,6 @@ function can_access_conversation($pdo, $conversation_id, $user_type, $user_id) {
  * Invia una notifica email (funzione base - da implementare con servizio email)
  */
 function send_notification_email($to, $subject, $message) {
-    // Implementazione base - da personalizzare con il servizio email preferito
     $headers = "From: noreply@influencer-marketplace.com\r\n";
     $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
     
@@ -370,30 +369,25 @@ function validate_input($data, $rules) {
 function upload_file($file, $allowed_types, $max_size, $upload_path) {
     $errors = [];
     
-    // Verifica se non ci sono errori di upload
     if ($file['error'] !== UPLOAD_ERR_OK) {
         $errors[] = "Errore nel caricamento del file: " . $file['error'];
         return ['success' => false, 'errors' => $errors];
     }
     
-    // Verifica dimensione file
     if ($file['size'] > $max_size) {
         $errors[] = "Il file è troppo grande. Dimensione massima: " . ($max_size / 1024 / 1024) . "MB";
         return ['success' => false, 'errors' => $errors];
     }
     
-    // Verifica tipo file
     $file_type = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     if (!in_array($file_type, $allowed_types)) {
         $errors[] = "Tipo file non consentito. Tipi consentiti: " . implode(', ', $allowed_types);
         return ['success' => false, 'errors' => $errors];
     }
     
-    // Genera nome file univoco
     $filename = uniqid() . '_' . time() . '.' . $file_type;
     $filepath = $upload_path . $filename;
     
-    // Sposta il file
     if (move_uploaded_file($file['tmp_name'], $filepath)) {
         return [
             'success' => true,
@@ -453,25 +447,16 @@ function get_placeholder_path($type) {
  * Ottiene il percorso corretto per un'immagine
  */
 function get_image_path($filename, $default_type = 'user') {
-    // Se il filename è vuoto, restituisci subito il placeholder
     if (empty($filename)) {
         return get_placeholder_path($default_type);
     }
     
     $base_path = dirname(__DIR__) . '/';
     
-    // DEBUG: Log per tracciare il percorso (rimuovere in produzione)
-    // error_log("DEBUG get_image_path: filename='$filename', default_type='$default_type'");
-    
-    // Lista dei percorsi possibili da verificare
-    $possible_paths = [];
-    
-    // 1. Percorso completo (se il filename include già il percorso)
     if (strpos($filename, 'uploads/') === 0) {
         $possible_paths[] = $base_path . $filename;
     }
     
-    // 2. Percorsi specifici per tipo
     if ($default_type === 'brand') {
         $possible_paths[] = $base_path . 'uploads/brands/' . $filename;
         $possible_paths[] = $base_path . 'brands/uploads/' . $filename;
@@ -481,22 +466,16 @@ function get_image_path($filename, $default_type = 'user') {
         $possible_paths[] = $base_path . 'influencers/uploads/' . $filename;
     }
     
-    // 3. Percorsi generici
     $possible_paths[] = $base_path . 'uploads/' . $filename;
     $possible_paths[] = $base_path . $filename;
     
-    // Verifica ogni percorso possibile
     foreach ($possible_paths as $full_path) {
         if (file_exists($full_path) && is_file($full_path)) {
-            // Converti il percorso assoluto in percorso web
             $web_path = str_replace($base_path, '/infl/', $full_path);
-            // error_log("DEBUG: Immagine trovata: $web_path");
             return $web_path;
         }
     }
     
-    // Se nessun percorso funziona, restituisci il placeholder
-    // error_log("DEBUG: Immagine NON trovata, usando placeholder per: $filename");
     return get_placeholder_path($default_type);
 }
 
@@ -510,27 +489,21 @@ function image_exists($filename) {
     
     $base_path = dirname(__DIR__) . '/';
     
-    // Lista dei percorsi possibili da verificare
     $possible_paths = [];
     
-    // 1. Percorso completo
     if (strpos($filename, 'uploads/') === 0) {
         $possible_paths[] = $base_path . $filename;
     }
     
-    // 2. Percorsi per brand (priorità alta per brand)
     $possible_paths[] = $base_path . 'uploads/brands/' . $filename;
     $possible_paths[] = $base_path . 'brands/uploads/' . $filename;
     
-    // 3. Percorsi per influencer
     $possible_paths[] = $base_path . 'uploads/influencers/' . $filename;
     $possible_paths[] = $base_path . 'uploads/profiles/' . $filename;
     
-    // 4. Percorsi generici
     $possible_paths[] = $base_path . 'uploads/' . $filename;
     $possible_paths[] = $base_path . $filename;
     
-    // Verifica ogni percorso
     foreach ($possible_paths as $full_path) {
         if (file_exists($full_path) && is_file($full_path)) {
             return true;
@@ -572,9 +545,30 @@ function get_influencer_id($pdo, $user_id) {
 
 /**
  * Verifica se l'utente corrente è un amministratore
+ * Controlla sia la sessione che il ruolo nella tabella users
  */
 function is_admin() {
-    return isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'admin';
+    global $pdo;
+    
+    if (!isset($_SESSION['user_id']) || !isset($_SESSION['user_type'])) {
+        return false;
+    }
+    
+    if ($_SESSION['user_type'] !== 'admin') {
+        return false;
+    }
+    
+    try {
+        $stmt = $pdo->prepare("SELECT role FROM users WHERE id = ?");
+        $stmt->execute([$_SESSION['user_id']]);
+        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $user && isset($user['role']) && $user['role'] === 'admin';
+        
+    } catch (PDOException $e) {
+        error_log("Errore verifica ruolo admin per user_id {$_SESSION['user_id']}: " . $e->getMessage());
+        return false;
+    }
 }
 
 /**
@@ -607,23 +601,18 @@ function get_platform_stats($pdo) {
     try {
         $stats = [];
         
-        // Utenti totali
         $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE deleted_at IS NULL");
         $stats['total_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
         
-        // Influencer totali
         $stmt = $pdo->query("SELECT COUNT(*) as total FROM influencers i JOIN users u ON i.user_id = u.id WHERE u.deleted_at IS NULL");
         $stats['total_influencers'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
         
-        // Brand totali
         $stmt = $pdo->query("SELECT COUNT(*) as total FROM brands b JOIN users u ON b.user_id = u.id WHERE u.deleted_at IS NULL");
         $stats['total_brands'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
         
-        // Nuovi utenti oggi
         $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE DATE(created_at) = CURDATE() AND deleted_at IS NULL");
         $stats['new_today'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
         
-        // Utenti sospesi
         $stmt = $pdo->query("SELECT COUNT(*) as total FROM users WHERE suspended = 1 AND deleted_at IS NULL");
         $stats['suspended_users'] = $stmt->fetch(PDO::FETCH_ASSOC)['total'] ?? 0;
         
@@ -646,7 +635,6 @@ function get_platform_stats($pdo) {
 function cleanup_soft_deleted_users() {
     global $pdo;
     try {
-        // Elimina utenti soft deleted dopo 30 giorni
         $stmt = $pdo->prepare("
             DELETE FROM users 
             WHERE deleted_at IS NOT NULL 
@@ -678,12 +666,10 @@ function has_permission($required_type, $user_id = null) {
         return false;
     }
     
-    // Admin ha accesso a tutto
     if ($_SESSION['user_type'] === 'admin') {
         return true;
     }
     
-    // Verifica il tipo richiesto
     return $_SESSION['user_type'] === $required_type;
 }
 
@@ -796,8 +782,6 @@ function calculate_percentage($part, $total) {
  * Invia notifica push (placeholder per implementazione futura)
  */
 function send_push_notification($user_id, $title, $message, $data = []) {
-    // Implementazione placeholder per notifiche push
-    // Da integrare con servizi come Firebase Cloud Messaging, OneSignal, ecc.
     error_log("Push notification for user $user_id: $title - $message");
     return true;
 }

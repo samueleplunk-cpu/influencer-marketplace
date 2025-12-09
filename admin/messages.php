@@ -1,19 +1,73 @@
 <?php
 require_once '../includes/admin_header.php';
 
-// Numero di conversazioni per pagina
 $per_page = 25;
 $page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $offset = ($page - 1) * $per_page;
 
-// Recupera i valori dei filtri
+function buildUrlWithFilters($page = null) {
+    $params = [];
+    
+    if ($page !== null) {
+        $params['page'] = $page;
+    }
+    
+    if (isset($_GET['brand_filter']) && $_GET['brand_filter'] !== '') {
+        $params['brand_filter'] = $_GET['brand_filter'];
+    }
+    
+    if (isset($_GET['influencer_filter']) && $_GET['influencer_filter'] !== '') {
+        $params['influencer_filter'] = $_GET['influencer_filter'];
+    }
+    
+    if (isset($_GET['campaign_filter']) && $_GET['campaign_filter'] !== '') {
+        $params['campaign_filter'] = $_GET['campaign_filter'];
+    }
+    
+    return !empty($params) ? '?' . http_build_query($params) : '';
+}
+
+if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
+    $conversation_id = intval($_GET['delete']);
+    
+    if (!is_admin()) {
+        $_SESSION['error'] = "Non hai i permessi per eseguire questa operazione.";
+        header("Location: messages.php");
+        exit();
+    }
+    
+    try {
+        $pdo->beginTransaction();
+        
+        $stmt = $pdo->prepare("DELETE FROM messages WHERE conversation_id = ?");
+        $stmt->execute([$conversation_id]);
+        
+        $stmt = $pdo->prepare("DELETE FROM conversations WHERE id = ?");
+        $stmt->execute([$conversation_id]);
+        
+        $pdo->commit();
+        
+        $_SESSION['success'] = "Conversazione eliminata con successo.";
+        
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        
+        error_log("Errore eliminazione conversazione #{$conversation_id}: " . $e->getMessage());
+        $_SESSION['error'] = "Si è verificato un errore durante l'eliminazione della conversazione.";
+    }
+    
+    $redirect_url = "messages.php" . buildUrlWithFilters($page);
+    header("Location: " . $redirect_url);
+    exit();
+}
+
 $brand_filter = isset($_GET['brand_filter']) ? trim($_GET['brand_filter']) : '';
 $influencer_filter = isset($_GET['influencer_filter']) ? trim($_GET['influencer_filter']) : '';
 $campaign_filter = isset($_GET['campaign_filter']) ? trim($_GET['campaign_filter']) : '';
 
-// Ottieni tutte le conversazioni senza filtri (per filtrare dopo)
 try {
-    // Query originale senza filtri
     $sql = "
         SELECT 
             c.id as conversation_id,
@@ -23,7 +77,6 @@ try {
             c.influencer_id,
             c.campaign_id,
             
-            -- Brand info
             COALESCE(
                 (SELECT b.company_name FROM brands b WHERE b.id = c.brand_id LIMIT 1),
                 (SELECT u.name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
@@ -31,29 +84,23 @@ try {
                 CONCAT('Brand #', c.brand_id)
             ) as brand_name,
             
-            -- Brand user_id
             (SELECT u.id FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1) as brand_user_id,
             
-            -- Influencer info
             COALESCE(
                 (SELECT i.full_name FROM influencers i WHERE i.id = c.influencer_id LIMIT 1),
                 (SELECT u.name FROM users u JOIN influencers i ON u.id = i.user_id WHERE i.id = c.influencer_id LIMIT 1),
                 CONCAT('Influencer #', c.influencer_id)
             ) as influencer_name,
             
-            -- Influencer user_id
             (SELECT u.id FROM users u JOIN influencers i ON u.id = i.user_id WHERE i.id = c.influencer_id LIMIT 1) as influencer_user_id,
             
-            -- Campagna
             COALESCE(
                 (SELECT name FROM campaigns WHERE id = c.campaign_id LIMIT 1),
                 'Nessuna campagna'
             ) as campaign_name,
             
-            -- Conta messaggi totali
             (SELECT COUNT(*) FROM messages m WHERE m.conversation_id = c.id) as total_messages,
             
-            -- Conta messaggi non letti
             (SELECT COUNT(*) FROM messages m 
              WHERE m.conversation_id = c.id 
              AND m.is_read = 0 
@@ -77,14 +124,12 @@ try {
     error_log("Errore recupero conversazioni: " . $e->getMessage());
 }
 
-// Applica i filtri localmente
 $filtered_conversations = $all_conversations;
 
 if ($brand_filter !== '' || $influencer_filter !== '' || $campaign_filter !== '') {
     $filtered_conversations = array_filter($all_conversations, function($conv) use ($brand_filter, $influencer_filter, $campaign_filter) {
         $matches = false;
         
-        // Applica filtri in OR
         if ($brand_filter !== '') {
             $brand_name = strtolower($conv['brand_name']);
             if (stripos($brand_name, strtolower($brand_filter)) !== false) {
@@ -114,7 +159,6 @@ if ($brand_filter !== '' || $influencer_filter !== '' || $campaign_filter !== ''
             }
         }
         
-        // Se nessun filtro è specificato, mostra tutto
         if ($brand_filter === '' && $influencer_filter === '' && $campaign_filter === '') {
             $matches = true;
         }
@@ -122,42 +166,13 @@ if ($brand_filter !== '' || $influencer_filter !== '' || $campaign_filter !== ''
         return $matches;
     });
     
-    // Reindex array
     $filtered_conversations = array_values($filtered_conversations);
 }
 
-// Calcola conteggio totale
 $total_conversations = count($filtered_conversations);
-
-// Calcola paginazione
 $total_pages = ceil($total_conversations / $per_page);
-
-// Prendi solo le conversazioni per la pagina corrente
 $start_index = ($page - 1) * $per_page;
 $conversations = array_slice($filtered_conversations, $start_index, $per_page);
-
-// Funzione per generare URL con i filtri mantenuti
-function buildUrlWithFilters($page = null) {
-    $params = [];
-    
-    if ($page !== null) {
-        $params['page'] = $page;
-    }
-    
-    if (isset($_GET['brand_filter']) && $_GET['brand_filter'] !== '') {
-        $params['brand_filter'] = $_GET['brand_filter'];
-    }
-    
-    if (isset($_GET['influencer_filter']) && $_GET['influencer_filter'] !== '') {
-        $params['influencer_filter'] = $_GET['influencer_filter'];
-    }
-    
-    if (isset($_GET['campaign_filter']) && $_GET['campaign_filter'] !== '') {
-        $params['campaign_filter'] = $_GET['campaign_filter'];
-    }
-    
-    return !empty($params) ? '?' . http_build_query($params) : '';
-}
 ?>
 
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
@@ -172,14 +187,12 @@ function buildUrlWithFilters($page = null) {
     </div>
 </div>
 
-<!-- Filtri di ricerca -->
 <div class="card mb-4">
     <div class="card-header">
         <h5 class="card-title mb-0">Filtra conversazioni</h5>
     </div>
     <div class="card-body">
         <form method="GET" action="" class="row g-3 align-items-end">
-            <!-- Brand Filter (20%) -->
             <div class="col-md-2 col-lg-2">
                 <label for="brand_filter" class="form-label">
                     <i class="fas fa-building me-1"></i> Brand
@@ -192,7 +205,6 @@ function buildUrlWithFilters($page = null) {
                        placeholder="Cerca brand...">
             </div>
             
-            <!-- Influencer Filter (20%) -->
             <div class="col-md-2 col-lg-2">
                 <label for="influencer_filter" class="form-label">
                     <i class="fas fa-user-check me-1"></i> Influencer
@@ -205,7 +217,6 @@ function buildUrlWithFilters($page = null) {
                        placeholder="Cerca influencer...">
             </div>
             
-            <!-- Campaign Filter (20%) -->
             <div class="col-md-2 col-lg-2">
                 <label for="campaign_filter" class="form-label">
                     <i class="fas fa-bullhorn me-1"></i> Campagna
@@ -218,14 +229,12 @@ function buildUrlWithFilters($page = null) {
                        placeholder="Cerca campagna...">
             </div>
             
-            <!-- Apply Filters Button (20%) -->
             <div class="col-md-2 col-lg-2">
                 <button type="submit" class="btn btn-primary w-100">
                     <i class="fas fa-filter me-1"></i> Applica Filtri
                 </button>
             </div>
             
-            <!-- Reset Filters Button (20%) -->
             <div class="col-md-2 col-lg-2">
                 <a href="?page=1" class="btn btn-outline-secondary w-100">
                     <i class="fas fa-redo me-1"></i> Reset Filtri
@@ -235,7 +244,6 @@ function buildUrlWithFilters($page = null) {
     </div>
 </div>
 
-<!-- Tabella conversazioni -->
 <div class="card">
     <div class="card-header">
         <div class="d-flex justify-content-between align-items-center">
@@ -276,7 +284,6 @@ function buildUrlWithFilters($page = null) {
                     <tbody>
                         <?php foreach ($conversations as $conv): ?>
                             <?php 
-                            // Calcola messaggi non letti totali
                             $unread_total = max(
                                 intval($conv['unread_by_brand'] ?? 0),
                                 intval($conv['unread_by_influencer'] ?? 0)
@@ -363,11 +370,26 @@ function buildUrlWithFilters($page = null) {
                                 </td>
                                 
                                 <td class="text-center">
-                                    <a href="/infl/admin/conversation.php?id=<?php echo htmlspecialchars($conv['conversation_id']); ?>" 
-                                       class="btn btn-sm btn-primary px-3"
-                                       title="Visualizza conversazione">
-                                        <i class="fas fa-eye me-1"></i> Visualizza
-                                    </a>
+                                    <div class="d-flex justify-content-center gap-1">
+                                        <a href="/infl/admin/conversation.php?id=<?php echo htmlspecialchars($conv['conversation_id']); ?>" 
+                                           class="btn btn-sm btn-primary"
+                                           title="Visualizza conversazione">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        
+                                        <?php
+                                        $delete_url = "?delete=" . htmlspecialchars($conv['conversation_id']);
+                                        if (!empty(buildUrlWithFilters($page))) {
+                                            $delete_url .= "&" . ltrim(buildUrlWithFilters($page), '?');
+                                        }
+                                        ?>
+                                        <a href="<?php echo $delete_url; ?>" 
+                                           class="btn btn-sm btn-danger"
+                                           onclick="return confirmDelete(<?php echo $conv['conversation_id']; ?>)"
+                                           title="Elimina conversazione">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -375,27 +397,22 @@ function buildUrlWithFilters($page = null) {
                 </table>
             </div>
 
-            <!-- Paginazione -->
             <?php if ($total_pages > 1): ?>
                 <nav aria-label="Paginazione" class="mt-4">
                     <ul class="pagination justify-content-center">
-                        <!-- Prima pagina -->
                         <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
                             <a class="page-link" href="<?php echo buildUrlWithFilters(1); ?>" aria-label="Prima">
                                 <i class="fas fa-angle-double-left"></i>
                             </a>
                         </li>
                         
-                        <!-- Pagina precedente -->
                         <li class="page-item <?php echo $page <= 1 ? 'disabled' : ''; ?>">
                             <a class="page-link" href="<?php echo buildUrlWithFilters($page - 1); ?>" aria-label="Precedente">
                                 <i class="fas fa-chevron-left"></i>
                             </a>
                         </li>
                         
-                        <!-- Pagine numerate -->
                         <?php 
-                        // Mostra massimo 5 pagine intorno a quella corrente
                         $start_page = max(1, $page - 2);
                         $end_page = min($total_pages, $page + 2);
                         
@@ -407,14 +424,12 @@ function buildUrlWithFilters($page = null) {
                             </li>
                         <?php endfor; ?>
                         
-                        <!-- Pagina successiva -->
                         <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
                             <a class="page-link" href="<?php echo buildUrlWithFilters($page + 1); ?>" aria-label="Successiva">
                                 <i class="fas fa-chevron-right"></i>
                             </a>
                         </li>
                         
-                        <!-- Ultima pagina -->
                         <li class="page-item <?php echo $page >= $total_pages ? 'disabled' : ''; ?>">
                             <a class="page-link" href="<?php echo buildUrlWithFilters($total_pages); ?>" aria-label="Ultima">
                                 <i class="fas fa-angle-double-right"></i>
@@ -422,7 +437,6 @@ function buildUrlWithFilters($page = null) {
                         </li>
                     </ul>
                     
-                    <!-- Info paginazione -->
                     <div class="text-center mt-2">
                         <small class="text-muted">
                             Mostrando <?php echo count($conversations); ?> di <?php echo $total_conversations; ?> conversazioni
@@ -465,7 +479,6 @@ function buildUrlWithFilters($page = null) {
     padding: 0.25rem 0.5rem;
 }
 
-/* Distribuzione delle colonne secondo le specifiche */
 .table.table-hover.table-striped {
     table-layout: fixed;
     width: 100%;
@@ -473,38 +486,81 @@ function buildUrlWithFilters($page = null) {
 
 .table.table-hover.table-striped th:nth-child(1),
 .table.table-hover.table-striped td:nth-child(1) {
-    width: 20%; /* BRAND */
+    width: 20%;
 }
 
 .table.table-hover.table-striped th:nth-child(2),
 .table.table-hover.table-striped td:nth-child(2) {
-    width: 20%; /* INFLUENCER */
+    width: 20%;
 }
 
 .table.table-hover.table-striped th:nth-child(3),
 .table.table-hover.table-striped td:nth-child(3) {
-    width: 20%; /* CAMPAGNA */
+    width: 20%;
 }
 
 .table.table-hover.table-striped th:nth-child(4),
 .table.table-hover.table-striped td:nth-child(4) {
-    width: 20%; /* ULTIMO MESSAGGIO */
+    width: 20%;
     text-align: center;
 }
 
 .table.table-hover.table-striped th:nth-child(5),
 .table.table-hover.table-striped td:nth-child(5) {
-    width: 10%; /* MESSAGGI */
+    width: 10%;
     text-align: center;
 }
 
 .table.table-hover.table-striped th:nth-child(6),
 .table.table-hover.table-striped td:nth-child(6) {
-    width: 10%; /* AZIONI */
+    width: 10%;
     text-align: center;
 }
 
-/* Per dispositivi mobili */
+td .d-flex.justify-content-center.gap-1 {
+    width: 100%;
+    min-width: 80px;
+}
+
+.btn-sm.btn-primary,
+.btn-sm.btn-danger {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+}
+
+.btn-sm.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-sm.btn-danger:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+}
+
+.alert {
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.alert-success {
+    background-color: #d1e7dd;
+    border-color: #badbcc;
+    color: #0f5132;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c2c7;
+    color: #842029;
+}
+
 @media (max-width: 768px) {
     .table.table-hover.table-striped {
         table-layout: auto;
@@ -525,11 +581,54 @@ function buildUrlWithFilters($page = null) {
         font-size: 0.8rem;
     }
     
-    .btn-sm {
-        padding: 0.25rem 0.5rem;
+    .btn-sm.btn-primary,
+    .btn-sm.btn-danger {
+        width: 32px;
+        height: 32px;
         font-size: 0.8rem;
+    }
+    
+    td .d-flex.justify-content-center.gap-1 {
+        min-width: 70px;
     }
 }
 </style>
+
+<script>
+function confirmDelete(conversationId) {
+    return confirm("Sei sicuro di voler eliminare questa conversazione?\n\nQuesta operazione è permanente e irreversibile.\nVerranno eliminati tutti i messaggi della conversazione.");
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    <?php if (isset($_SESSION['success'])): ?>
+        showAlert('success', '<?php echo addslashes($_SESSION['success']); ?>');
+        <?php unset($_SESSION['success']); ?>
+    <?php endif; ?>
+    
+    <?php if (isset($_SESSION['error'])): ?>
+        showAlert('danger', '<?php echo addslashes($_SESSION['error']); ?>');
+        <?php unset($_SESSION['error']); ?>
+    <?php endif; ?>
+});
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const mainContent = document.querySelector('.d-flex.justify-content-between.flex-wrap');
+    if (mainContent) {
+        mainContent.parentNode.insertBefore(alertDiv, mainContent);
+        
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alertDiv);
+            bsAlert.close();
+        }, 5000);
+    }
+}
+</script>
 
 <?php require_once '../includes/admin_footer.php'; ?>
