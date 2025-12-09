@@ -32,10 +32,11 @@ try {
             c.influencer_id,
             c.campaign_id,
             
-            -- Brand info (con fallback)
+            -- Brand info (corretta per recuperare company_name dalla tabella brands)
             COALESCE(
-                (SELECT u.company_name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
+                (SELECT b.company_name FROM brands b WHERE b.id = c.brand_id LIMIT 1),
                 (SELECT u.name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
+                (SELECT u.company_name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
                 CONCAT('Brand #', c.brand_id)
             ) as brand_name,
             
@@ -123,13 +124,12 @@ try {
                 <table class="table table-hover table-striped">
                     <thead class="table-light">
                         <tr>
-                            <th width="80">ID</th>
                             <th>Brand</th>
                             <th>Influencer</th>
-                            <th width="150">Ultimo messaggio</th>
-                            <th width="100" class="text-center">Messaggi</th>
-                            <th width="100" class="text-center">Non letti</th>
-                            <th width="120" class="text-center">Azioni</th>
+                            <th>Campagna</th>
+                            <th class="text-center">Ultimo messaggio</th>
+                            <th class="text-center">Messaggi</th>
+                            <th class="text-center">Azioni</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -142,15 +142,6 @@ try {
                             );
                             ?>
                             <tr>
-                                <td>
-                                    <span class="badge bg-secondary">#<?php echo htmlspecialchars($conv['conversation_id']); ?></span>
-                                    <?php if ($conv['campaign_name']): ?>
-                                        <br>
-                                        <small class="text-muted" title="Campagna: <?php echo htmlspecialchars($conv['campaign_name']); ?>">
-                                            <i class="fas fa-bullhorn"></i>
-                                        </small>
-                                    <?php endif; ?>
-                                </td>
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0 me-2">
@@ -168,13 +159,10 @@ try {
                                                     <?php echo htmlspecialchars($conv['brand_name']); ?>
                                                 </span>
                                             <?php endif; ?>
-                                            <br>
-                                            <small class="text-muted">
-                                                ID Brand: <?php echo htmlspecialchars($conv['brand_id']); ?>
-                                            </small>
                                         </div>
                                     </div>
                                 </td>
+                                
                                 <td>
                                     <div class="d-flex align-items-center">
                                         <div class="flex-shrink-0 me-2">
@@ -192,51 +180,52 @@ try {
                                                     <?php echo htmlspecialchars($conv['influencer_name']); ?>
                                                 </span>
                                             <?php endif; ?>
-                                            <br>
-                                            <small class="text-muted">
-                                                ID Influencer: <?php echo htmlspecialchars($conv['influencer_id']); ?>
-                                            </small>
                                         </div>
                                     </div>
                                 </td>
+                                
                                 <td>
+                                    <?php if ($conv['campaign_name']): ?>
+                                        <div class="d-flex align-items-center">
+                                            <div class="flex-shrink-0 me-2">
+                                                <i class="fas fa-bullhorn text-warning"></i>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <span class="fw-medium">
+                                                    <?php echo htmlspecialchars($conv['campaign_name']); ?>
+                                                </span>
+                                            </div>
+                                        </div>
+                                    <?php else: ?>
+                                        <div class="text-muted">
+                                            <small><em>Nessuna campagna</em></small>
+                                        </div>
+                                    <?php endif; ?>
+                                </td>
+                                
+                                <td class="text-center">
                                     <div class="text-nowrap">
                                         <?php if ($conv['last_message_time']): ?>
                                             <i class="far fa-clock me-1 text-muted"></i>
-                                            <?php echo date('d/m/Y', strtotime($conv['last_message_time'])); ?>
-                                            <br>
-                                            <small class="text-muted">
-                                                <?php echo date('H:i', strtotime($conv['last_message_time'])); ?>
-                                            </small>
+                                            <?php echo date('d/m/Y - H:i', strtotime($conv['last_message_time'])); ?>
                                         <?php else: ?>
                                             <span class="text-muted">-</span>
                                         <?php endif; ?>
                                     </div>
                                 </td>
+                                
                                 <td class="text-center">
                                     <span class="badge bg-info rounded-pill px-3 py-2">
                                         <i class="fas fa-envelope me-1"></i>
                                         <?php echo htmlspecialchars($conv['total_messages']); ?>
                                     </span>
                                 </td>
-                                <td class="text-center">
-                                    <?php if ($unread_total > 0): ?>
-                                        <span class="badge bg-danger rounded-pill px-3 py-2">
-                                            <i class="fas fa-bell me-1"></i>
-                                            <?php echo htmlspecialchars($unread_total); ?>
-                                        </span>
-                                    <?php else: ?>
-                                        <span class="badge bg-success rounded-pill px-3 py-2">
-                                            <i class="fas fa-check me-1"></i>
-                                            0
-                                        </span>
-                                    <?php endif; ?>
-                                </td>
+                                
                                 <td class="text-center">
                                     <a href="/infl/admin/conversation.php?id=<?php echo htmlspecialchars($conv['conversation_id']); ?>" 
                                        class="btn btn-sm btn-primary px-3"
                                        title="Visualizza conversazione">
-                                        <i class="fas fa-eye me-1"></i> Apri
+                                        <i class="fas fa-eye me-1"></i> Visualizza
                                     </a>
                                 </td>
                             </tr>
@@ -310,6 +299,17 @@ try {
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    text-align: center;
+}
+
+.table th:first-child,
+.table th:nth-child(2),
+.table th:nth-child(3) {
+    text-align: left;
+}
+
+.table td {
+    vertical-align: middle;
 }
 
 .badge.rounded-pill {
@@ -319,6 +319,72 @@ try {
 .message-badge {
     font-size: 0.75rem;
     padding: 0.25rem 0.5rem;
+}
+
+/* Distribuzione delle colonne secondo le specifiche */
+.table.table-hover.table-striped {
+    table-layout: fixed;
+    width: 100%;
+}
+
+.table.table-hover.table-striped th:nth-child(1),
+.table.table-hover.table-striped td:nth-child(1) {
+    width: 20%; /* BRAND */
+}
+
+.table.table-hover.table-striped th:nth-child(2),
+.table.table-hover.table-striped td:nth-child(2) {
+    width: 20%; /* INFLUENCER */
+}
+
+.table.table-hover.table-striped th:nth-child(3),
+.table.table-hover.table-striped td:nth-child(3) {
+    width: 20%; /* CAMPAGNA */
+}
+
+.table.table-hover.table-striped th:nth-child(4),
+.table.table-hover.table-striped td:nth-child(4) {
+    width: 20%; /* ULTIMO MESSAGGIO */
+    text-align: center;
+}
+
+.table.table-hover.table-striped th:nth-child(5),
+.table.table-hover.table-striped td:nth-child(5) {
+    width: 10%; /* MESSAGGI */
+    text-align: center;
+}
+
+.table.table-hover.table-striped th:nth-child(6),
+.table.table-hover.table-striped td:nth-child(6) {
+    width: 10%; /* AZIONI */
+    text-align: center;
+}
+
+/* Per dispositivi mobili */
+@media (max-width: 768px) {
+    .table.table-hover.table-striped {
+        table-layout: auto;
+    }
+    
+    .table.table-hover.table-striped th,
+    .table.table-hover.table-striped td {
+        width: auto;
+    }
+    
+    .table th,
+    .table td {
+        font-size: 0.85rem;
+    }
+    
+    .badge.rounded-pill {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.8rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.8rem;
+    }
 }
 </style>
 
