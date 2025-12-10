@@ -124,17 +124,25 @@ require_once $header_file;
                             <h5 class="card-title mb-0">Profilo</h5>
                         </div>
                         <div class="card-body text-center">
-                            <?php if (!empty($influencer['profile_image'])): ?>
-                                <img src="/infl/uploads/<?php echo htmlspecialchars($influencer['profile_image']); ?>" 
-                                     class="rounded-circle mb-3" 
-                                     alt="<?php echo htmlspecialchars($influencer['full_name']); ?>" 
-                                     style="width: 200px; height: 200px; object-fit: cover;">
-                            <?php else: ?>
-                                <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" 
-                                     style="width: 200px; height: 200px;">
-                                    <span class="text-white">Nessuna Immagine</span>
-                                </div>
-                            <?php endif; ?>
+                            <?php 
+                            // Determina quale immagine mostrare
+                            $profile_image_src = '';
+                            $profile_image_alt = htmlspecialchars($influencer['full_name']);
+                            
+                            if (!empty($influencer['profile_image'])) {
+                                // Se l'influencer ha caricato un'immagine personalizzata
+                                $profile_image_src = "/infl/uploads/" . htmlspecialchars($influencer['profile_image']);
+                            } else {
+                                // Se NON ha un'immagine personalizzata, mostra il placeholder
+                                $profile_image_src = "/infl/uploads/placeholder/influencer_admin_edit.png";
+                                $profile_image_alt = "Placeholder - " . $profile_image_alt;
+                            }
+                            ?>
+                            
+                            <img src="<?php echo $profile_image_src; ?>" 
+                                 class="rounded-circle mb-3" 
+                                 alt="<?php echo $profile_image_alt; ?>" 
+                                 style="width: 200px; height: 200px; object-fit: cover;">
                             
                             <h4><?php echo htmlspecialchars($influencer['full_name']); ?></h4>
                             <?php if (!empty($influencer['niche'])): ?>

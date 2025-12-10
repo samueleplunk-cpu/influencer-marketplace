@@ -109,15 +109,27 @@ require_once $header_file;
                                 <div class="d-flex w-100 justify-content-between">
                                     <div class="d-flex align-items-center">
                                         <!-- Immagine profilo influencer -->
-                                        <?php if (!empty($conversation['influencer_image'])): ?>
-                                            <img src="/infl/uploads/<?php echo htmlspecialchars($conversation['influencer_image']); ?>" 
-                                                 class="rounded-circle me-3" width="50" height="50" alt="Profile">
-                                        <?php else: ?>
-                                            <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-3" 
-                                                 style="width: 50px; height: 50px;">
-                                                <i class="fas fa-user text-muted"></i>
-                                            </div>
-                                        <?php endif; ?>
+                                        <?php 
+                                        // Determina quale immagine mostrare
+                                        $profile_image_src = '';
+                                        $profile_image_alt = htmlspecialchars($conversation['influencer_name']);
+                                        
+                                        if (!empty($conversation['influencer_image'])) {
+                                            // Se l'influencer ha caricato un'immagine personalizzata
+                                            $profile_image_src = "/infl/uploads/" . htmlspecialchars($conversation['influencer_image']);
+                                        } else {
+                                            // Se NON ha un'immagine personalizzata, mostra il placeholder
+                                            $profile_image_src = "/infl/uploads/placeholder/influencer_admin_edit.png";
+                                            $profile_image_alt = "Placeholder - " . $profile_image_alt;
+                                        }
+                                        ?>
+                                        
+                                        <img src="<?php echo $profile_image_src; ?>" 
+                                             class="rounded-circle me-3" 
+                                             width="50" 
+                                             height="50" 
+                                             alt="<?php echo $profile_image_alt; ?>"
+                                             style="object-fit: cover;">
                                         
                                         <div>
                                             <h5 class="mb-1"><?php echo htmlspecialchars($conversation['influencer_name']); ?></h5>

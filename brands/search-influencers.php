@@ -276,27 +276,32 @@ $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <div class="col-md-6 col-lg-4 mb-4">
                                 <div class="card h-100 influencer-card">
                                     <!-- Immagine Profilo -->
-                                    <div class="position-relative">
-                                        <?php if (!empty($influencer['profile_image'])): ?>
-                                            <img src="/infl/uploads/<?php echo htmlspecialchars($influencer['profile_image']); ?>" 
-                                                 class="card-img-top" alt="<?php echo htmlspecialchars($influencer['full_name']); ?>"
-                                                 style="height: 200px; object-fit: cover;">
-                                        <?php else: ?>
-                                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" 
-                                                 style="height: 200px;">
-                                                <span class="text-muted">Nessuna immagine</span>
-                                            </div>
-                                        <?php endif; ?>
-                                        
-                                        <!-- Badge Rating -->
-                                        <?php if (!empty($influencer['rating'])): ?>
-                                            <div class="position-absolute top-0 end-0 m-2">
-                                                <span class="badge bg-warning text-dark">
-                                                    ★ <?php echo number_format($influencer['rating'], 1); ?>
-                                                </span>
-                                            </div>
-                                        <?php endif; ?>
-                                    </div>
+<div class="position-relative">
+    <?php 
+    // Costruisci il percorso dell'immagine
+    $profile_image_path = '';
+    if (!empty($influencer['profile_image'])) {
+        // Se l'influencer ha un'immagine personalizzata
+        $profile_image_path = '/infl/uploads/' . htmlspecialchars($influencer['profile_image']);
+    } else {
+        // Se l'influencer NON ha un'immagine personalizzata, usa il placeholder
+        $profile_image_path = '/infl/uploads/placeholder/sponsor_influencer_dashboard.png';
+    }
+    ?>
+    <img src="<?php echo $profile_image_path; ?>" 
+         class="card-img-top" 
+         alt="<?php echo htmlspecialchars($influencer['full_name']); ?>"
+         style="height: 200px; object-fit: cover;">
+    
+    <!-- Badge Rating -->
+    <?php if (!empty($influencer['rating'])): ?>
+        <div class="position-absolute top-0 end-0 m-2">
+            <span class="badge bg-warning text-dark">
+                ★ <?php echo number_format($influencer['rating'], 1); ?>
+            </span>
+        </div>
+    <?php endif; ?>
+</div>
 
                                     <div class="card-body">
                                         <!-- Nome e Categoria -->
