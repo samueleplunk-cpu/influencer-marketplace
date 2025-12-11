@@ -263,7 +263,7 @@ require_once $header_file;
                                         <td>
                                             <strong><?php echo htmlspecialchars($app['campaign_name']); ?></strong>
                                         </td>
-                                        <td><?php echo htmlspecialchars($app['company_name']); ?></td>
+                                        <td><?php echo htmlspecialchars_decode(htmlspecialchars($app['company_name']), ENT_QUOTES); ?></td>
                                         <td>
                                             <span class="badge bg-info"><?php echo htmlspecialchars($app['campaign_niche']); ?></span>
                                         </td>

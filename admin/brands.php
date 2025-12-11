@@ -202,13 +202,13 @@ if ($action === 'list') {
                                             <tr>
                                                 <td><?php echo $brand['id']; ?></td>
                                                 <td>
-                                                    <?php 
-                                                    $company_name = !empty($brand['company_display_name']) 
-                                                        ? $brand['company_display_name'] 
-                                                        : $brand['name'];
-                                                    echo htmlspecialchars($company_name); 
-                                                    ?>
-                                                </td>
+    <?php 
+    $company_name = !empty($brand['company_display_name']) 
+        ? $brand['company_display_name'] 
+        : $brand['name'];
+    echo htmlspecialchars_decode($company_name); 
+    ?>
+</td>
                                                 <td><?php echo htmlspecialchars($brand['email']); ?></td>
                                                 <td>
                                                     <?php 
@@ -348,16 +348,16 @@ if ($action === 'list') {
                                                                                 <div class="col-8"><?php echo $brand['id']; ?></div>
                                                                             </div>
                                                                             <div class="row mb-2">
-                                                                                <div class="col-4"><strong>Azienda:</strong></div>
-                                                                                <div class="col-8">
-                                                                                    <?php 
-                                                                                    $company_name = !empty($brand['company_display_name']) 
-                                                                                        ? $brand['company_display_name'] 
-                                                                                        : (!empty($brand['company_name']) ? $brand['company_name'] : 'N/A');
-                                                                                    echo htmlspecialchars($company_name);
-                                                                                    ?>
-                                                                                </div>
-                                                                            </div>
+    <div class="col-4"><strong>Azienda:</strong></div>
+    <div class="col-8">
+        <?php 
+        $company_name = !empty($brand['company_display_name']) 
+            ? $brand['company_display_name'] 
+            : (!empty($brand['company_name']) ? $brand['company_name'] : 'N/A');
+        echo htmlspecialchars_decode($company_name);
+        ?>
+    </div>
+</div>
                                                                             <div class="row">
                                                                                 <div class="col-4"><strong>Email:</strong></div>
                                                                                 <div class="col-8"><?php echo htmlspecialchars($brand['email']); ?></div>
@@ -534,19 +534,19 @@ elseif ($action === 'add' || $action === 'edit') {
                                         <div class="col-12">
                                             <!-- Campo Azienda senza frasi esplicative -->
                                             <div class="mb-3">
-                                                <label for="company_name" class="form-label">Azienda</label>
-                                                <input type="text" class="form-control" id="company_name" name="company_name" 
-                                                       value="<?php echo htmlspecialchars($company_display_name); ?>">
-                                            </div>
+    <label for="company_name" class="form-label">Azienda</label>
+    <input type="text" class="form-control" id="company_name" name="company_name" 
+           value="<?php echo htmlspecialchars_decode($company_display_name); ?>">
+</div>
                                             
                                             <div class="mb-3">
-                                                <label for="contact_name" class="form-label">Nome Contatto</label>
-                                                <input type="text" class="form-control" id="contact_name" name="name" 
-                                                       value="<?php echo htmlspecialchars($brand['name'] ?? ''); ?>">
-                                                <div class="form-text">
-                                                    Nome della persona di contatto dell'azienda.
-                                                </div>
-                                            </div>
+    <label for="contact_name" class="form-label">Nome Contatto</label>
+    <input type="text" class="form-control" id="contact_name" name="name" 
+           value="<?php echo htmlspecialchars_decode($brand['name'] ?? ''); ?>">
+    <div class="form-text">
+        Nome della persona di contatto dell'azienda.
+    </div>
+</div>
                                             
                                             <div class="mb-3">
                                                 <label for="email" class="form-label">Email</label>

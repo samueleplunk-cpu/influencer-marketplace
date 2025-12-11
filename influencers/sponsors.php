@@ -202,17 +202,27 @@ require_once $header_file;
                                 <?php foreach ($sponsors as $sponsor): ?>
                                     <tr>
                                         <td>
-    <?php if (!empty($sponsor['image_url'])): ?>
-        <img src="/infl/uploads/sponsor/<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
-             alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
-             style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;">
-    <?php else: ?>
-        <div class="bg-secondary d-flex align-items-center justify-content-center" 
-             style="width: 60px; height: 60px; border-radius: 8px;">
-            <span class="text-white small">No Image</span>
-        </div>
-    <?php endif; ?>
-</td>
+                                            <?php 
+                                            // Definisci il percorso del placeholder
+                                            $placeholder_path = '/infl/uploads/placeholder/sponsor_influencer_preview.png';
+                                            
+                                            if (!empty($sponsor['image_url'])) {
+                                                // Se esiste un'immagine caricata dall'influencer, mostra quella
+                                                $image_path = '/infl/uploads/sponsor/' . htmlspecialchars($sponsor['image_url']);
+                                                ?>
+                                                <img src="<?php echo $image_path; ?>" 
+                                                     alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
+                                                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
+                                                     onerror="this.onerror=null; this.src='<?php echo $placeholder_path; ?>';">
+                                            <?php } else { 
+                                                // Se NON esiste un'immagine caricata, mostra il placeholder
+                                                ?>
+                                                <img src="<?php echo $placeholder_path; ?>" 
+                                                     alt="Placeholder - <?php echo htmlspecialchars($sponsor['title']); ?>" 
+                                                     style="width: 60px; height: 60px; object-fit: cover; border-radius: 8px;"
+                                                     title="Immagine di copertina non caricata">
+                                            <?php } ?>
+                                        </td>
                                         <td>
                                             <strong><?php echo htmlspecialchars($sponsor['title']); ?></strong>
                                         </td>

@@ -30,7 +30,8 @@ function buildUrlWithFilters($page = null) {
 if (isset($_GET['delete']) && is_numeric($_GET['delete'])) {
     $conversation_id = intval($_GET['delete']);
     
-    if (!is_admin()) {
+    // Usa la verifica di sessione admin
+    if (!isset($_SESSION['admin_id']) || empty($_SESSION['admin_id'])) {
         $_SESSION['error'] = "Non hai i permessi per eseguire questa operazione.";
         header("Location: messages.php");
         exit();
@@ -300,11 +301,11 @@ $conversations = array_slice($filtered_conversations, $start_index, $per_page);
                                                 <a href="/infl/brand/profile.php?id=<?php echo htmlspecialchars($conv['brand_user_id']); ?>" 
                                                    target="_blank" 
                                                    class="text-decoration-none fw-bold">
-                                                    <?php echo htmlspecialchars($conv['brand_name']); ?>
+                                                    <?php echo htmlspecialchars_decode(htmlspecialchars($conv['brand_name']), ENT_QUOTES); ?>
                                                 </a>
                                             <?php else: ?>
                                                 <span class="fw-bold">
-                                                    <?php echo htmlspecialchars($conv['brand_name']); ?>
+                                                    <?php echo htmlspecialchars_decode(htmlspecialchars($conv['brand_name']), ENT_QUOTES); ?>
                                                 </span>
                                             <?php endif; ?>
                                         </div>
@@ -321,11 +322,11 @@ $conversations = array_slice($filtered_conversations, $start_index, $per_page);
                                                 <a href="/infl/influencer/profile.php?id=<?php echo htmlspecialchars($conv['influencer_user_id']); ?>" 
                                                    target="_blank" 
                                                    class="text-decoration-none fw-bold">
-                                                    <?php echo htmlspecialchars($conv['influencer_name']); ?>
+                                                    <?php echo htmlspecialchars_decode(htmlspecialchars($conv['influencer_name']), ENT_QUOTES); ?>
                                                 </a>
                                             <?php else: ?>
                                                 <span class="fw-bold">
-                                                    <?php echo htmlspecialchars($conv['influencer_name']); ?>
+                                                    <?php echo htmlspecialchars_decode(htmlspecialchars($conv['influencer_name']), ENT_QUOTES); ?>
                                                 </span>
                                             <?php endif; ?>
                                         </div>

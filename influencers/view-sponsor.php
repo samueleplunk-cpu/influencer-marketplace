@@ -215,21 +215,29 @@ require_once $header_file;
                             <h5 class="card-title mb-0">Immagine Sponsor</h5>
                         </div>
                         <div class="card-body text-center">
-    <?php if (!empty($sponsor['image_url'])): ?>
-        <img src="/infl/uploads/sponsor/<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
-             alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
-             class="img-fluid rounded" 
-             style="max-height: 300px; object-fit: cover;">
-    <?php else: ?>
-        <div class="bg-light d-flex align-items-center justify-content-center rounded" 
-             style="height: 200px;">
-            <div class="text-center">
-                <i class="fas fa-image fa-3x text-muted mb-2"></i>
-                <p class="text-muted mb-0">Nessuna immagine</p>
-            </div>
-        </div>
-    <?php endif; ?>
-</div>
+                            <?php 
+                            // Definisci il percorso del placeholder
+                            $placeholder_path = '/infl/uploads/placeholder/sponsor_influencer_dashboard.png';
+                            
+                            if (!empty($sponsor['image_url'])) {
+                                // Se esiste un'immagine caricata dall'influencer, mostra quella
+                                $image_path = '/infl/uploads/sponsor/' . htmlspecialchars($sponsor['image_url']);
+                                ?>
+                                <img src="<?php echo $image_path; ?>" 
+                                     alt="<?php echo htmlspecialchars($sponsor['title']); ?>" 
+                                     class="img-fluid rounded" 
+                                     style="max-height: 300px; object-fit: cover;"
+                                     onerror="this.onerror=null; this.src='<?php echo $placeholder_path; ?>';">
+                            <?php } else { 
+                                // Se NON esiste un'immagine caricata, mostra il placeholder
+                                ?>
+                                <img src="<?php echo $placeholder_path; ?>" 
+                                     alt="Placeholder - <?php echo htmlspecialchars($sponsor['title']); ?>" 
+                                     class="img-fluid rounded" 
+                                     style="max-height: 300px; object-fit: cover;"
+                                     title="Immagine di copertina non caricata">
+                            <?php } ?>
+                        </div>
                     </div>
 
                     <!-- Card Dettagli Rapidi -->

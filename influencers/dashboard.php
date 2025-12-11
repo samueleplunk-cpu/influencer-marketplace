@@ -202,16 +202,16 @@ if ($influencer) {
                  alt="Profile Image" 
                  style="width: 150px; height: 150px; object-fit: cover;">
                
-                            <h4><?php echo htmlspecialchars($influencer['full_name']); ?></h4>
+                            <h4><?php echo htmlspecialchars_decode($influencer['full_name']); ?></h4>
                             <?php if (!empty($influencer['niche'])): ?>
-                                <?php 
-                                $display_niche = $influencer['niche'];
-                                if (isset($category_mapping[$influencer['niche']])) {
-                                    $display_niche = $category_mapping[$influencer['niche']];
-                                }
-                                ?>
-                                <span class="badge bg-info"><?php echo htmlspecialchars($display_niche); ?></span>
-                            <?php endif; ?>
+    <?php 
+    $display_niche = htmlspecialchars_decode($influencer['niche']);
+    if (isset($category_mapping[$influencer['niche']])) {
+        $display_niche = $category_mapping[$influencer['niche']];
+    }
+    ?>
+    <span class="badge bg-info"><?php echo $display_niche; ?></span>
+<?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -488,7 +488,7 @@ if ($influencer) {
                                             <td>
                                                 <strong><?php echo htmlspecialchars($app['campaign_name']); ?></strong>
                                             </td>
-                                            <td><?php echo htmlspecialchars($app['company_name']); ?></td>
+                                            <td><?php echo htmlspecialchars_decode(htmlspecialchars($app['company_name']), ENT_QUOTES); ?></td>
                                             <td>€<?php echo number_format($app['budget'], 2); ?></td>
                                             <td>
                                                 <?php

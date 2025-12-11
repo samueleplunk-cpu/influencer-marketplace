@@ -329,7 +329,7 @@ require_once $header_file;
                         <h5 class="card-title mb-0">Informazioni Brand</h5>
                     </div>
                     <div class="card-body">
-                        <h6><?php echo htmlspecialchars($campaign['company_name']); ?></h6>
+                        <h6><?php echo htmlspecialchars_decode(htmlspecialchars($campaign['company_name']), ENT_QUOTES); ?></h6>
                         <?php if ($campaign['brand_description']): ?>
                             <p class="small"><?php echo nl2br(htmlspecialchars($campaign['brand_description'])); ?></p>
                         <?php endif; ?>

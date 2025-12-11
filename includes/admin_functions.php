@@ -1130,9 +1130,16 @@ function getCampaigns($page = 1, $per_page = 15, $filters = []) {
         $params[':search'] = '%' . $filters['search'] . '%';
     }
     
+    // MODIFICA: Logica per il filtro "Scadute"
     if (!empty($filters['status'])) {
-        $where_conditions[] = "c.status = :status";
-        $params[':status'] = $filters['status'];
+        if ($filters['status'] === 'expired') {
+            // Includi sia campagne con status 'expired' sia campagne con deadline passata
+            $where_conditions[] = "(c.status = 'expired' OR (c.deadline_date IS NOT NULL AND c.deadline_date < CURDATE()))";
+        } else {
+            // Filtro normale per altri stati
+            $where_conditions[] = "c.status = :status";
+            $params[':status'] = $filters['status'];
+        }
     }
     
     if (!empty($filters['brand_id'])) {
@@ -1300,15 +1307,23 @@ function getCampaignsCount($status = null) {
     $sql = "SELECT COUNT(*) FROM campaigns WHERE deleted_at IS NULL";
     
     if ($status) {
-        $sql .= " AND status = ?";
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute([$status]);
-        return $stmt->fetchColumn();
-    } else {
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute();
-        return $stmt->fetchColumn();
+        if ($status === 'expired') {
+            // MODIFICA: Conta sia campagne con status 'expired' sia campagne con deadline passata
+            $sql .= " AND (status = 'expired' OR (deadline_date IS NOT NULL AND deadline_date < CURDATE()))";
+        } else {
+            $sql .= " AND status = ?";
+        }
     }
+    
+    $stmt = $pdo->prepare($sql);
+    
+    if ($status && $status !== 'expired') {
+        $stmt->execute([$status]);
+    } else {
+        $stmt->execute();
+    }
+    
+    return $stmt->fetchColumn();
 }
 
 /**

@@ -1,6 +1,5 @@
 <?php
 ob_start();
-// includes/admin_header.php - VERSIONE COMPLETA CON SISTEMA MANUTENZIONE
 
 // Inizia l'output buffering per prevenire problemi di redirect
 if (session_status() === PHP_SESSION_NONE) {
@@ -12,6 +11,13 @@ $config_file = dirname(__DIR__) . '/includes/config.php';
 
 if (file_exists($config_file)) {
     require_once $config_file;
+    
+    // Includi functions.php per avere la funzione is_admin()
+    $functions_file = dirname(__DIR__) . '/includes/functions.php';
+    if (file_exists($functions_file)) {
+        require_once $functions_file;
+    }
+    
     require_once 'admin_functions.php';
 } else {
     die("Config file not found: " . $config_file);

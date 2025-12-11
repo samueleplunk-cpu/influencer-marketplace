@@ -205,7 +205,7 @@ if ($action === 'list') {
                                                 <td>
     <?php 
     $display_name = $influencer['display_name'] ?? $influencer['name'];
-    echo htmlspecialchars($display_name); 
+    echo htmlspecialchars_decode($display_name); 
     ?>
 </td>
                                                 <td><?php echo htmlspecialchars($influencer['email']); ?></td>
@@ -347,7 +347,7 @@ if ($action === 'list') {
     <div class="col-4"><strong>Nome:</strong></div>
     <div class="col-8"><?php 
         $display_name = $influencer['display_name'] ?? $influencer['name'];
-        echo htmlspecialchars($display_name); 
+        echo htmlspecialchars_decode($display_name); 
     ?></div>
 </div>
                         <div class="row">
@@ -469,12 +469,12 @@ elseif ($action === 'add' || $action === 'edit') {
                             <div class="row">
                                 <!-- Colonna sinistra: Dati base -->
                                 <div class="col-md-6">
-                                    <div class="mb-3">
+                                   <div class="mb-3">
     <label for="name" class="form-label">Nome <span class="text-muted">(opzionale)</span></label>
     <input type="text" class="form-control" id="name" name="name" 
            value="<?php 
            $display_value = !empty($influencer['display_name']) ? $influencer['display_name'] : ($influencer['name'] ?? '');
-           echo htmlspecialchars($display_value); 
+           echo htmlspecialchars_decode($display_value); 
            ?>">
 </div>
 

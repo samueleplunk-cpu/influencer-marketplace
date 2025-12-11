@@ -149,7 +149,7 @@ require_once $header_file;
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h2 class="mb-0">Conversazione con <?php echo htmlspecialchars($conversation['brand_name']); ?></h2>
+                <h2 class="mb-0">Conversazione con <?php echo htmlspecialchars_decode(htmlspecialchars($conversation['brand_name']), ENT_QUOTES); ?></h2>
                 <?php if (!empty($conversation['campaign_title'])): ?>
                     <small class="text-muted">Campagna: <?php echo htmlspecialchars($conversation['campaign_title']); ?></small>
                 <?php endif; ?>
@@ -190,7 +190,7 @@ require_once $header_file;
                                  style="object-fit: cover;"
                                  onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('brand'); ?>';">
                             <div>
-                                <strong class="h6"><?php echo htmlspecialchars($conversation['brand_name']); ?></strong>
+                                <strong class="h6"><?php echo htmlspecialchars_decode(htmlspecialchars($conversation['brand_name']), ENT_QUOTES); ?></strong>
                                 <?php if (!empty($conversation['brand_description'])): ?>
                                     <br>
                                     <small class="text-muted">

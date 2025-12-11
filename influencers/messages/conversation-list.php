@@ -124,7 +124,7 @@ require_once $header_file;
                                              onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('brand'); ?>';">
                                         
                                         <div>
-                                            <h5 class="mb-1"><?php echo htmlspecialchars($conversation['brand_name']); ?></h5>
+                                            <h5 class="mb-1"><?php echo htmlspecialchars_decode(htmlspecialchars($conversation['brand_name']), ENT_QUOTES); ?></h5>
                                             <?php if (!empty($conversation['campaign_title'])): ?>
                                                 <small class="text-muted">Campagna: <?php echo htmlspecialchars($conversation['campaign_title']); ?></small>
                                             <?php endif; ?>

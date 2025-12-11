@@ -141,8 +141,8 @@ include '../includes/header.php';
                                     <?php echo $user_type === 'brand' ? 'Nome Azienda *' : 'Nome Completo *'; ?>
                                 </label>
                                 <input type="text" class="form-control" id="name" name="<?php echo $user_type === 'brand' ? 'company_name' : 'name'; ?>" 
-                                       value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>" 
-                                       required>
+       value="<?php echo isset($_POST[$user_type === 'brand' ? 'company_name' : 'name']) ? htmlspecialchars($_POST[$user_type === 'brand' ? 'company_name' : 'name']) : ''; ?>" 
+       required>
                             </div>
                         </div>
                         
@@ -195,7 +195,7 @@ include '../includes/header.php';
             
             foreach ($categories as $category) {
                 $selected = (isset($_POST['influencer_type']) && $_POST['influencer_type'] === $category['name']) ? 'selected' : '';
-                echo '<option value="' . htmlspecialchars($category['name']) . '" ' . $selected . '>' . htmlspecialchars($category['name']) . '</option>';
+                echo '<option value="' . htmlspecialchars($category['name']) . '" ' . $selected . '>' . $category['name'] . '</option>';
             }
         } catch (PDOException $e) {
             // Fallback a categorie predefinite in caso di errore
@@ -207,7 +207,7 @@ include '../includes/header.php';
             
             foreach ($fallback_categories as $cat) {
                 $selected = (isset($_POST['influencer_type']) && $_POST['influencer_type'] === $cat) ? 'selected' : '';
-                echo '<option value="' . htmlspecialchars($cat) . '" ' . $selected . '>' . htmlspecialchars($cat) . '</option>';
+                echo '<option value="' . htmlspecialchars($cat) . '" ' . $selected . '>' . $cat . '</option>';
             }
         }
         ?>
@@ -235,7 +235,7 @@ include '../includes/header.php';
             
             foreach ($categories as $category) {
                 $selected = (isset($_POST['industry']) && $_POST['industry'] === $category['name']) ? 'selected' : '';
-                echo '<option value="' . htmlspecialchars($category['name']) . '" ' . $selected . '>' . htmlspecialchars($category['name']) . '</option>';
+                echo '<option value="' . htmlspecialchars($category['name']) . '" ' . $selected . '>' . $category['name'] . '</option>';
             }
         } catch (PDOException $e) {
             // Fallback a categorie predefinite in caso di errore
@@ -247,7 +247,7 @@ include '../includes/header.php';
             
             foreach ($fallback_categories as $cat) {
                 $selected = (isset($_POST['industry']) && $_POST['industry'] === $cat) ? 'selected' : '';
-                echo '<option value="' . htmlspecialchars($cat) . '" ' . $selected . '>' . htmlspecialchars($cat) . '</option>';
+                echo '<option value="' . htmlspecialchars($cat) . '" ' . $selected . '>' . $cat . '</option>';
             }
         }
         ?>

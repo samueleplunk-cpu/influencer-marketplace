@@ -228,11 +228,11 @@ if (!empty($brand['logo'])) {
                             
                             <div class="mb-3">
                                 <strong>Azienda:</strong>
-                                <span class="float-end"><?php echo htmlspecialchars($brand['company_name'] ?? 'Non specificato'); ?></span>
+<span class="float-end"><?php echo htmlspecialchars_decode($brand['company_name'] ?? 'Non specificato'); ?></span>
                             </div>
                             <div class="mb-3">
                                 <strong>Settore:</strong>
-                                <span class="float-end badge bg-info"><?php echo htmlspecialchars($brand['industry'] ?? 'Non specificato'); ?></span>
+<span class="float-end badge bg-info"><?php echo htmlspecialchars_decode($brand['industry'] ?? 'Non specificato'); ?></span>
                             </div>
                             <div class="mb-3">
                                 <strong>Sito Web:</strong>

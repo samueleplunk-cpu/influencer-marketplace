@@ -18,20 +18,24 @@ ini_set('display_startup_errors', 0);
 ini_set('log_errors', 1);
 
 // === SESSION CONFIGURATION ===
-// Sessione fissa di 14 giorni per tutti gli utenti
 $session_lifetime = 1209600; // 14 giorni in secondi
 
-session_set_cookie_params([
-    'lifetime' => $session_lifetime,
-    'path' => '/',
-    'domain' => $_SERVER['HTTP_HOST'],
-    'secure' => isset($_SERVER['HTTPS']),
-    'httponly' => true,
-    'samesite' => 'Lax'
-]);
-
+// Verifica se la sessione è già attiva
 if (session_status() === PHP_SESSION_NONE) {
+    // Configura i cookie della sessione prima di avviarla
+    session_set_cookie_params([
+        'lifetime' => $session_lifetime,
+        'path' => '/',
+        'domain' => $_SERVER['HTTP_HOST'],
+        'secure' => isset($_SERVER['HTTPS']),
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
+    
     session_start();
+} else {
+    // Sessione già attiva, non chiamare session_set_cookie_params()
+    error_log("Attenzione: sessione già attiva in config.php");
 }
 
 // Database connection

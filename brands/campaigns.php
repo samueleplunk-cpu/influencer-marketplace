@@ -383,14 +383,25 @@ require_once $header_file;
                             </thead>
                             <tbody>
                                 <?php foreach ($campaigns as $campaign): 
-                                    // Determina se la campagna è scaduta
-                                    $is_expired = $campaign['status'] === 'expired' || 
-                                                ($campaign['status'] === 'paused' && 
-                                                 $campaign['deadline_date'] && 
-                                                 strtotime($campaign['deadline_date']) < time());
+                                    // MODIFICA: Logica corretta per determinare se una campagna è scaduta
+                                    // Usa sia il campo is_expired dalla query che la verifica manuale
+                                    $is_expired_query = isset($campaign['is_expired']) && $campaign['is_expired'] == 1;
+                                    $is_expired_manual = $campaign['status'] === 'expired' || 
+                                                        ($campaign['status'] === 'paused' && 
+                                                         $campaign['deadline_date'] && 
+                                                         strtotime($campaign['deadline_date']) < time());
                                     
-                                    // Stato effettivo per visualizzazione
-                                    $effective_status = $is_expired ? 'expired' : $campaign['status'];
+                                    // Combina entrambe le verifiche
+                                    $is_expired = $is_expired_query || $is_expired_manual;
+                                    
+                                    // MODIFICA: Logica corretta per lo stato effettivo
+                                    // Se la campagna è scaduta, mostra SEMPRE "Scaduta" nella colonna Stato
+                                    // Indipendentemente dal valore originale di status
+                                    if ($is_expired) {
+                                        $effective_status = 'expired';
+                                    } else {
+                                        $effective_status = $campaign['status'];
+                                    }
                                 ?>
                                     <tr>
                                         <td>
