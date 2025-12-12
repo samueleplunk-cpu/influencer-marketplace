@@ -70,6 +70,7 @@ try {
         SELECT COUNT(*)
         FROM campaign_applications ca
         JOIN campaigns c ON ca.campaign_id = c.id
+        JOIN brands b ON c.brand_id = b.id
         WHERE ca.influencer_id = ?
         AND c.deleted_at IS NULL
     ";
