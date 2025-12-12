@@ -112,7 +112,7 @@ require_once $header_file;
                                         <?php 
                                         // Determina quale immagine mostrare
                                         $profile_image_src = '';
-                                        $profile_image_alt = htmlspecialchars($conversation['influencer_name']);
+                                        $profile_image_alt = htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES);
                                         
                                         if (!empty($conversation['influencer_image'])) {
                                             // Se l'influencer ha caricato un'immagine personalizzata
@@ -132,7 +132,7 @@ require_once $header_file;
                                              style="object-fit: cover;">
                                         
                                         <div>
-                                            <h5 class="mb-1"><?php echo htmlspecialchars($conversation['influencer_name']); ?></h5>
+                                            <h5 class="mb-1"><?php echo htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES); ?></h5>
                                             <?php if (!empty($conversation['campaign_title'])): ?>
                                                 <small class="text-muted">Campagna: <?php echo htmlspecialchars($conversation['campaign_title']); ?></small>
                                             <?php endif; ?>

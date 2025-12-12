@@ -522,7 +522,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="form-group">
                 <label for="full_name">Nome Completo *</label>
                 <input type="text" id="full_name" name="full_name" required 
-                       value="<?php echo htmlspecialchars($influencer['full_name'] ?? ''); ?>">
+       value="<?php echo htmlspecialchars_decode(htmlspecialchars($influencer['full_name'] ?? ''), ENT_QUOTES); ?>">
             </div>
 
             <div class="form-group">

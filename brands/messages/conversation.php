@@ -147,8 +147,8 @@ require_once $header_file;
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <div>
-                <h2 class="mb-0">Conversazione con <?php echo htmlspecialchars($conversation['influencer_name']); ?></h2>
-                <small class="text-muted"><?php echo htmlspecialchars($conversation['influencer_name']); ?></small>
+                <h2 class="mb-0">Conversazione con <?php echo htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES); ?></h2>
+                <small class="text-muted"><?php echo htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES); ?></small>
             </div>
             <div class="d-flex gap-2">
                 <?php if (!empty($conversation['campaign_id'])): ?>
@@ -174,7 +174,7 @@ require_once $header_file;
                             <?php 
                             // Determina quale immagine mostrare per l'influencer
                             $influencer_profile_src = '';
-                            $influencer_profile_alt = htmlspecialchars($conversation['influencer_name']);
+                            $influencer_profile_alt = htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES);
                             
                             if (!empty($conversation['influencer_image']) && image_exists($conversation['influencer_image'])) {
                                 // Se l'influencer ha caricato un'immagine personalizzata
@@ -194,9 +194,9 @@ require_once $header_file;
                                  style="object-fit: cover;">
                                 
                             <div>
-                                <strong class="h6"><?php echo htmlspecialchars($conversation['influencer_name']); ?></strong>
+                                <strong class="h6"><?php echo htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES); ?></strong>
                                 <br>
-                                <small class="text-muted"><?php echo htmlspecialchars($conversation['influencer_name']); ?></small>
+                                <small class="text-muted"><?php echo htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES); ?></small>
                             </div>
                         </div>
                     </div>
@@ -245,56 +245,16 @@ require_once $header_file;
                             $message_class = $is_own_message ? 'text-end' : 'text-start';
                             $bubble_class = $is_own_message ? 'bg-primary text-white' : 'bg-light';
                             $time_class = $is_own_message ? 'text-white-50' : 'text-muted';
-                            
-                            // Usa l'immagine fissa del profilo invece di cercarla per ogni messaggio
-                            $sender_image = $is_own_message ? $brand_logo : $conversation['influencer_image'];
-                            $sender_image_type = $is_own_message ? 'brand' : 'influencer';
-                            
-                            // Determina quale immagine mostrare per il mittente
-                            $sender_image_src = '';
-                            $sender_image_alt = htmlspecialchars($message['sender_name']);
-                            
-                            if (!empty($sender_image) && image_exists($sender_image)) {
-                                // Se il mittente ha caricato un'immagine personalizzata
-                                $sender_image_src = get_image_path($sender_image, $sender_image_type);
-                            } else {
-                                // Se NON ha un'immagine personalizzata
-                                if ($sender_image_type === 'influencer') {
-                                    // Per influencer, mostra il placeholder
-                                    $sender_image_src = "/infl/uploads/placeholder/influencer_admin_edit.png";
-                                    $sender_image_alt = "Placeholder - " . $sender_image_alt;
-                                } else {
-                                    // Per brand, mostra icona generica
-                                    $sender_image_src = ''; // Verrà usato il div con icona
-                                }
-                            }
                             ?>
                             
                             <div class="message mb-4 <?php echo $message_class; ?>" id="message-<?php echo $message['id']; ?>">
                                 <div class="d-flex <?php echo $is_own_message ? 'justify-content-end' : 'justify-content-start'; ?>">
-                                    <?php if (!$is_own_message): ?>
-                                        <!-- Avatar mittente (influencer) -->
-                                        <?php if (!empty($sender_image_src)): ?>
-                                            <img src="<?php echo $sender_image_src; ?>" 
-                                                 class="rounded-circle me-3" 
-                                                 width="40" 
-                                                 height="40" 
-                                                 alt="<?php echo $sender_image_alt; ?>"
-                                                 style="object-fit: cover;">
-                                        <?php else: ?>
-                                            <div class="rounded-circle bg-secondary d-flex align-items-center justify-content-center me-3" 
-                                                 style="width: 40px; height: 40px;">
-                                                <i class="fas fa-user text-white"></i>
-                                            </div>
-                                        <?php endif; ?>
-                                    <?php endif; ?>
-                                    
                                     <div class="message-bubble <?php echo $bubble_class; ?> rounded-3 p-3 position-relative" 
                                          style="max-width: 70%;">
                                         <!-- Nome mittente per i messaggi altrui -->
                                         <?php if (!$is_own_message): ?>
                                             <div class="sender-name mb-1">
-                                                <strong><?php echo htmlspecialchars($message['sender_name']); ?></strong>
+                                                <strong><?php echo htmlspecialchars_decode(htmlspecialchars($message['sender_name']), ENT_QUOTES); ?></strong>
                                             </div>
                                         <?php endif; ?>
                                         
@@ -317,23 +277,6 @@ require_once $header_file;
                                             </small>
                                         </div>
                                     </div>
-                                    
-                                    <?php if ($is_own_message): ?>
-                                        <!-- Avatar proprio (brand) -->
-                                        <?php if (!empty($sender_image_src)): ?>
-                                            <img src="<?php echo $sender_image_src; ?>" 
-                                                 class="rounded-circle ms-3" 
-                                                 width="40" 
-                                                 height="40" 
-                                                 alt="<?php echo $sender_image_alt; ?>"
-                                                 style="object-fit: cover;">
-                                        <?php else: ?>
-                                            <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center ms-3" 
-                                                 style="width: 40px; height: 40px;">
-                                                <i class="fas fa-building text-white"></i>
-                                            </div>
-                                        <?php endif; ?>
-                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>

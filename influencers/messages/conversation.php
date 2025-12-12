@@ -274,41 +274,23 @@ require_once $header_file;
                             $bubble_class = $is_own_message ? 'bg-primary text-white' : 'bg-light';
                             $time_class = $is_own_message ? 'text-white-50' : 'text-muted';
                             
-                            // Gestione immagine del mittente
-                            if ($is_own_message) {
-                                // Se è l'influencer (messaggio proprio)
-                                $sender_image = $influencer_image;
-                                $sender_image_type = 'influencer';
-                                $image_path = get_image_path($sender_image, $sender_image_type);
-                            } else {
-                                // Se è il brand
-                                $brand_image = $conversation['brand_image'] ?? '';
-                                if (!empty($brand_image)) {
-                                    // Se c'è un'immagine caricata, usa quella
-                                    $image_path = get_image_path($brand_image, 'brand');
-                                } else {
-                                    // Se NON c'è immagine caricata, usa il placeholder specificato
-                                    $image_path = '/infl/uploads/placeholder/brand_admin_edit.png';
-                                }
-                            }
                             ?>
                             
                             <div class="message mb-4 <?php echo $message_class; ?>" id="message-<?php echo $message['id']; ?>">
                                 <div class="d-flex <?php echo $is_own_message ? 'justify-content-end' : 'justify-content-start'; ?>">
-                                    <?php if (!$is_own_message): ?>
-                                        <!-- Avatar brand - usa placeholder se non c'è immagine -->
-                                        <img src="<?php echo htmlspecialchars($image_path); ?>" 
-                                             class="rounded-circle me-3" width="40" height="40" alt="Brand Logo"
-                                             style="object-fit: cover;"
-                                             onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('brand'); ?>';">
-                                    <?php endif; ?>
-                                    
                                     <div class="message-bubble <?php echo $bubble_class; ?> rounded-3 p-3 position-relative" 
                                          style="max-width: 70%;">
                                         <!-- Nome mittente per i messaggi del brand -->
                                         <?php if (!$is_own_message): ?>
                                             <div class="sender-name mb-1">
-                                                <strong><?php echo htmlspecialchars($message['sender_name']); ?></strong>
+                                                <strong><?php 
+                                                    // Fix per il carattere "&" nel nome del mittente brand
+                                                    if ($message['sender_type'] === 'brand') {
+                                                        echo htmlspecialchars_decode(htmlspecialchars($message['sender_name']), ENT_QUOTES);
+                                                    } else {
+                                                        echo htmlspecialchars($message['sender_name']);
+                                                    }
+                                                ?></strong>
                                             </div>
                                         <?php endif; ?>
                                         
@@ -331,14 +313,6 @@ require_once $header_file;
                                             </small>
                                         </div>
                                     </div>
-                                    
-                                    <?php if ($is_own_message): ?>
-                                        <!-- Avatar proprio (influencer) - usa l'immagine del profilo influencer -->
-                                        <img src="<?php echo htmlspecialchars($image_path); ?>" 
-                                             class="rounded-circle ms-3" width="40" height="40" alt="Profile"
-                                             style="object-fit: cover;"
-                                             onerror="this.onerror=null; this.src='<?php echo get_placeholder_path('influencer'); ?>';">
-                                    <?php endif; ?>
                                 </div>
                             </div>
                         <?php endforeach; ?>
