@@ -1168,17 +1168,20 @@ function getCampaigns($page = 1, $per_page = 15, $filters = []) {
     $stmt->execute($params);
     $total = $stmt->fetchColumn();
     
-    // Query per i dati
+    // === SOLUZIONE DEFINITIVA: Usa stessa logica di brands.php ===
     $sql = "SELECT c.*, 
+                   -- Stessa logica esatta usata in brands.php
                    COALESCE(
+                       NULLIF(b.company_name, ''), 
                        NULLIF(u.company_name, ''), 
-                       u.name, 
-                       'Brand Sconosciuto'
+                       u.name
                    ) as brand_display_name,
                    (SELECT COUNT(*) FROM campaign_views WHERE campaign_id = c.id) as views_count,
                    (SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = c.id) as invited_count
             FROM campaigns c 
-            LEFT JOIN users u ON c.brand_id = u.id
+            -- CORREZIONE: brand_id si riferisce a brands.id, poi users tramite user_id
+            LEFT JOIN brands b ON c.brand_id = b.id
+            LEFT JOIN users u ON b.user_id = u.id
             WHERE " . $where_sql . " 
             ORDER BY c.created_at DESC LIMIT :limit OFFSET :offset";
     
@@ -1215,15 +1218,18 @@ function getCampaignById($id) {
     global $pdo;
     
     $sql = "SELECT c.*, 
+                   -- Stessa logica esatta usata in brands.php
                    COALESCE(
+                       NULLIF(b.company_name, ''), 
                        NULLIF(u.company_name, ''), 
-                       u.name, 
-                       'Brand Sconosciuto'
+                       u.name
                    ) as brand_display_name,
                    (SELECT COUNT(*) FROM campaign_views WHERE campaign_id = c.id) as views_count,
                    (SELECT COUNT(*) FROM campaign_invitations WHERE campaign_id = c.id) as invited_count
             FROM campaigns c 
-            LEFT JOIN users u ON c.brand_id = u.id
+            -- CORREZIONE: brand_id si riferisce a brands.id, poi users tramite user_id
+            LEFT JOIN brands b ON c.brand_id = b.id
+            LEFT JOIN users u ON b.user_id = u.id
             WHERE c.id = ? AND c.deleted_at IS NULL";
     
     $stmt = $pdo->prepare($sql);

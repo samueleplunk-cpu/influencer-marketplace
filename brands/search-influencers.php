@@ -152,11 +152,50 @@ $count_stmt->execute($params);
 $total_results = $count_stmt->fetchColumn();
 $total_pages = ceil($total_results / $limit);
 
-// MODIFICA: Query per i risultati con ordinamento casuale
+// Query per i risultati con ordinamento casuale
 $results_sql = "SELECT * FROM influencers $where_sql ORDER BY RAND() LIMIT $limit OFFSET $offset";
 $stmt = $pdo->prepare($results_sql);
 $stmt->execute($params);
 $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// =============================================
+// RECUPERO CONVERSAZIONI ESISTENTI PER TUTTI GLI INFLUENCER
+// =============================================
+$existing_conversations = [];
+if ($brand_id && !empty($influencers)) {
+    // Estrai tutti gli ID influencer dai risultati
+    $influencer_ids = array_column($influencers, 'id');
+    
+    // Recupera tutte le conversazioni esistenti in una sola query
+    try {
+        if (!empty($influencer_ids)) {
+            // Crea i placeholder per la query
+            $placeholders = implode(',', array_fill(0, count($influencer_ids), '?'));
+            
+            $stmt = $pdo->prepare("
+                SELECT influencer_id, id as conversation_id 
+                FROM conversations 
+                WHERE brand_id = ? 
+                AND influencer_id IN ($placeholders)
+                AND campaign_id IS NULL
+            ");
+            
+            // Parametri: brand_id + tutti gli influencer_ids
+            $params_conv = array_merge([$brand_id], $influencer_ids);
+            $stmt->execute($params_conv);
+            
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Trasforma in array associativo influencer_id => conversation_id
+            foreach ($results as $row) {
+                $existing_conversations[$row['influencer_id']] = $row['conversation_id'];
+            }
+        }
+    } catch (PDOException $e) {
+        error_log("Errore recupero conversazioni esistenti: " . $e->getMessage());
+        // Continua senza conversazioni esistenti
+    }
+}
 ?>
 
 <div class="row">
@@ -276,32 +315,32 @@ $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <div class="col-md-6 col-lg-4 mb-4">
                                 <div class="card h-100 influencer-card">
                                     <!-- Immagine Profilo -->
-<div class="position-relative">
-    <?php 
-    // Costruisci il percorso dell'immagine
-    $profile_image_path = '';
-    if (!empty($influencer['profile_image'])) {
-        // Se l'influencer ha un'immagine personalizzata
-        $profile_image_path = '/infl/uploads/' . htmlspecialchars($influencer['profile_image']);
-    } else {
-        // Se l'influencer NON ha un'immagine personalizzata, usa il placeholder
-        $profile_image_path = '/infl/uploads/placeholder/sponsor_influencer_dashboard.png';
-    }
-    ?>
-    <img src="<?php echo $profile_image_path; ?>" 
-         class="card-img-top" 
-         alt="<?php echo htmlspecialchars($influencer['full_name']); ?>"
-         style="height: 200px; object-fit: cover;">
-    
-    <!-- Badge Rating -->
-    <?php if (!empty($influencer['rating'])): ?>
-        <div class="position-absolute top-0 end-0 m-2">
-            <span class="badge bg-warning text-dark">
-                ★ <?php echo number_format($influencer['rating'], 1); ?>
-            </span>
-        </div>
-    <?php endif; ?>
-</div>
+                                    <div class="position-relative">
+                                        <?php 
+                                        // Costruisci il percorso dell'immagine
+                                        $profile_image_path = '';
+                                        if (!empty($influencer['profile_image'])) {
+                                            // Se l'influencer ha un'immagine personalizzata
+                                            $profile_image_path = '/infl/uploads/' . htmlspecialchars($influencer['profile_image']);
+                                        } else {
+                                            // Se l'influencer NON ha un'immagine personalizzata, usa il placeholder
+                                            $profile_image_path = '/infl/uploads/placeholder/sponsor_influencer_dashboard.png';
+                                        }
+                                        ?>
+                                        <img src="<?php echo $profile_image_path; ?>" 
+                                             class="card-img-top" 
+                                             alt="<?php echo htmlspecialchars($influencer['full_name']); ?>"
+                                             style="height: 200px; object-fit: cover;">
+                                        
+                                        <!-- Badge Rating -->
+                                        <?php if (!empty($influencer['rating'])): ?>
+                                            <div class="position-absolute top-0 end-0 m-2">
+                                                <span class="badge bg-warning text-dark">
+                                                    ★ <?php echo number_format($influencer['rating'], 1); ?>
+                                                </span>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
 
                                     <div class="card-body">
                                         <!-- Nome e Categoria -->
@@ -367,23 +406,63 @@ $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
                                     <!-- PULSANTI AZIONE -->
                                     <div class="card-footer bg-transparent">
-                                        <div class="d-grid gap-2">
+                                        <div>
                                             <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
-                                               class="btn btn-outline-primary btn-sm">
-                                                <i class="fas fa-eye"></i> Vedi Profilo Completo
+                                               class="btn btn-outline-primary btn-sm w-100 mt-2">
+                                                <i class="fas fa-eye"></i> Dettagli profilo
                                             </a>
                                             
                                             <?php if ($brand_id): ?>
-                                                <!-- Form per avviare conversazione -->
-                                                <form method="POST" action="start-conversation.php" class="d-inline">
-                                                    <input type="hidden" name="influencer_id" value="<?php echo $influencer['id']; ?>">
-                                                    <input type="hidden" name="initial_message" value="Ciao <?php echo htmlspecialchars($influencer['full_name']); ?>, sono interessato a collaborare con te!">
-                                                    <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                <?php 
+                                                // Controlla se esiste già una conversazione con questo influencer
+                                                $conversation_id = $existing_conversations[$influencer['id']] ?? false;
+                                                ?>
+                                                
+                                                <?php if (!$conversation_id): ?>
+                                                    <!-- Se NON esiste conversazione: mostra pulsante per inviare messaggio -->
+                                                    <button type="button" 
+                                                            class="btn btn-primary btn-sm w-100 mt-2 send-message-btn"
+                                                            data-influencer-id="<?php echo $influencer['id']; ?>"
+                                                            data-influencer-name="<?php echo htmlspecialchars($influencer['full_name']); ?>">
                                                         <i class="fas fa-envelope"></i> Invia Messaggio
                                                     </button>
-                                                </form>
+                                                    
+                                                    <!-- Form fallback per no-JavaScript (nascosto) -->
+                                                    <form method="POST" action="start-conversation.php" class="d-none no-js-form">
+                                                        <input type="hidden" name="influencer_id" value="<?php echo $influencer['id']; ?>">
+                                                        <input type="hidden" name="initial_message" value="Ciao <?php echo htmlspecialchars($influencer['full_name']); ?>, sono interessato a collaborare con te!">
+                                                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                            <i class="fas fa-envelope"></i> Invia Messaggio
+                                                        </button>
+                                                    </form>
+                                                <?php else: ?>
+                                                    <!-- Se ESISTE conversazione: mostra pulsanti per andare alla conversazione o nuovo messaggio -->
+                                                    <div class="d-flex gap-1 mt-2">
+                                                        <a href="messages/conversation.php?id=<?php echo $conversation_id; ?>" 
+                                                           class="btn btn-primary btn-sm flex-grow-1">
+                                                            <i class="fas fa-comments"></i> Vai alla Conversazione
+                                                        </a>
+                                                        <button type="button" 
+                                                                class="btn btn-outline-primary btn-sm send-message-btn"
+                                                                data-influencer-id="<?php echo $influencer['id']; ?>"
+                                                                data-influencer-name="<?php echo htmlspecialchars($influencer['full_name']); ?>"
+                                                                data-conversation-id="<?php echo $conversation_id; ?>"
+                                                                title="Aggiungi nuovo messaggio">
+                                                            <i class="fas fa-plus"></i>
+                                                        </button>
+                                                    </div>
+                                                    
+                                                    <!-- Form fallback per no-JavaScript (nascosto) -->
+                                                    <form method="POST" action="start-conversation.php" class="d-none no-js-form">
+                                                        <input type="hidden" name="influencer_id" value="<?php echo $influencer['id']; ?>">
+                                                        <input type="hidden" name="initial_message" value="Ciao <?php echo htmlspecialchars($influencer['full_name']); ?>, sono interessato a collaborare con te!">
+                                                        <button type="submit" class="btn btn-primary btn-sm w-100">
+                                                            <i class="fas fa-envelope"></i> Invia Messaggio
+                                                        </button>
+                                                    </form>
+                                                <?php endif; ?>
                                             <?php else: ?>
-                                                <button class="btn btn-secondary btn-sm w-100" disabled title="Completa il profilo brand per inviare messaggi">
+                                                <button class="btn btn-secondary btn-sm w-100 mt-2" disabled title="Completa il profilo brand per inviare messaggi">
                                                     <i class="fas fa-exclamation-circle"></i> Completa Profilo
                                                 </button>
                                             <?php endif; ?>
@@ -432,6 +511,51 @@ $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     </div>
 </div>
 
+<!-- MODAL PER MESSAGGIO PERSONALIZZATO -->
+<div class="modal fade" id="messageModal" tabindex="-1" aria-labelledby="messageModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form id="messageForm" method="POST" action="start-conversation.php">
+                <input type="hidden" name="influencer_id" id="modalInfluencerId">
+                <input type="hidden" name="initial_message" id="modalInitialMessage">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="messageModalLabel">Invia Messaggio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="customMessage" class="form-label">
+                            Scrivi il tuo messaggio personalizzato
+                            <span class="text-muted small float-end">
+                                <span id="charCount">0</span>/1000 caratteri
+                            </span>
+                        </label>
+                        <textarea class="form-control" 
+                                  id="customMessage" 
+                                  name="custom_message" 
+                                  rows="6" 
+                                  maxlength="1000" 
+                                  placeholder="Es: Ciao, sono [Nome Brand]. Ho visto il tuo profilo e mi piacerebbe collaborare per una campagna su [tema]..."
+                                  required></textarea>
+                        <div class="form-text">
+                            Questo sarà il primo messaggio nella conversazione.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        Annulla
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-paper-plane"></i> Invia Messaggio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <style>
 .influencer-card {
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
@@ -450,7 +574,207 @@ $influencers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     font-size: 0.875rem;
     padding: 0.375rem 0.75rem;
 }
+
+/* Stili per il modal e textarea */
+#customMessage {
+    resize: vertical;
+    min-height: 120px;
+}
+
+#charCount.text-warning {
+    font-weight: bold;
+}
+
+#charCount.text-danger {
+    font-weight: bold;
+}
+
+/* Pulsante nel modal */
+.modal-footer .btn {
+    min-width: 100px;
+}
+
+/* Adatta form no-JS */
+.no-js-form {
+    margin-top: 5px;
+}
+
+/* Stili per pulsanti conversazione esistente */
+.btn-primary.flex-grow-1 {
+    flex: 1 1 auto;
+}
+
+.btn-outline-primary.btn-sm {
+    width: 40px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+/* Badge per indicare conversazione esistente */
+.conversation-badge {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 0.7rem;
+}
+
+/* Tooltip personalizzato */
+[title] {
+    cursor: help;
+}
 </style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Nascondi form fallback se JavaScript è abilitato
+    document.querySelectorAll('.no-js-form').forEach(form => {
+        form.style.display = 'none';
+    });
+    
+    // Mostra i pulsanti per il modal
+    document.querySelectorAll('.send-message-btn').forEach(btn => {
+        btn.style.display = btn.classList.contains('send-message-btn') ? '' : 'none';
+    });
+    
+    // Gestione click sui pulsanti "Invia Messaggio" e "Nuovo Messaggio"
+    document.querySelectorAll('.send-message-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const influencerId = this.getAttribute('data-influencer-id');
+            const influencerName = this.getAttribute('data-influencer-name');
+            const conversationId = this.getAttribute('data-conversation-id');
+            
+            // Imposta i valori nel modal
+            document.getElementById('modalInfluencerId').value = influencerId;
+            
+            // Imposta messaggio predefinito personalizzato
+            const defaultMessage = conversationId 
+                ? `Ciao ${influencerName}, vorrei aggiungere qualcosa alla nostra conversazione: `
+                : `Ciao ${influencerName}, sono interessato a collaborare con te!`;
+            
+            document.getElementById('customMessage').value = defaultMessage;
+            document.getElementById('modalInitialMessage').value = defaultMessage;
+            
+            // Se esiste conversazione, aggiorna il titolo del modal
+            if (conversationId) {
+                document.getElementById('messageModalLabel').textContent = 'Aggiungi Nuovo Messaggio';
+                // Aggiungi campo nascosto per conversation_id (se necessario per il backend)
+                if (!document.getElementById('existingConversationId')) {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.id = 'existingConversationId';
+                    input.name = 'existing_conversation_id';
+                    input.value = conversationId;
+                    document.getElementById('messageForm').appendChild(input);
+                } else {
+                    document.getElementById('existingConversationId').value = conversationId;
+                }
+            } else {
+                document.getElementById('messageModalLabel').textContent = 'Invia Messaggio';
+                // Rimuovi campo hidden se presente
+                const existingInput = document.getElementById('existingConversationId');
+                if (existingInput) {
+                    existingInput.remove();
+                }
+            }
+            
+            // Resetta e aggiorna contatore caratteri
+            updateCharCount();
+            
+            // Mostra il modal
+            const messageModal = new bootstrap.Modal(document.getElementById('messageModal'));
+            messageModal.show();
+            
+            // Focus sul textarea
+            setTimeout(() => {
+                document.getElementById('customMessage').focus();
+            }, 500);
+        });
+    });
+    
+    // Gestione contatore caratteri
+    const textarea = document.getElementById('customMessage');
+    const charCount = document.getElementById('charCount');
+    
+    function updateCharCount() {
+        if (!textarea || !charCount) return;
+        
+        const length = textarea.value.length;
+        charCount.textContent = length;
+        
+        // Cambia colore se supera 900 caratteri
+        if (length > 900) {
+            charCount.className = 'text-warning';
+        } else if (length > 990) {
+            charCount.className = 'text-danger';
+        } else {
+            charCount.className = '';
+        }
+    }
+    
+    if (textarea) {
+        textarea.addEventListener('input', updateCharCount);
+        
+        // Aggiorna il messaggio nascosto quando l'utente modifica il textarea
+        textarea.addEventListener('input', function() {
+            document.getElementById('modalInitialMessage').value = this.value;
+        });
+        
+        // Inizializza contatore
+        updateCharCount();
+    }
+    
+    // Validazione del form nel modal
+    const messageForm = document.getElementById('messageForm');
+    if (messageForm) {
+        messageForm.addEventListener('submit', function(e) {
+            const message = document.getElementById('customMessage')?.value.trim();
+            
+            if (!message) {
+                e.preventDefault();
+                alert('Per favore, scrivi un messaggio prima di inviare.');
+                document.getElementById('customMessage')?.focus();
+                return false;
+            }
+            
+            if (message.length > 1000) {
+                e.preventDefault();
+                alert('Il messaggio è troppo lungo (max 1000 caratteri).');
+                return false;
+            }
+            
+            // Mostra indicatore di caricamento
+            const submitBtn = this.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Invio in corso...';
+                submitBtn.disabled = true;
+            }
+        });
+    }
+    
+    // Reset modal quando viene nascosto
+    document.getElementById('messageModal')?.addEventListener('hidden.bs.modal', function () {
+        // Ripristina titolo default
+        document.getElementById('messageModalLabel').textContent = 'Invia Messaggio';
+        
+        // Rimuovi campo hidden se presente
+        const existingInput = document.getElementById('existingConversationId');
+        if (existingInput) {
+            existingInput.remove();
+        }
+        
+        // Resetta form
+        const form = document.getElementById('messageForm');
+        if (form) {
+            form.reset();
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Invia Messaggio';
+                submitBtn.disabled = false;
+            }
+        }
+    });
+});
+</script>
 
 <?php
 // =============================================

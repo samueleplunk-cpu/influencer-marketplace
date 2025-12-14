@@ -785,4 +785,73 @@ function send_push_notification($user_id, $title, $message, $data = []) {
     error_log("Push notification for user $user_id: $title - $message");
     return true;
 }
+
+/**
+ * Verifica se esiste già una conversazione tra brand e influencer
+ * Restituisce l'ID della conversazione se esiste, altrimenti false
+ */
+function conversationExists($pdo, $brand_id, $influencer_id, $campaign_id = null) {
+    try {
+        if ($campaign_id) {
+            $stmt = $pdo->prepare("
+                SELECT id FROM conversations 
+                WHERE brand_id = ? AND influencer_id = ? AND campaign_id = ?
+            ");
+            $stmt->execute([$brand_id, $influencer_id, $campaign_id]);
+        } else {
+            $stmt = $pdo->prepare("
+                SELECT id FROM conversations 
+                WHERE brand_id = ? AND influencer_id = ? AND campaign_id IS NULL
+            ");
+            $stmt->execute([$brand_id, $influencer_id]);
+        }
+        
+        $conversation = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $conversation ? $conversation['id'] : false;
+        
+    } catch (PDOException $e) {
+        error_log("Errore verifica conversazione esistente: " . $e->getMessage());
+        return false;
+    }
+}
+
+/**
+ * Ottiene tutte le conversazioni esistenti per un brand con una lista di influencer
+ */
+function getExistingConversationsForBrand($pdo, $brand_id, $influencer_ids) {
+    try {
+        if (empty($influencer_ids)) {
+            return [];
+        }
+        
+        // Crea i placeholder per la query
+        $placeholders = implode(',', array_fill(0, count($influencer_ids), '?'));
+        
+        $stmt = $pdo->prepare("
+            SELECT influencer_id, id as conversation_id 
+            FROM conversations 
+            WHERE brand_id = ? 
+            AND influencer_id IN ($placeholders)
+            AND campaign_id IS NULL
+        ");
+        
+        // Parametri: brand_id + tutti gli influencer_ids
+        $params = array_merge([$brand_id], $influencer_ids);
+        $stmt->execute($params);
+        
+        $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Trasforma in array associativo influencer_id => conversation_id
+        $conversations = [];
+        foreach ($results as $row) {
+            $conversations[$row['influencer_id']] = $row['conversation_id'];
+        }
+        
+        return $conversations;
+        
+    } catch (PDOException $e) {
+        error_log("Errore recupero conversazioni esistenti: " . $e->getMessage());
+        return [];
+    }
+}
 ?>

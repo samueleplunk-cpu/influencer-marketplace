@@ -476,16 +476,8 @@ if ($action === 'list') {
                                                     </div>
                                                 </td>
                                                 <td>
-                                                    <div class="d-flex align-items-center">
-                                                        <div class="rounded-circle bg-primary d-flex align-items-center justify-content-center me-2" 
-                                                             style="width: 32px; height: 32px;">
-                                                            <i class="fas fa-building text-white"></i>
-                                                        </div>
-                                                        <div>
-                                                            <strong><?php echo htmlspecialchars($campaign['brand_display_name']); ?></strong>
-                                                        </div>
-                                                    </div>
-                                                </td>
+    <strong><?php echo htmlspecialchars_decode($campaign['brand_display_name']); ?></strong>
+</td>
                                                 <td>
                                                     <strong><?php echo number_format($campaign['budget'], 2); ?> <?php echo htmlspecialchars($campaign['currency']); ?></strong>
                                                 </td>
