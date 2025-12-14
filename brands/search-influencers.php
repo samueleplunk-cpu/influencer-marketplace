@@ -526,10 +526,7 @@ if ($brand_id && !empty($influencers)) {
                 <div class="modal-body">
                     <div class="mb-3">
                         <label for="customMessage" class="form-label">
-                            Scrivi il tuo messaggio personalizzato
-                            <span class="text-muted small float-end">
-                                <span id="charCount">0</span>/1000 caratteri
-                            </span>
+                            Scrivi il tuo messaggio:
                         </label>
                         <textarea class="form-control" 
                                   id="customMessage" 
@@ -538,8 +535,10 @@ if ($brand_id && !empty($influencers)) {
                                   maxlength="1000" 
                                   placeholder="Es: Ciao, sono [Nome Brand]. Ho visto il tuo profilo e mi piacerebbe collaborare per una campagna su [tema]..."
                                   required></textarea>
-                        <div class="form-text">
-                            Questo sarà il primo messaggio nella conversazione.
+                        <div class="d-flex justify-content-end mt-2">
+                            <span class="text-muted small">
+                                <span id="charCount">0</span>/1000 caratteri
+                            </span>
                         </div>
                     </div>
                 </div>

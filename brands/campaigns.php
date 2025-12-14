@@ -178,14 +178,7 @@ require_once $header_file;
 
         <!-- Statistiche Rapide -->
         <div class="row mb-4">
-            <div class="col-md-2">
-                <div class="card text-white bg-primary">
-                    <div class="card-body text-center p-3">
-                        <h5 class="card-title"><?php echo count($campaigns); ?></h5>
-                        <p class="card-text small">Totale Campagne</p>
-                    </div>
-                </div>
-            </div>
+            <!-- Attive -->
             <div class="col-md-2">
                 <div class="card text-white bg-success">
                     <div class="card-body text-center p-3">
@@ -198,6 +191,7 @@ require_once $header_file;
                     </div>
                 </div>
             </div>
+            <!-- In Pausa -->
             <div class="col-md-2">
                 <div class="card text-white bg-warning">
                     <div class="card-body text-center p-3">
@@ -211,18 +205,20 @@ require_once $header_file;
                     </div>
                 </div>
             </div>
+            <!-- Completate -->
             <div class="col-md-2">
-                <div class="card text-white bg-secondary">
+                <div class="card text-white bg-info">
                     <div class="card-body text-center p-3">
                         <h5 class="card-title">
                             <?php echo count(array_filter($campaigns, function($c) { 
-                                return $c['status'] === 'draft'; 
+                                return $c['status'] === 'completed'; 
                             })); ?>
                         </h5>
-                        <p class="card-text small">Bozze</p>
+                        <p class="card-text small">Completate</p>
                     </div>
                 </div>
             </div>
+            <!-- Scadute -->
             <div class="col-md-2">
                 <div class="card text-white bg-danger">
                     <div class="card-body text-center p-3">
@@ -236,15 +232,25 @@ require_once $header_file;
                     </div>
                 </div>
             </div>
+            <!-- Bozze -->
             <div class="col-md-2">
-                <div class="card text-white bg-info">
+                <div class="card text-white bg-secondary">
                     <div class="card-body text-center p-3">
                         <h5 class="card-title">
                             <?php echo count(array_filter($campaigns, function($c) { 
-                                return $c['status'] === 'completed'; 
+                                return $c['status'] === 'draft'; 
                             })); ?>
                         </h5>
-                        <p class="card-text small">Completate</p>
+                        <p class="card-text small">Bozze</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Totale Campagne -->
+            <div class="col-md-2">
+                <div class="card text-white bg-primary">
+                    <div class="card-body text-center p-3">
+                        <h5 class="card-title"><?php echo count($campaigns); ?></h5>
+                        <p class="card-text small">Totale Campagne</p>
                     </div>
                 </div>
             </div>
@@ -383,20 +389,14 @@ require_once $header_file;
                             </thead>
                             <tbody>
                                 <?php foreach ($campaigns as $campaign): 
-                                    // MODIFICA: Logica corretta per determinare se una campagna è scaduta
-                                    // Usa sia il campo is_expired dalla query che la verifica manuale
                                     $is_expired_query = isset($campaign['is_expired']) && $campaign['is_expired'] == 1;
                                     $is_expired_manual = $campaign['status'] === 'expired' || 
                                                         ($campaign['status'] === 'paused' && 
                                                          $campaign['deadline_date'] && 
                                                          strtotime($campaign['deadline_date']) < time());
                                     
-                                    // Combina entrambe le verifiche
                                     $is_expired = $is_expired_query || $is_expired_manual;
                                     
-                                    // MODIFICA: Logica corretta per lo stato effettivo
-                                    // Se la campagna è scaduta, mostra SEMPRE "Scaduta" nella colonna Stato
-                                    // Indipendentemente dal valore originale di status
                                     if ($is_expired) {
                                         $effective_status = 'expired';
                                     } else {
@@ -415,9 +415,6 @@ require_once $header_file;
                                                 </div>
                                                 <div>
                                                     <strong><?php echo htmlspecialchars($campaign['name']); ?></strong>
-                                                    <?php if ($campaign['status'] === 'draft'): ?>
-                                                        <span class="badge bg-secondary ms-1">Bozza</span>
-                                                    <?php endif; ?>
                                                 </div>
                                             </div>
                                         </td>
@@ -433,7 +430,7 @@ require_once $header_file;
                                                 'draft' => ['class' => 'secondary', 'icon' => 'fas fa-edit', 'text' => 'Bozza'],
                                                 'active' => ['class' => 'success', 'icon' => 'fas fa-play', 'text' => 'Attiva'],
                                                 'paused' => ['class' => 'warning', 'icon' => 'fas fa-pause', 'text' => 'In pausa'],
-                                                'completed' => ['class' => 'primary', 'icon' => 'fas fa-check', 'text' => 'Completata'],
+                                                'completed' => ['class' => 'info', 'icon' => 'fas fa-check', 'text' => 'Completata'],
                                                 'expired' => ['class' => 'danger', 'icon' => 'fas fa-clock', 'text' => 'Scaduta'],
                                                 'cancelled' => ['class' => 'dark', 'icon' => 'fas fa-times', 'text' => 'Cancellata']
                                             ];
