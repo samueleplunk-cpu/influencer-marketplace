@@ -266,7 +266,7 @@ require_once $header_file;
             <div class="card-body">
                 <form method="GET" action="" class="row g-3 align-items-end">
                     <!-- Filtro Nome Campagna -->
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <label for="search_name" class="form-label">Nome Campagna</label>
                         <input type="text" 
                                class="form-control" 
@@ -290,7 +290,7 @@ require_once $header_file;
                         </select>
                     </div>
                     
-                    <!-- Filtro Stato -->
+                    <!-- Filtro Stato (MODIFICATO: rimosso "cancelled") -->
                     <div class="col-md-3">
                         <label for="filter_status" class="form-label">Stato</label>
                         <select class="form-select" id="filter_status" name="filter_status">
@@ -300,17 +300,17 @@ require_once $header_file;
                             <option value="paused" <?php echo $filter_status === 'paused' ? 'selected' : ''; ?>>In Pausa</option>
                             <option value="completed" <?php echo $filter_status === 'completed' ? 'selected' : ''; ?>>Completata</option>
                             <option value="expired" <?php echo $filter_status === 'expired' ? 'selected' : ''; ?>>Scaduta</option>
-                            <option value="cancelled" <?php echo $filter_status === 'cancelled' ? 'selected' : ''; ?>>Cancellata</option>
+                            <!-- RIMOSSO: <option value="cancelled">Cancellata</option> -->
                         </select>
                     </div>
                     
-                    <!-- Pulsanti -->
-                    <div class="col-md-2">
-                        <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-primary">
+                    <!-- Pulsanti (MODIFICATO: sulla stessa riga) -->
+                    <div class="col-md-3">
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button type="submit" class="btn btn-primary flex-fill me-md-2">
                                 <i class="fas fa-search me-1"></i>Applica Filtri
                             </button>
-                            <a href="campaigns.php" class="btn btn-outline-secondary">
+                            <a href="campaigns.php" class="btn btn-outline-secondary flex-fill">
                                 <i class="fas fa-undo me-1"></i>Reset
                             </a>
                         </div>
@@ -337,8 +337,8 @@ require_once $header_file;
                                     'active' => 'Attiva',
                                     'paused' => 'In Pausa',
                                     'completed' => 'Completata',
-                                    'expired' => 'Scaduta',
-                                    'cancelled' => 'Cancellata'
+                                    'expired' => 'Scaduta'
+                                    // RIMOSSO: 'cancelled' => 'Cancellata'
                                 ];
                                 $active_filters[] = "Stato: \"{$status_labels[$filter_status]}\"";
                             }
@@ -422,7 +422,9 @@ require_once $header_file;
                                             <strong>€<?php echo number_format($campaign['budget'], 2); ?></strong>
                                         </td>
                                         <td>
-                                            <span class="badge bg-info"><?php echo htmlspecialchars($campaign['niche']); ?></span>
+                                            <div>
+                                                <strong><?php echo htmlspecialchars($campaign['niche']); ?></strong>
+                                            </div>
                                         </td>
                                         <td>
                                             <?php
@@ -469,29 +471,29 @@ require_once $header_file;
                                             </small>
                                         </td>
                                         <td>
-    <div class="btn-group btn-group-sm">
-        <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
-           class="btn btn-outline-primary me-2" title="Dettagli campagna">
-            <i class="fas fa-eye"></i>
-        </a>
-        
-        <?php if ($campaign['status'] === 'draft'): ?>
-            <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
-               class="btn btn-outline-secondary me-1" title="Modifica campagna">
-                <i class="fas fa-edit"></i>
-            </a>
-        <?php endif; ?>
-        
-        <?php if ($is_expired): ?>
-            <button type="button" class="btn btn-outline-primary" 
-                    data-bs-toggle="modal" 
-                    data-bs-target="#reactivateModal<?php echo $campaign['id']; ?>"
-                    title="Richiedi riattivazione">
-                <i class="fas fa-redo"></i>
-            </button>
-        <?php endif; ?>
-    </div>
-</td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
+                                                   class="btn btn-outline-primary me-2" title="Dettagli campagna">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                
+                                                <?php if ($campaign['status'] === 'draft'): ?>
+                                                    <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
+                                                       class="btn btn-outline-secondary me-1" title="Modifica campagna">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                <?php endif; ?>
+                                                
+                                                <?php if ($is_expired): ?>
+                                                    <button type="button" class="btn btn-outline-primary" 
+                                                            data-bs-toggle="modal" 
+                                                            data-bs-target="#reactivateModal<?php echo $campaign['id']; ?>"
+                                                            title="Richiedi riattivazione">
+                                                        <i class="fas fa-redo"></i>
+                                                    </button>
+                                                <?php endif; ?>
+                                            </div>
+                                        </td>
                                     </tr>
 
                                     <!-- Modal Richiesta Riattivazione per Campagne Scadute -->
@@ -574,4 +576,3 @@ if (file_exists($footer_file)) {
 } else {
     echo '<!-- Footer non trovato -->';
 }
-?>
