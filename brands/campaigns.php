@@ -50,12 +50,12 @@ try {
         exit();
     }
     
-    // Query base per campagne
+    // Query base per campagne - MODIFICATA: Qualsiasi campagna con deadline passata è considerata scaduta
     $query = "
     SELECT c.*, 
            COUNT(ci.id) as influencer_count,
            COUNT(CASE WHEN ci.status = 'accepted' THEN 1 END) as accepted_count,
-           (c.deadline_date IS NOT NULL AND c.deadline_date < CURDATE() AND c.status = 'paused') as is_expired
+           (c.deadline_date IS NOT NULL AND c.deadline_date < CURDATE()) as is_expired
     FROM campaigns c 
     LEFT JOIN campaign_influencers ci ON c.id = ci.campaign_id
     WHERE c.brand_id = ? AND c.deleted_at IS NULL
@@ -76,7 +76,8 @@ try {
     
     if (!empty($filter_status)) {
         if ($filter_status === 'expired') {
-            $query .= " AND (c.status = 'expired' OR (c.status = 'paused' AND c.deadline_date IS NOT NULL AND c.deadline_date < CURDATE()))";
+            // MODIFICATO: Cerca qualsiasi campagna con deadline passata
+            $query .= " AND (c.status = 'expired' OR (c.deadline_date IS NOT NULL AND c.deadline_date < CURDATE()))";
         } else {
             $query .= " AND c.status = ?";
             $params[] = $filter_status;
@@ -225,7 +226,7 @@ require_once $header_file;
                         <h5 class="card-title">
                             <?php echo count(array_filter($campaigns, function($c) { 
                                 return $c['status'] === 'expired' || 
-                                       ($c['status'] === 'paused' && $c['deadline_date'] && strtotime($c['deadline_date']) < time()); 
+                                       ($c['deadline_date'] && strtotime($c['deadline_date']) < time()); 
                             })); ?>
                         </h5>
                         <p class="card-text small">Scadute</p>
@@ -238,7 +239,8 @@ require_once $header_file;
                     <div class="card-body text-center p-3">
                         <h5 class="card-title">
                             <?php echo count(array_filter($campaigns, function($c) { 
-                                return $c['status'] === 'draft'; 
+                                return $c['status'] === 'draft' && 
+                                       (!$c['deadline_date'] || strtotime($c['deadline_date']) >= time()); 
                             })); ?>
                         </h5>
                         <p class="card-text small">Bozze</p>
@@ -389,13 +391,11 @@ require_once $header_file;
                             </thead>
                             <tbody>
                                 <?php foreach ($campaigns as $campaign): 
-                                    $is_expired_query = isset($campaign['is_expired']) && $campaign['is_expired'] == 1;
-                                    $is_expired_manual = $campaign['status'] === 'expired' || 
-                                                        ($campaign['status'] === 'paused' && 
-                                                         $campaign['deadline_date'] && 
-                                                         strtotime($campaign['deadline_date']) < time());
-                                    
-                                    $is_expired = $is_expired_query || $is_expired_manual;
+                                    // MODIFICA CHIAVE: Qualsiasi campagna con deadline passata è considerata scaduta
+                                    $has_expired_deadline = $campaign['deadline_date'] && strtotime($campaign['deadline_date']) < time();
+                                    $is_expired = (isset($campaign['is_expired']) && $campaign['is_expired'] == 1) || 
+                                                 $campaign['status'] === 'expired' || 
+                                                 $has_expired_deadline;
                                     
                                     if ($is_expired) {
                                         $effective_status = 'expired';
@@ -444,7 +444,7 @@ require_once $header_file;
                                                 <?php echo $status_config['text']; ?>
                                             </span>
                                             
-                                            <?php if ($campaign['status'] === 'paused' && !$is_expired && $campaign['deadline_date']): ?>
+                                            <?php if ($effective_status === 'paused' && !$is_expired && $campaign['deadline_date']): ?>
                                                 <br>
                                                 <small class="text-warning">
                                                     <i class="fas fa-clock me-1"></i>
@@ -477,7 +477,7 @@ require_once $header_file;
                                                     <i class="fas fa-eye"></i>
                                                 </a>
                                                 
-                                                <?php if ($campaign['status'] === 'draft'): ?>
+                                                <?php if ($campaign['status'] === 'draft' && !$is_expired): ?>
                                                     <a href="edit-campaign.php?id=<?php echo $campaign['id']; ?>" 
                                                        class="btn btn-outline-secondary me-1" title="Modifica campagna">
                                                         <i class="fas fa-edit"></i>
