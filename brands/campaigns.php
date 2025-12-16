@@ -16,6 +16,13 @@ if (!file_exists($config_file)) {
 require_once $config_file;
 
 // =============================================
+// GENERA TOKEN CSRF (se non esiste)
+// =============================================
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
+// =============================================
 // VERIFICA AUTENTICAZIONE
 // =============================================
 if (!isset($_SESSION['user_id'])) {
@@ -76,7 +83,6 @@ try {
     
     if (!empty($filter_status)) {
         if ($filter_status === 'expired') {
-            // MODIFICATO: Cerca qualsiasi campagna con deadline passata
             $query .= " AND (c.status = 'expired' OR (c.deadline_date IS NOT NULL AND c.deadline_date < CURDATE()))";
         } else {
             $query .= " AND c.status = ?";
@@ -169,10 +175,43 @@ require_once $header_file;
             </div>
         <?php endif; ?>
 
+        <?php if (isset($_GET['success']) && $_GET['success'] == 'campaign_deleted'): ?>
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>Campagna eliminata con successo!</strong>
+                <?php if (isset($_GET['campaign_name'])): ?>
+                    <br>La campagna "<?php echo htmlspecialchars($_GET['campaign_name']); ?>" è stata eliminata definitivamente.
+                <?php endif; ?>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
         <?php if (isset($_GET['message']) && $_GET['message'] == 'campaign_expired'): ?>
             <div class="alert alert-warning alert-dismissible fade show" role="alert">
                 <i class="fas fa-exclamation-triangle me-2"></i>
                 Alcune campagne sono scadute per mancata risposta alle richieste di integrazione.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_GET['error'])): ?>
+            <?php
+            $error_messages = [
+                'csrf_invalid' => 'Token di sicurezza non valido. Riprova.',
+                'invalid_id' => 'ID campagna non valido.',
+                'brand_not_found' => 'Profilo brand non trovato.',
+                'campaign_not_found_or_not_owner' => 'Campagna non trovata o non hai i permessi per eliminarla.',
+                'delete_failed' => 'Impossibile eliminare la campagna. ' . (isset($_GET['message']) ? htmlspecialchars($_GET['message']) : ''),
+                'database_error' => 'Errore del database. Riprova più tardi.'
+            ];
+            
+            $error_key = $_GET['error'];
+            $error_msg = isset($error_messages[$error_key]) ? $error_messages[$error_key] : 'Errore sconosciuto.';
+            ?>
+            
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle me-2"></i>
+                <strong>Errore durante l'eliminazione:</strong> <?php echo $error_msg; ?>
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
         <?php endif; ?>
@@ -292,21 +331,20 @@ require_once $header_file;
                         </select>
                     </div>
                     
-                    <!-- Filtro Stato (MODIFICATO: rimosso "cancelled") -->
+                    <!-- Filtro Stato -->
                     <div class="col-md-3">
                         <label for="filter_status" class="form-label">Stato</label>
                         <select class="form-select" id="filter_status" name="filter_status">
                             <option value="">Tutti gli stati</option>
-                            <option value="draft" <?php echo $filter_status === 'draft' ? 'selected' : ''; ?>>Bozza</option>
                             <option value="active" <?php echo $filter_status === 'active' ? 'selected' : ''; ?>>Attiva</option>
                             <option value="paused" <?php echo $filter_status === 'paused' ? 'selected' : ''; ?>>In Pausa</option>
                             <option value="completed" <?php echo $filter_status === 'completed' ? 'selected' : ''; ?>>Completata</option>
                             <option value="expired" <?php echo $filter_status === 'expired' ? 'selected' : ''; ?>>Scaduta</option>
-                            <!-- RIMOSSO: <option value="cancelled">Cancellata</option> -->
+                            <option value="draft" <?php echo $filter_status === 'draft' ? 'selected' : ''; ?>>Bozza</option>
                         </select>
                     </div>
                     
-                    <!-- Pulsanti (MODIFICATO: sulla stessa riga) -->
+                    <!-- Pulsanti -->
                     <div class="col-md-3">
                         <div class="d-grid gap-2 d-md-flex">
                             <button type="submit" class="btn btn-primary flex-fill me-md-2">
@@ -340,7 +378,6 @@ require_once $header_file;
                                     'paused' => 'In Pausa',
                                     'completed' => 'Completata',
                                     'expired' => 'Scaduta'
-                                    // RIMOSSO: 'cancelled' => 'Cancellata'
                                 ];
                                 $active_filters[] = "Stato: \"{$status_labels[$filter_status]}\"";
                             }
@@ -391,7 +428,7 @@ require_once $header_file;
                             </thead>
                             <tbody>
                                 <?php foreach ($campaigns as $campaign): 
-                                    // MODIFICA CHIAVE: Qualsiasi campagna con deadline passata è considerata scaduta
+                                    // Qualsiasi campagna con deadline passata è considerata scaduta
                                     $has_expired_deadline = $campaign['deadline_date'] && strtotime($campaign['deadline_date']) < time();
                                     $is_expired = (isset($campaign['is_expired']) && $campaign['is_expired'] == 1) || 
                                                  $campaign['status'] === 'expired' || 
@@ -423,7 +460,7 @@ require_once $header_file;
                                         </td>
                                         <td>
                                             <div>
-                                                <strong><?php echo htmlspecialchars($campaign['niche']); ?></strong>
+                                                <strong><?php echo htmlspecialchars(ucwords(strtolower($campaign['niche']))); ?></strong>
                                             </div>
                                         </td>
                                         <td>
@@ -473,7 +510,7 @@ require_once $header_file;
                                         <td>
                                             <div class="btn-group btn-group-sm">
                                                 <a href="campaign-details.php?id=<?php echo $campaign['id']; ?>" 
-                                                   class="btn btn-outline-primary me-2" title="Dettagli campagna">
+                                                   class="btn btn-outline-primary me-1" title="Dettagli campagna">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
                                                 
@@ -485,13 +522,21 @@ require_once $header_file;
                                                 <?php endif; ?>
                                                 
                                                 <?php if ($is_expired): ?>
-                                                    <button type="button" class="btn btn-outline-primary" 
+                                                    <button type="button" class="btn btn-outline-primary me-1" 
                                                             data-bs-toggle="modal" 
                                                             data-bs-target="#reactivateModal<?php echo $campaign['id']; ?>"
                                                             title="Richiedi riattivazione">
                                                         <i class="fas fa-redo"></i>
                                                     </button>
                                                 <?php endif; ?>
+                                                
+                                                <!-- PULSANTE ELIMINA -->
+                                                <button type="button" class="btn btn-outline-danger" 
+                                                        data-bs-toggle="modal" 
+                                                        data-bs-target="#deleteModal<?php echo $campaign['id']; ?>"
+                                                        title="Elimina campagna">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -535,6 +580,52 @@ require_once $header_file;
                                         </div>
                                     </div>
                                     <?php endif; ?>
+
+                                    <!-- Modal Eliminazione Campagna -->
+                                    <div class="modal fade" id="deleteModal<?php echo $campaign['id']; ?>" tabindex="-1" 
+                                         aria-labelledby="deleteModalLabel<?php echo $campaign['id']; ?>" aria-hidden="true">
+                                        <div class="modal-dialog">
+                                            <div class="modal-content">
+                                                <div class="modal-header">
+                                                    <h5 class="modal-title text-danger" id="deleteModalLabel<?php echo $campaign['id']; ?>">
+                                                        <i class="fas fa-exclamation-triangle me-2"></i>Conferma Eliminazione
+                                                    </h5>
+                                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                </div>
+                                                <div class="modal-body">
+                                                    <p>Sei sicuro di voler eliminare definitivamente la campagna:</p>
+                                                    <h5 class="text-center my-3">"<?php echo htmlspecialchars($campaign['name']); ?>"</h5>
+                                                    
+                                                    <div class="alert alert-warning">
+                                                        <p><strong>Questa azione eliminerà:</strong></p>
+                                                        <ul class="mb-0">
+                                                            <li>Tutte le richieste agli influencer associate</li>
+                                                            <li>Tutte le comunicazioni e i dati collegati</li>
+                                                        </ul>
+                                                    </div>
+                                                    
+                                                    <p class="text-danger fw-bold">Questa operazione non può essere annullata.</p>
+                                                    
+                                                    <form id="deleteForm<?php echo $campaign['id']; ?>" method="POST" 
+                                                          action="delete-campaign.php" class="mt-3">
+                                                        <input type="hidden" name="campaign_id" value="<?php echo $campaign['id']; ?>">
+                                                        <input type="hidden" name="csrf_token" value="<?php 
+                                                            echo isset($_SESSION['csrf_token']) ? $_SESSION['csrf_token'] : ''; 
+                                                        ?>">
+                                                    </form>
+                                                </div>
+                                                <div class="modal-footer">
+                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                                        Annulla
+                                                    </button>
+                                                    <button type="button" class="btn btn-danger" 
+                                                            onclick="document.getElementById('deleteForm<?php echo $campaign['id']; ?>').submit();">
+                                                        Conferma Eliminazione
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 <?php endforeach; ?>
                             </tbody>
                         </table>
@@ -564,6 +655,25 @@ require_once $header_file;
 .card .card-body.text-center .card-text {
     font-size: 0.8rem;
 }
+
+/* Stili specifici per la modale di eliminazione */
+.modal-danger .modal-header {
+    background-color: #dc3545;
+    color: white;
+}
+
+.modal-danger .modal-header .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.btn-delete-confirm {
+    min-width: 150px;
+}
+
+/* Tooltip per il pulsante elimina */
+[title] {
+    cursor: help;
+}
 </style>
 
 <?php
@@ -576,3 +686,4 @@ if (file_exists($footer_file)) {
 } else {
     echo '<!-- Footer non trovato -->';
 }
+?>
