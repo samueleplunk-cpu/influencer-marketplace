@@ -185,7 +185,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $stmt->execute([$conversation_id]);
                 }
 				
-				// === MODIFICA: AGGIUNGI MESSAGGIO DI CONFERMA ===
+				// === AGGIUNGI MESSAGGIO DI CONFERMA ===
     $_SESSION['success_message'] = "Il tuo invito è stato inviato con successo. Attendi risposta dall'influencer.";
 	
                 break;
@@ -231,31 +231,57 @@ $check_stmt = $pdo->prepare("
         
         if (!$pause_request) {
             $error = "Richiesta di pausa non valida o già completata";
-        } elseif (empty($_FILES['document']['name'])) {
-            $error = "Seleziona un file da caricare";
         } else {
-            // Gestione upload file
-            $upload_result = handlePauseDocumentUpload($_FILES['document'], $pause_request_id, $_SESSION['user_id']);
-            
-            if ($upload_result['success']) {
-                // *** MODIFICA: CAMBIA AUTOMATICAMENTE STATO DA 'pending' A 'under_review' ***
-                $new_status = 'under_review';
-                
-                // Aggiorna lo stato della richiesta e il commento del brand
-                $stmt = $pdo->prepare("
-                    UPDATE campaign_pause_requests 
-                    SET status = ?, 
-                        brand_upload_comment = COALESCE(?, brand_upload_comment), 
-                        updated_at = NOW() 
-                    WHERE id = ?
-                ");
-                $stmt->execute([$new_status, $brand_comment, $pause_request_id]);
-                
-                $_SESSION['success_message'] = "Documento caricato con successo! La richiesta è ora in revisione." . (!empty($brand_comment) ? " Commento aggiunto." : "");
-                header("Location: campaign-details.php?id=" . $campaign_id);
-                exit();
+            if (empty($brand_comment) && (empty($_FILES['document']['name']) || $_FILES['document']['error'] === UPLOAD_ERR_NO_FILE)) {
+                $error = "Inserisci almeno un commento o seleziona un file da caricare.";
             } else {
-                $error = $upload_result['error'];
+                $upload_success = true;
+                $upload_error = '';
+                $has_file = false;
+                
+                if (isset($_FILES['document']) && !empty($_FILES['document']['name']) && $_FILES['document']['error'] === UPLOAD_ERR_OK) {
+                    $has_file = true;
+                    $upload_result = handlePauseDocumentUpload($_FILES['document'], $pause_request_id, $_SESSION['user_id']);
+                    
+                    if (!$upload_result['success']) {
+                        $upload_success = false;
+                        $upload_error = $upload_result['error'];
+                    }
+                } elseif (isset($_FILES['document']) && $_FILES['document']['error'] !== UPLOAD_ERR_OK && $_FILES['document']['error'] !== UPLOAD_ERR_NO_FILE) {
+                    // Errore di upload diverso da "nessun file"
+                    $upload_success = false;
+                    $upload_error = "Errore nel caricamento del file. Codice errore: " . $_FILES['document']['error'];
+                }
+                
+                if ($upload_success) {
+                    $new_status = 'under_review';
+                    
+                    // Aggiorna lo stato della richiesta e il commento del brand
+                    $stmt = $pdo->prepare("
+                        UPDATE campaign_pause_requests 
+                        SET status = ?, 
+                            brand_upload_comment = COALESCE(?, brand_upload_comment), 
+                            updated_at = NOW() 
+                        WHERE id = ?
+                    ");
+                    $stmt->execute([$new_status, $brand_comment, $pause_request_id]);
+                    
+                    // Messaggio di successo personalizzato
+                    $success_message = "Informazioni inviate con successo! La richiesta è ora in revisione.";
+                    if ($has_file && !empty($brand_comment)) {
+                        $success_message = "Documento e commento caricati con successo! La richiesta è ora in revisione.";
+                    } elseif ($has_file) {
+                        $success_message = "Documento caricato con successo! La richiesta è ora in revisione.";
+                    } elseif (!empty($brand_comment)) {
+                        $success_message = "Commento inviato con successo! La richiesta è ora in revisione.";
+                    }
+                    
+                    $_SESSION['success_message'] = $success_message;
+                    header("Location: campaign-details.php?id=" . $campaign_id);
+                    exit();
+                } else {
+                    $error = $upload_error ?: "Si è verificato un errore durante l'invio delle informazioni.";
+                }
             }
         }
     } catch (PDOException $e) {
@@ -474,7 +500,7 @@ require_once $header_file;
             </div>
         </div>
 
-        <!-- MODIFICA: SEZIONE RICHIESTE INTEGRAZIONI PAUSA - SOLO ULTIMA RICHIESTA ATTIVA -->
+        <!-- SEZIONE RICHIESTE INTEGRAZIONI PAUSA - SOLO ULTIMA RICHIESTA ATTIVA -->
         <?php if (!empty($pause_requests) && ($campaign['status'] === 'paused' || !empty($pause_requests))): ?>
         <div class="card mb-4">
             <div class="card-header bg-warning text-dark">
@@ -484,7 +510,7 @@ require_once $header_file;
             </div>
             <div class="card-body">
                 <?php 
-                // MODIFICA: Mostra solo l'ultima richiesta (già filtrata dalla query)
+                // Mostra solo l'ultima richiesta (già filtrata dalla query)
                 $request = $pause_requests[0];
                 $request_documents = array_filter($pause_documents, function($doc) use ($request) {
                     return $doc['pause_request_id'] == $request['id'];
@@ -498,7 +524,6 @@ require_once $header_file;
                 <div class="border rounded p-3 mb-3 <?php echo $is_overdue && ($is_pending || $is_documents_uploaded || $is_under_review) ? 'border-danger' : 'border-warning'; ?>">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="mb-0">
-                            <!-- MODIFICA 1: Rimuovere "da admin" -->
                             Richiesta del <?php echo date('d/m/Y H:i', strtotime($request['created_at'])); ?>
                         </h6>
                         <span class="badge bg-<?php 
@@ -596,19 +621,17 @@ $is_changes_requested = $request['status'] === 'changes_requested';
 ?>
 
 <!-- Form upload documenti (solo per richieste attive) -->
-<?php if ($is_pending || $is_documents_uploaded || $is_under_review || $is_changes_requested): ?>
+<?php if ($is_pending || $is_documents_uploaded || $is_changes_requested): ?>
 <div class="border-top pt-3">
     <form method="post" enctype="multipart/form-data">
         <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
         
-        <!-- MODIFICA 2: Riordinamento sezioni - Commento sopra Allega file -->
         <div class="mb-3">
-            <!-- MODIFICA 2: Cambiare label da "Commento (opzionale)" a "Commento *" -->
-            <label class="form-label">Commento <span class="text-danger">*</span></label>
+            <label class="form-label">Commento (opzionale)</label>
             <textarea class="form-control" name="brand_comment" rows="3" 
-                      placeholder="Scrivi un commento..." required></textarea>
+                      placeholder="Scrivi un commento..."></textarea>
             <div class="form-text">
-                Campo obbligatorio per l'invio delle informazioni
+                Campo opzionale per aggiungere note alle informazioni inviate
                 <?php if ($is_changes_requested): ?>
                     <br><span class="text-warning">Stai rispondendo alla richiesta di modifiche dell'admin.</span>
                 <?php endif; ?>
@@ -616,23 +639,31 @@ $is_changes_requested = $request['status'] === 'changes_requested';
         </div>
         
         <div class="mb-3">
-            <label class="form-label">Allega file <?php if ($is_pending || $is_changes_requested): ?><span class="text-danger">*</span><?php endif; ?></label>
+            <label class="form-label">Allega file (opzionale)</label>
             <input type="file" class="form-control" name="document" 
-                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt" <?php echo ($is_pending || $is_changes_requested) ? 'required' : ''; ?>>
+                   accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
             <div class="form-text">
                 Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 2MB)
-                <?php if ($is_documents_uploaded || $is_under_review || $is_changes_requested): ?>
-                    <br><span class="text-info">Puoi caricare file aggiuntivi se necessario.</span>
+                <?php if ($is_documents_uploaded || $is_changes_requested): ?>
+                    <br><span class="text-dark">Puoi caricare file aggiuntivi se necessario.</span>
                 <?php endif; ?>
             </div>
         </div>
         
-        <!-- MODIFICA 3: Cambiare label pulsante da "Allega File" a "Invia informazioni" -->
         <button type="submit" name="upload_document" class="btn btn-primary">
-            <i class="fas fa-paper-plane me-1"></i> 
             Invia informazioni
         </button>
     </form>
+</div>
+<?php elseif ($is_under_review): ?>
+<div class="border-top pt-3">
+    <div class="alert alert-info">
+        <div class="d-flex align-items-center">
+            <div>
+                <h6 class="mb-1">Le informazioni sono state inviate con successo e sono in fase di revisione. Riceverai una notifica quando sarà completata la revisione.</h6>
+            </div>
+        </div>
+    </div>
 </div>
 <?php endif; ?>
                 </div>
@@ -640,6 +671,8 @@ $is_changes_requested = $request['status'] === 'changes_requested';
         </div>
         <?php endif; ?>
 
+        <!-- SEZIONE INFLUENCER MATCHING SOLO PER CAMPAGNE ATTIVE -->
+        <?php if ($campaign['status'] === 'active'): ?>
         <!-- Lista Influencer Matching -->
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
@@ -947,6 +980,7 @@ $is_changes_requested = $request['status'] === 'changes_requested';
                 <?php endif; ?>
             </div>
         </div>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -984,6 +1018,11 @@ function formatFileSize($bytes) {
 function handlePauseDocumentUpload($file, $pause_request_id, $user_id) {
     global $pdo;
     
+    // Verifica se il file è stato effettivamente caricato
+    if (!isset($file) || empty($file['name']) || $file['error'] === UPLOAD_ERR_NO_FILE) {
+        return ['success' => true, 'message' => 'Nessun file da caricare'];
+    }
+    
     // Configurazione upload - usa la costante centrale
     $upload_dir = dirname(__DIR__) . '/uploads/pause_documents/';
     $max_file_size = MAX_UPLOAD_SIZE; // Usa la costante da config.php
@@ -1004,7 +1043,7 @@ function handlePauseDocumentUpload($file, $pause_request_id, $user_id) {
     
     // Validazioni
     if ($file['error'] !== UPLOAD_ERR_OK) {
-        return ['success' => false, 'error' => 'File troppo grande (max 2MB)'];
+        return ['success' => false, 'error' => 'Errore nel caricamento del file'];
     }
     
     if ($file['size'] > $max_file_size) {
@@ -1046,7 +1085,7 @@ function handlePauseDocumentUpload($file, $pause_request_id, $user_id) {
             $user_id
         ]);
         
-        return ['success' => true, 'file_path' => $file_path];
+        return ['success' => true, 'file_path' => $file_path, 'message' => 'File caricato con successo'];
         
     } catch (PDOException $e) {
         // Cancella file in caso di errore database

@@ -208,22 +208,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Inserimento nel database
         $stmt = $pdo->prepare("
-            INSERT INTO sponsors 
-            (influencer_id, title, image_url, budget, category, description, platforms, target_audience, status)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ");
+    INSERT INTO sponsors 
+    (influencer_id, title, image_url, budget, category, description, platforms, target_audience, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+");
 
-        $stmt->execute([
-            $influencer['id'],
-            $title,
-            $image_url,
-            $budget,
-            $category,
-            $description,
-            json_encode($platforms_selected),
-            json_encode($target_audience),
-            $status
-        ]);
+$stmt->execute([
+    $influencer['id'],
+    $title,
+    $image_url,
+    $budget,
+    $category,
+    $description,
+    json_encode($platforms_selected),
+    json_encode($target_audience),
+    $status
+]);
 
         $sponsor_id = $pdo->lastInsertId();
         

@@ -778,7 +778,7 @@ if ($action === 'list') {
                                                 <label for="name" class="form-label">Titolo Campagna <span class="text-danger">*</span></label>
                                                 <input type="text" class="form-control" id="name" name="name" 
                                                        value="<?php echo htmlspecialchars($campaign['name'] ?? ''); ?>" 
-                                                       required>
+                                                       required maxlength="100">
                                                 <div class="form-text">Inserisci un titolo descrittivo per la campagna</div>
                                             </div>
                                         </div>
@@ -803,11 +803,10 @@ if ($action === 'list') {
                                         <label for="description" class="form-label">Descrizione</label>
                                         <textarea class="form-control" id="description" name="description" 
                                                   rows="4"><?php echo htmlspecialchars($campaign['description'] ?? ''); ?></textarea>
-                                        <div class="form-text">Descrivi gli obiettivi e i dettagli della campagna</div>
                                     </div>
                                     
                                     <div class="row">
-                                        <div class="col-md-3">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="budget" class="form-label">Budget</label>
                                                 <div class="input-group">
@@ -823,11 +822,11 @@ if ($action === 'list') {
                                             </div>
                                         </div>
                                         
-                                        <div class="col-md-3">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label for="niche" class="form-label">Nicchia</label>
+                                                <label for="niche" class="form-label">Categoria</label>
                                                 <select class="form-select" id="niche" name="niche">
-                                                    <option value="">Seleziona nicchia</option>
+                                                    <option value="">Seleziona categoria</option>
                                                     <?php foreach ($niches as $niche): ?>
                                                         <option value="<?php echo $niche; ?>" 
                                                                 <?php echo ($campaign['niche'] ?? '') === $niche ? 'selected' : ''; ?>>
@@ -835,22 +834,6 @@ if ($action === 'list') {
                                                         </option>
                                                     <?php endforeach; ?>
                                                 </select>
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="col-md-3">
-                                            <div class="mb-3">
-                                                <label for="start_date" class="form-label">Data Inizio</label>
-                                                <input type="date" class="form-control" id="start_date" name="start_date" 
-                                                       value="<?php echo htmlspecialchars($campaign['start_date'] ?? ''); ?>">
-                                            </div>
-                                        </div>
-                                        
-                                        <div class="col-md-3">
-                                            <div class="mb-3">
-                                                <label for="end_date" class="form-label">Data Fine</label>
-                                                <input type="date" class="form-control" id="end_date" name="end_date" 
-                                                       value="<?php echo htmlspecialchars($campaign['end_date'] ?? ''); ?>">
                                             </div>
                                         </div>
                                     </div>
@@ -890,10 +873,9 @@ if ($action === 'list') {
                                     </div>
                                     
                                     <div class="mb-3">
-                                        <label for="requirements" class="form-label">Requisiti</label>
+                                        <label for="requirements" class="form-label">Requisiti specifici per gli influencer</label>
                                         <textarea class="form-control" id="requirements" name="requirements" 
                                                   rows="3"><?php echo htmlspecialchars($campaign['requirements'] ?? ''); ?></textarea>
-                                        <div class="form-text">Specifica i requisiti per gli influencer (minimo follower, engagement rate, etc.)</div>
                                     </div>
 
                                     <!-- Campo Scadenza -->
@@ -1110,12 +1092,18 @@ if ($action === 'list') {
                                                         <?php endif; ?>
                                                         
                                                         <!-- Commento Brand -->
-                                                        <?php if (!empty($pause['brand_upload_comment'])): ?>
-                                                            <div class="alert alert-light border mb-3">
-                                                                <strong>Commento del Brand:</strong>
-                                                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['brand_upload_comment'])); ?></p>
-                                                            </div>
-                                                        <?php endif; ?>
+<?php if (!empty($pause['brand_upload_comment'])): ?>
+    <div class="border rounded p-3 mb-3 bg-light" style="border-color: #dee2e6 !important;">
+        <strong><i class="fas fa-comment me-2"></i>Commento del Brand:</strong>
+        <p class="mb-0 mt-2"><?php echo nl2br(htmlspecialchars($pause['brand_upload_comment'])); ?></p>
+        <?php if ($pause['brand_uploaded_at']): ?>
+            <small class="text-muted d-block mt-2">
+                <i class="fas fa-clock me-1"></i>
+                <?php echo date('d/m/Y H:i', strtotime($pause['brand_uploaded_at'])); ?>
+            </small>
+        <?php endif; ?>
+    </div>
+<?php endif; ?>
                                                         
  <!-- Documenti Caricati -->
 <?php if (!empty($documents)): ?>
@@ -1388,4 +1376,3 @@ function formatFileSize($bytes) {
     $i = floor(log($bytes) / log($k));
     return round($bytes / pow($k, $i), 2) . " " . $sizes[$i];
 }
-?>
