@@ -83,7 +83,7 @@ try {
         die("Campagna non trovata o accesso negato");
     }
     
-    // Recupera SOLO l'ultima richiesta di pausa attiva/pendente - INCLUDE changes_requested
+    // Recupera SOLO l'ultima richiesta di pausa attiva/pendente
 $pause_requests_stmt = $pdo->prepare("
     SELECT cpr.*, a.username as admin_name 
     FROM campaign_pause_requests cpr 
@@ -257,14 +257,15 @@ $check_stmt = $pdo->prepare("
                     $new_status = 'under_review';
                     
                     // Aggiorna lo stato della richiesta e il commento del brand
-                    $stmt = $pdo->prepare("
-                        UPDATE campaign_pause_requests 
-                        SET status = ?, 
-                            brand_upload_comment = COALESCE(?, brand_upload_comment), 
-                            updated_at = NOW() 
-                        WHERE id = ?
-                    ");
-                    $stmt->execute([$new_status, $brand_comment, $pause_request_id]);
+$stmt = $pdo->prepare("
+    UPDATE campaign_pause_requests 
+    SET status = ?, 
+        brand_upload_comment = COALESCE(?, brand_upload_comment), 
+        brand_comment_at = NOW(),
+        updated_at = NOW() 
+    WHERE id = ?
+");
+$stmt->execute([$new_status, $brand_comment, $pause_request_id]);
                     
                     // Messaggio di successo personalizzato
                     $success_message = "Informazioni inviate con successo! La richiesta è ora in revisione.";
@@ -524,8 +525,8 @@ require_once $header_file;
                 <div class="border rounded p-3 mb-3 <?php echo $is_overdue && ($is_pending || $is_documents_uploaded || $is_under_review) ? 'border-danger' : 'border-warning'; ?>">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h6 class="mb-0">
-                            Richiesta del <?php echo date('d/m/Y H:i', strtotime($request['created_at'])); ?>
-                        </h6>
+    Richiesta del <?php echo date('d/m/Y', strtotime($request['created_at'])) . ' - ' . date('H:i', strtotime($request['created_at'])); ?>
+</h6>
                         <span class="badge bg-<?php 
     echo $is_pending ? ($is_overdue ? 'danger' : 'warning') : 
          ($is_under_review ? 'info' : 
@@ -565,14 +566,6 @@ require_once $header_file;
                     </div>
                     <?php endif; ?>
                     
-                    <!-- Commento Admin -->
-                    <?php if (!empty($request['admin_review_comment'])): ?>
-                        <div class="alert alert-info mb-3">
-                            <strong>Commento Admin:</strong>
-                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['admin_review_comment'])); ?></p>
-                        </div>
-                    <?php endif; ?>
-                    
                     <!-- File caricati -->
                     <div class="mb-3">
                         <strong>File caricati:</strong>
@@ -608,12 +601,30 @@ require_once $header_file;
                     </div>
                     
                     <!-- Commento Brand -->
-                    <?php if (!empty($request['brand_upload_comment'])): ?>
-                        <div class="alert alert-light border mb-3">
-                            <strong>Il tuo commento:</strong>
-                            <p class="mb-0"><?php echo nl2br(htmlspecialchars($request['brand_upload_comment'])); ?></p>
-                        </div>
-                    <?php endif; ?>
+<?php if (!empty($request['brand_upload_comment'])): ?>
+    <div class="alert alert-light border mb-3">
+        <div class="d-flex justify-content-between align-items-start">
+            <strong>Il tuo commento:</strong>
+            <?php if (!empty($request['brand_comment_at'])): ?>
+                <small class="text-muted"><?php echo date('d/m/Y - H:i', strtotime($request['brand_comment_at'])); ?></small>
+            <?php endif; ?>
+        </div>
+        <p class="mb-0 mt-2"><?php echo nl2br(htmlspecialchars($request['brand_upload_comment'])); ?></p>
+    </div>
+<?php endif; ?>
+
+<!-- Commento Admin -->
+<?php if (!empty($request['admin_review_comment'])): ?>
+    <div class="alert alert-info mb-3">
+        <div class="d-flex justify-content-between align-items-start">
+            <strong>Commento Admin:</strong>
+            <?php if (!empty($request['admin_comment_at'])): ?>
+                <small class="text-muted"><?php echo date('d/m/Y - H:i', strtotime($request['admin_comment_at'])); ?></small>
+            <?php endif; ?>
+        </div>
+        <p class="mb-0 mt-2"><?php echo nl2br(htmlspecialchars($request['admin_review_comment'])); ?></p>
+    </div>
+<?php endif; ?>
                     
                     <?php 
 // Variabile per richiesta modifiche da parte di un admin
@@ -627,25 +638,25 @@ $is_changes_requested = $request['status'] === 'changes_requested';
         <input type="hidden" name="pause_request_id" value="<?php echo $request['id']; ?>">
         
         <div class="mb-3">
-            <label class="form-label">Commento (opzionale)</label>
+            <label class="form-label">Commento</label>
             <textarea class="form-control" name="brand_comment" rows="3" 
                       placeholder="Scrivi un commento..."></textarea>
             <div class="form-text">
                 Campo opzionale per aggiungere note alle informazioni inviate
                 <?php if ($is_changes_requested): ?>
-                    <br><span class="text-warning">Stai rispondendo alla richiesta di modifiche dell'admin.</span>
+                    <br><span class="text-dark fw-medium">Stai rispondendo alla richiesta di modifiche dell'admin.</span>
                 <?php endif; ?>
             </div>
         </div>
         
         <div class="mb-3">
-            <label class="form-label">Allega file (opzionale)</label>
+            <label class="form-label">Allega file</label>
             <input type="file" class="form-control" name="document" 
                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt">
             <div class="form-text">
                 Tipi file consentiti: PDF, DOC, DOCX, JPG, PNG, TXT (max 2MB)
                 <?php if ($is_documents_uploaded || $is_changes_requested): ?>
-                    <br><span class="text-dark">Puoi caricare file aggiuntivi se necessario.</span>
+                    <br><span class="text-dark fw-medium">Puoi caricare file aggiuntivi se necessario.</span>
                 <?php endif; ?>
             </div>
         </div>

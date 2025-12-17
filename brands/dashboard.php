@@ -197,33 +197,6 @@ if (!empty($brand['logo'])) {
                                      alt="Logo <?php echo htmlspecialchars($brand['company_name'] ?? 'Azienda'); ?>" 
                                      class="img-fluid rounded brand-logo"
                                      style="max-height: 120px; max-width: 200px;">
-                                
-                                <div class="mt-2">
-                                    <?php if (isset($logo_status) && $logo_status === 'personalizzato'): ?>
-                                        <small class="text-muted">
-                                            <i class="fas fa-check-circle text-success"></i>
-                                            Logo personalizzato
-                                        </small>
-                                    <?php elseif (isset($logo_status) && $logo_status === 'non trovato'): ?>
-                                        <div class="alert alert-warning p-2 mt-2">
-                                            <small>
-                                                <i class="fas fa-exclamation-triangle"></i>
-                                                Logo nel database ma file non trovato
-                                            </small>
-                                            <div>
-                                                <a href="edit-profile.php" class="btn btn-sm btn-warning mt-1">
-                                                    Ricarica Logo
-                                                </a>
-                                            </div>
-                                        </div>
-                                    <?php else: ?>
-                                        <div class="mt-1">
-                                            <a href="edit-profile.php" class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-upload"></i> Carica Logo Personalizzato
-                                            </a>
-                                        </div>
-                                    <?php endif; ?>
-                                </div>
                             </div>
                             
                             <div class="mb-3">
@@ -237,10 +210,6 @@ if (!empty($brand['logo'])) {
                             <div class="mb-3">
                                 <strong>Sito Web:</strong>
                                 <span class="float-end"><?php echo htmlspecialchars($brand['website'] ?? 'Non specificato'); ?></span>
-                            </div>
-                            <div class="mb-3">
-                                <strong>Dimensione Azienda:</strong>
-                                <span class="float-end"><?php echo htmlspecialchars($brand['company_size'] ?? 'Non specificata'); ?></span>
                             </div>
                         </div>
                     </div>
@@ -258,16 +227,13 @@ if (!empty($brand['logo'])) {
                                 <span class="float-end">
                                     <?php 
                                     $completed = 0;
-                                    $total = 6; // Aumentato a 6 per includere il logo
-                                    if (!empty($brand['company_name'])) $completed++;
-                                    if (!empty($brand['industry'])) $completed++;
-                                    if (!empty($brand['description'])) $completed++;
-                                    if (!empty($brand['website'])) $completed++;
-                                    if (!empty($brand['company_size'])) $completed++;
-                                    // Il logo è considerato "completato" solo se ha caricato un'immagine personalizzata
-                                    // Il placeholder predefinito non conta come completamento
-                                    if (!empty($brand['logo']) && $logo_exists) $completed++;
-                                    echo $completed . '/' . $total;
+$total = 5;
+if (!empty($brand['company_name'])) $completed++;
+if (!empty($brand['industry'])) $completed++;
+if (!empty($brand['description'])) $completed++;
+if (!empty($brand['website'])) $completed++;
+if (!empty($brand['logo']) && $logo_exists) $completed++;
+echo $completed . '/' . $total;
                                     ?>
                                 </span>
                             </div>

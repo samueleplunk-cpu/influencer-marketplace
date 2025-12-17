@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - VERSIONE COMPLETA CON MANUTENZIONE
+// includes/header.php
 
 // Percorso assoluto per config
 $config_file = dirname(__DIR__) . '/includes/config.php';
@@ -365,7 +365,9 @@ if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'influencer' && 
                                             </li>
                                         <?php endforeach; ?>
                                     <?php else: ?>
-                                        <!-- Fallback al menu profilo statico -->
+                                        <li><a class="dropdown-item" href="/infl/influencers/settings.php#personal-data">
+                                            <i class="fas fa-user me-2"></i>Dati personali
+                                        </a></li>
                                         <li><a class="dropdown-item" href="/infl/influencers/settings.php">
                                             <i class="fas fa-cog me-2"></i>Impostazioni
                                         </a></li>

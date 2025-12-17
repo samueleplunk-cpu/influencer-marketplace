@@ -1031,7 +1031,7 @@ if ($action === 'list') {
                                                         <div class="d-flex justify-content-between align-items-center w-100 me-3">
                                                             <div>
                                                                 <i class="fas fa-chevron-down accordion-arrow me-2"></i>
-                                                                <strong>Richiesta del <?php echo date('d/m/Y H:i', strtotime($pause['created_at'])); ?></strong>
+                                                                <strong>Richiesta del <?php echo date('d/m/Y - H:i', strtotime($pause['created_at'])); ?></strong>
                                                             </div>
                                                             <div>
                                                                 <span class="badge <?php echo $status_config['badge_class']; ?> me-2">
@@ -1093,15 +1093,21 @@ if ($action === 'list') {
                                                         
                                                         <!-- Commento Brand -->
 <?php if (!empty($pause['brand_upload_comment'])): ?>
-    <div class="border rounded p-3 mb-3 bg-light" style="border-color: #dee2e6 !important;">
-        <strong><i class="fas fa-comment me-2"></i>Commento del Brand:</strong>
-        <p class="mb-0 mt-2"><?php echo nl2br(htmlspecialchars($pause['brand_upload_comment'])); ?></p>
-        <?php if ($pause['brand_uploaded_at']): ?>
-            <small class="text-muted d-block mt-2">
-                <i class="fas fa-clock me-1"></i>
-                <?php echo date('d/m/Y H:i', strtotime($pause['brand_uploaded_at'])); ?>
-            </small>
-        <?php endif; ?>
+    <div class="border rounded p-3 mb-3 bg-light" style="border-color: #6c757d !important; border-left-width: 4px;">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <strong>
+                    <i class="fas fa-building me-2"></i>Commento del Brand:
+                </strong>
+            </div>
+            <?php if ($pause['brand_uploaded_at']): ?>
+    <small class="text-muted">
+        <i class="fas fa-clock me-1"></i>
+        <?php echo date('d/m/Y - H:i', strtotime($pause['brand_uploaded_at'])); ?>
+    </small>
+<?php endif; ?>
+        </div>
+        <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['brand_upload_comment'])); ?></p>
     </div>
 <?php endif; ?>
                                                         
@@ -1176,16 +1182,26 @@ if ($action === 'list') {
 <?php endif; ?>
                                                         
                                                         <!-- Commento Admin e Azioni -->
-                                                        <?php if ($pause['admin_review_comment']): ?>
-                                                            <div class="alert alert-info">
-                                                                <strong>Commento Admin:</strong>
-                                                                <p class="mb-0"><?php echo nl2br(htmlspecialchars($pause['admin_review_comment'])); ?></p>
-                                                                <small class="text-muted">
-                                                                    Revisionato da <?php echo htmlspecialchars($pause['reviewed_by_name'] ?? 'Admin'); ?> 
-                                                                    il <?php echo date('d/m/Y H:i', strtotime($pause['admin_reviewed_at'])); ?>
-                                                                </small>
-                                                            </div>
-                                                        <?php endif; ?>
+                                                        <?php if (!empty($pause['admin_review_comment'])): ?>
+    <div class="border rounded p-3 mb-3 bg-light" style="border-color: #0dcaf0 !important; border-left-width: 4px;">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <div>
+                <strong class="text-info">
+                    <i class="fas fa-user-tie me-2"></i>Commento Admin:
+                </strong>
+            </div>
+            <small class="text-muted">
+    <i class="fas fa-clock me-1"></i>
+    <?php echo date('d/m/Y - H:i', strtotime($pause['admin_reviewed_at'])); ?>
+</small>
+        </div>
+        <p class="mb-2"><?php echo nl2br(htmlspecialchars($pause['admin_review_comment'])); ?></p>
+        <small class="text-muted d-block mt-1">
+    <i class="fas fa-user me-1"></i>
+    Revisionato da: <?php echo htmlspecialchars($pause['reviewed_by_name'] ?? 'Admin'); ?>
+</small>
+    </div>
+<?php endif; ?>
                                                         
                                                         <!-- Azioni Admin -->
                                                         <?php if (in_array($pause['status'], ['documents_uploaded', 'under_review', 'changes_requested'])): ?>

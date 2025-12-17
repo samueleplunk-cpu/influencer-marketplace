@@ -136,11 +136,11 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
                     <a href="#notifications" class="list-group-item list-group-item-action <?php echo !$delete_page ? 'active' : ''; ?>">
                         <i class="fas fa-bell me-2"></i>Preferenze Notifiche
                     </a>
-                    <a href="/infl/influencers/profile.php" class="list-group-item list-group-item-action">
-                        <i class="fas fa-user me-2"></i>Profilo Influencer
+                    <a href="#personal-data" class="list-group-item list-group-item-action">
+                        <i class="fas fa-user me-2"></i>Dati personali
                     </a>
-                    <a href="/infl/auth/profile-settings.php" class="list-group-item list-group-item-action">
-                        <i class="fas fa-user me-2"></i>Profilo Utente
+                    <a href="/infl/influencers/profile.php" class="list-group-item list-group-item-action">
+                        <i class="fas fa-user-circle me-2"></i>Profilo Influencer
                     </a>
                     <a href="/infl/influencers/settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $delete_page ? 'active list-group-item-danger' : 'text-danger'; ?>">
                         <i class="fas fa-trash-alt me-2"></i>Elimina account
@@ -211,6 +211,247 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
                                     </a>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                    
+                    <!-- NUOVA SEZIONE: Dati Personali -->
+                    <div class="card mt-4" id="personal-data">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-user me-2"></i>Dati Personali
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <?php
+                            // Recupera i dati utente correnti
+                            $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+                            $stmt->execute([$_SESSION['user_id']]);
+                            $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+                            $current_email = $user_data['email'] ?? '';
+                            
+                            // Gestione invio form dati personali
+                            $personal_data_error = '';
+                            $personal_data_success = '';
+                            
+                            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_personal_data'])) {
+                                $new_email = trim($_POST['email'] ?? '');
+                                $new_password = $_POST['password'] ?? '';
+                                $confirm_password = $_POST['confirm_password'] ?? '';
+                                $current_password = $_POST['current_password'] ?? '';
+                                
+                                // Validazione email
+                                if (empty($new_email)) {
+                                    $personal_data_error = "L'email è obbligatoria.";
+                                } elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) {
+                                    $personal_data_error = "Inserisci un'email valida.";
+                                } else {
+                                    // Verifica se l'email è già in uso da un altro utente
+                                    if ($new_email !== $current_email) {
+                                        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+                                        $stmt->execute([$new_email, $_SESSION['user_id']]);
+                                        if ($stmt->fetch()) {
+                                            $personal_data_error = "Questa email è già associata a un altro account.";
+                                        }
+                                    }
+                                }
+                                
+                                // Validazione password (se fornita)
+                                $password_changed = false;
+                                if (!empty($new_password)) {
+                                    if (strlen($new_password) < 6) {
+                                        $personal_data_error = "La nuova password deve avere almeno 6 caratteri.";
+                                    } elseif ($new_password !== $confirm_password) {
+                                        $personal_data_error = "Le password non corrispondono.";
+                                    } elseif (empty($current_password)) {
+                                        $personal_data_error = "Devi inserire la password attuale per cambiare la password.";
+                                    } else {
+                                        // Verifica password corrente
+                                        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
+                                        $stmt->execute([$_SESSION['user_id']]);
+                                        $user = $stmt->fetch(PDO::FETCH_ASSOC);
+                                        
+                                        if (!$user || !password_verify($current_password, $user['password'])) {
+                                            $personal_data_error = "La password attuale non è corretta.";
+                                        } else {
+                                            $password_changed = true;
+                                        }
+                                    }
+                                }
+                                
+                                // Se non ci sono errori, aggiorna i dati
+                                if (empty($personal_data_error)) {
+                                    try {
+                                        $pdo->beginTransaction();
+                                        
+                                        // Aggiorna email
+                                        $stmt = $pdo->prepare("UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?");
+                                        $stmt->execute([$new_email, $_SESSION['user_id']]);
+                                        
+                                        // Aggiorna password se necessario
+                                        if ($password_changed) {
+                                            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                                            $stmt = $pdo->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?");
+                                            $stmt->execute([$hashed_password, $_SESSION['user_id']]);
+                                            
+                                            // Aggiorna la sessione se l'email è cambiata
+                                            if ($new_email !== $current_email) {
+                                                $_SESSION['user_email'] = $new_email;
+                                            }
+                                            
+                                            $personal_data_success = "Dati personali aggiornati con successo!";
+                                        } else {
+                                            // Aggiorna solo l'email
+                                            $_SESSION['user_email'] = $new_email;
+                                            $personal_data_success = "Email aggiornata con successo!";
+                                        }
+                                        
+                                        $pdo->commit();
+                                        
+                                        // Ricarica i dati dell'utente
+                                        $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+                                        $stmt->execute([$_SESSION['user_id']]);
+                                        $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+                                        $current_email = $user_data['email'] ?? '';
+                                        
+                                    } catch (PDOException $e) {
+                                        $pdo->rollBack();
+                                        $personal_data_error = "Errore durante l'aggiornamento dei dati: " . $e->getMessage();
+                                    }
+                                }
+                            }
+                            ?>
+                            
+                            <!-- Messaggi di stato -->
+                            <?php if ($personal_data_error): ?>
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <?php echo htmlspecialchars($personal_data_error); ?>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <?php if ($personal_data_success): ?>
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    <?php echo htmlspecialchars($personal_data_success); ?>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            <?php endif; ?>
+                            
+                            <form method="POST" id="personalDataForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <!-- Modifica Email -->
+                                        <div class="mb-4">
+                                            <h6><i class="fas fa-envelope me-2"></i>Modifica Email</h6>
+                                            <div class="form-group mb-3">
+                                                <label for="email" class="form-label">Email *</label>
+                                                <input type="email" class="form-control" id="email" name="email" 
+                                                       value="<?php echo htmlspecialchars($current_email); ?>" required>
+                                                <div class="form-text">Il tuo indirizzo email per il login e le comunicazioni</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <!-- Modifica Password -->
+                                        <div class="mb-4">
+                                            <h6><i class="fas fa-lock me-2"></i>Modifica Password</h6>
+                                            <div class="form-group mb-3">
+                                                <label for="password" class="form-label">Nuova Password</label>
+                                                <input type="password" class="form-control" id="password" name="password">
+                                                <div class="form-text">Lascia vuoto per mantenere la password attuale (minimo 6 caratteri)</div>
+                                            </div>
+                                            
+                                            <div class="form-group mb-3">
+                                                <label for="confirm_password" class="form-label">Conferma Nuova Password</label>
+                                                <input type="password" class="form-control" id="confirm_password" name="confirm_password">
+                                            </div>
+                                            
+                                            <div class="form-group">
+                                                <label for="current_password" class="form-label">Password Attuale *</label>
+                                                <input type="password" class="form-control" id="current_password" name="current_password" required>
+                                                <div class="form-text">Inserisci la tua password attuale per confermare le modifiche</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- Note importanti -->
+                                <div class="alert alert-info mb-4">
+                                    <h6><i class="fas fa-info-circle me-2"></i>Note importanti:</h6>
+                                    <ul class="mb-0 small">
+                                        <li>La modifica dell'email potrebbe richiedere una nuova verifica</li>
+                                        <li>Assicurati di inserire correttamente la password attuale per confermare le modifiche</li>
+                                        <li>Dopo aver cambiato email o password, dovrai utilizzare le nuove credenziali per il prossimo login</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <button type="submit" name="update_personal_data" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Salva Modifiche
+                                    </button>
+                                    <a href="#notifications" class="btn btn-outline-secondary">
+                                        <i class="fas fa-arrow-up me-2"></i>Torna alle Notifiche
+                                    </a>
+                                </div>
+                            </form>
+                            
+                            <!-- Script per validazione client-side -->
+                            <script>
+                                document.addEventListener('DOMContentLoaded', function() {
+                                    const form = document.getElementById('personalDataForm');
+                                    
+                                    form.addEventListener('submit', function(e) {
+                                        const email = document.getElementById('email').value.trim();
+                                        const password = document.getElementById('password').value;
+                                        const confirmPassword = document.getElementById('confirm_password').value;
+                                        const currentPassword = document.getElementById('current_password').value;
+                                        
+                                        // Validazione email
+                                        if (!email) {
+                                            e.preventDefault();
+                                            alert('L\'email è obbligatoria');
+                                            document.getElementById('email').focus();
+                                            return false;
+                                        }
+                                        
+                                        // Validazione formato email
+                                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                        if (!emailRegex.test(email)) {
+                                            e.preventDefault();
+                                            alert('Inserisci un\'email valida');
+                                            document.getElementById('email').focus();
+                                            return false;
+                                        }
+                                        
+                                        // Validazione password
+                                        if (password) {
+                                            if (password.length < 6) {
+                                                e.preventDefault();
+                                                alert('La nuova password deve avere almeno 6 caratteri');
+                                                document.getElementById('password').focus();
+                                                return false;
+                                            }
+                                            
+                                            if (password !== confirmPassword) {
+                                                e.preventDefault();
+                                                alert('Le password non corrispondono');
+                                                document.getElementById('confirm_password').focus();
+                                                return false;
+                                            }
+                                        }
+                                        
+                                        // Validazione password attuale
+                                        if (!currentPassword) {
+                                            e.preventDefault();
+                                            alert('Devi inserire la password attuale per confermare le modifiche');
+                                            document.getElementById('current_password').focus();
+                                            return false;
+                                        }
+                                        
+                                        return confirm('Sei sicuro di voler aggiornare i tuoi dati personali?');
+                                    });
+                                });
+                            </script>
                         </div>
                     </div>
                     
