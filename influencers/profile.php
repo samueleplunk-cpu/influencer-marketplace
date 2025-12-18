@@ -145,24 +145,70 @@ require_once $header_file;
                                  style="width: 200px; height: 200px; object-fit: cover;">
                             
                             <h4><?php echo htmlspecialchars($influencer['full_name']); ?></h4>
-                            <?php if (!empty($influencer['niche'])): ?>
-                                <?php 
-                                $display_niche = $influencer['niche'];
-                                if (isset($category_mapping[$influencer['niche']])) {
-                                    $display_niche = $category_mapping[$influencer['niche']];
-                                }
-                                ?>
-                                <span class="badge bg-info fs-6"><?php echo htmlspecialchars($display_niche); ?></span>
-                            <?php endif; ?>
+                            
+                            <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
+                                <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand'): ?>
+                                    <?php
+                                    // Verifica se l'influencer è nei preferiti del brand
+                                    $is_favorite = false;
+                                    try {
+                                        $stmt_brand = $pdo->prepare("SELECT id FROM brands WHERE user_id = ?");
+                                        $stmt_brand->execute([$_SESSION['user_id']]);
+                                        $brand_data = $stmt_brand->fetch(PDO::FETCH_ASSOC);
+                                        
+                                        if ($brand_data) {
+                                            $brand_id = $brand_data['id'];
+                                            $stmt_fav = $pdo->prepare("SELECT id FROM favorite_influencers WHERE brand_id = ? AND influencer_id = ?");
+                                            $stmt_fav->execute([$brand_id, $influencer_id]);
+                                            $is_favorite = $stmt_fav->fetch() !== false;
+                                        }
+                                    } catch (PDOException $e) {
+                                        // Silenzioso in caso di errore
+                                    }
+                                    
+                                    // Determina il testo del tooltip
+                                    $tooltip_text = $is_favorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+                                    ?>
+                                    <button type="button" 
+                                            class="btn btn-sm favorite-btn-profile"
+                                            data-influencer-id="<?php echo $influencer_id; ?>"
+                                            data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>"
+                                            data-bs-toggle="tooltip"
+                                            data-bs-placement="top"
+                                            title="<?php echo htmlspecialchars($tooltip_text); ?>"
+                                            style="padding: 0.25rem 0.5rem; border-radius: 50%;">
+                                        <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-muted'; ?>" 
+                                           style="font-size: 1.2rem;"></i>
+                                    </button>
+                                <?php endif; ?>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Statistiche -->
+                    <!-- Informazioni -->
                     <div class="card mb-4">
                         <div class="card-header bg-success text-white">
-                            <h5 class="card-title mb-0">Statistiche</h5>
+                            <h5 class="card-title mb-0">Informazioni</h5>
                         </div>
                         <div class="card-body">
+                            <!-- Aggiunto: Categoria sopra Visualizzazioni Profilo -->
+                            <div class="mb-3">
+                                <strong>Categoria:</strong>
+                                <span class="float-end">
+                                    <?php 
+                                    if (!empty($influencer['niche'])) {
+                                        $display_niche = $influencer['niche'];
+                                        if (isset($category_mapping[$influencer['niche']])) {
+                                            $display_niche = $category_mapping[$influencer['niche']];
+                                        }
+                                        echo htmlspecialchars($display_niche);
+                                    } else {
+                                        echo '<span class="text-muted">Non specificata</span>';
+                                    }
+                                    ?>
+                                </span>
+                            </div>
+                            
                             <div class="mb-3">
                                 <strong>Visualizzazioni Profilo:</strong>
                                 <span class="float-end"><?php echo number_format($influencer['profile_views'] ?? 0); ?></span>
@@ -296,8 +342,8 @@ if ($influencer) {
                     </div>
                 <?php endforeach; ?>
             </div>
-        </div>
-    </div>
+                        </div>
+                    </div>
 <?php endif; ?>
 
                     <!-- Biografia -->
@@ -438,6 +484,144 @@ if ($influencer) {
         </div>
     </div>
 </div>
+
+<script>
+// Gestione Preferiti nella pagina profilo
+document.addEventListener('DOMContentLoaded', function() {
+    // Inizializza i tooltip Bootstrap
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Funzione per gestire il click sui pulsanti preferiti
+    function handleFavoriteClick(event) {
+        const button = event.currentTarget;
+        const influencerId = button.getAttribute('data-influencer-id');
+        const isFavorite = button.getAttribute('data-is-favorite') === '1';
+        const tooltipInstance = bootstrap.Tooltip.getInstance(button);
+        
+        // Cambia immediatamente l'icona per feedback visivo
+        const icon = button.querySelector('i');
+        if (isFavorite) {
+            icon.className = 'far fa-heart text-muted';
+        } else {
+            icon.className = 'fas fa-heart text-danger';
+        }
+        button.setAttribute('data-is-favorite', isFavorite ? '0' : '1');
+        
+        // Aggiorna il tooltip
+        const newTooltipText = isFavorite ? "Aggiungi ai preferiti" : "Rimuovi dai preferiti";
+        button.setAttribute('title', newTooltipText);
+        if (tooltipInstance) {
+            tooltipInstance.setContent({'.tooltip-inner': newTooltipText});
+        }
+        
+        // Invia richiesta AJAX
+        fetch('/infl/brands/toggle-favorite.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `influencer_id=${influencerId}&action=${isFavorite ? 'remove' : 'add'}`
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data.success) {
+                // Ripristina stato originale in caso di errore
+                if (isFavorite) {
+                    icon.className = 'fas fa-heart text-danger';
+                } else {
+                    icon.className = 'far fa-heart text-muted';
+                }
+                button.setAttribute('data-is-favorite', isFavorite ? '1' : '0');
+                
+                // Ripristina il tooltip
+                const originalTooltipText = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+                button.setAttribute('title', originalTooltipText);
+                if (tooltipInstance) {
+                    tooltipInstance.setContent({'.tooltip-inner': originalTooltipText});
+                }
+                
+                // Mostra errore
+                showToast('Errore: ' + data.message, 'danger');
+            } else {
+                // Aggiorna stato basato sulla risposta server
+                const newIsFavorite = data.is_favorite;
+                if (newIsFavorite !== !isFavorite) {
+                    // Se il server dice uno stato diverso, aggiorna
+                    if (newIsFavorite) {
+                        icon.className = 'fas fa-heart text-danger';
+                    } else {
+                        icon.className = 'far fa-heart text-muted';
+                    }
+                    button.setAttribute('data-is-favorite', newIsFavorite ? '1' : '0');
+                    
+                    // Aggiorna il tooltip
+                    const updatedTooltipText = newIsFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+                    button.setAttribute('title', updatedTooltipText);
+                    if (tooltipInstance) {
+                        tooltipInstance.setContent({'.tooltip-inner': updatedTooltipText});
+                    }
+                }
+                
+                // Mostra messaggio di successo
+                const message = isFavorite ? 'Rimosso dai preferiti!' : 'Aggiunto ai preferiti!';
+                showToast(message, 'success');
+            }
+        })
+        .catch(error => {
+            // Ripristina stato originale
+            if (isFavorite) {
+                icon.className = 'fas fa-heart text-danger';
+            } else {
+                icon.className = 'far fa-heart text-muted';
+            }
+            button.setAttribute('data-is-favorite', isFavorite ? '1' : '0');
+            
+            // Ripristina il tooltip
+            const originalTooltipText = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+            button.setAttribute('title', originalTooltipText);
+            if (tooltipInstance) {
+                tooltipInstance.setContent({'.tooltip-inner': originalTooltipText});
+            }
+            
+            // Mostra errore
+            showToast('Errore di connessione al server', 'danger');
+        });
+    }
+    
+    // Funzione per mostrare toast
+    function showToast(message, type) {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
+        toast.style.zIndex = '9999';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transition = 'opacity 0.5s';
+            setTimeout(() => toast.remove(), 500);
+        }, 2000);
+    }
+    
+    // Aggiungi event listener a tutti i pulsanti preferiti
+    const favoriteButtons = document.querySelectorAll('.favorite-btn-profile');
+    
+    favoriteButtons.forEach(button => {
+        // Rimuovi eventuali listener precedenti
+        button.removeEventListener('click', handleFavoriteClick);
+        // Aggiungi nuovo listener
+        button.addEventListener('click', handleFavoriteClick);
+    });
+});
+</script>
 
 <?php
 // =============================================

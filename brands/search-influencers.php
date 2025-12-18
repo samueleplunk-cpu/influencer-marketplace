@@ -196,6 +196,44 @@ if ($brand_id && !empty($influencers)) {
         // Continua senza conversazioni esistenti
     }
 }
+
+// =============================================
+// RECUPERO INFLUENCER PREFERITI PER IL BRAND
+// =============================================
+$favorite_influencers = [];
+if ($brand_id && !empty($influencers)) {
+    // Estrai tutti gli ID influencer dai risultati
+    $influencer_ids = array_column($influencers, 'id');
+    
+    // Recupera tutti gli influencer preferiti in una sola query
+    try {
+        if (!empty($influencer_ids)) {
+            // Crea i placeholder per la query
+            $placeholders = implode(',', array_fill(0, count($influencer_ids), '?'));
+            
+            $stmt = $pdo->prepare("
+                SELECT influencer_id 
+                FROM favorite_influencers 
+                WHERE brand_id = ? 
+                AND influencer_id IN ($placeholders)
+            ");
+            
+            // Parametri: brand_id + tutti gli influencer_ids
+            $params_fav = array_merge([$brand_id], $influencer_ids);
+            $stmt->execute($params_fav);
+            
+            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Trasforma in array associativo influencer_id => true
+            foreach ($results as $row) {
+                $favorite_influencers[$row['influencer_id']] = true;
+            }
+        }
+    } catch (PDOException $e) {
+        error_log("Errore recupero influencer preferiti: " . $e->getMessage());
+        // Continua senza preferiti
+    }
+}
 ?>
 
 <div class="row">
@@ -404,24 +442,38 @@ if ($brand_id && !empty($influencers)) {
                                         </div>
                                     </div>
 
-                                    <!-- PULSANTI AZIONE -->
+                                     <!-- PULSANTI AZIONE -->
                                     <div class="card-footer bg-transparent">
-                                        <div>
-                                            <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
-                                               class="btn btn-outline-primary btn-sm w-100 mt-2">
-                                                <i class="fas fa-eye"></i> Dettagli profilo
-                                            </a>
-                                            
+                                        <div class="d-flex flex-column gap-2">
                                             <?php if ($brand_id): ?>
+                                                <!-- RIGA SUPERIORE: Pulsanti Dettagli Profilo e Preferiti -->
+                                                <div class="d-flex gap-1">
+                                                    <!-- Pulsante Dettagli Profilo -->
+                                                    <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
+                                                       class="btn btn-outline-primary btn-sm flex-grow-1">
+                                                        <i class="fas fa-eye"></i> Dettagli profilo
+                                                    </a>
+                                                    
+                                                    <!-- Pulsante Preferiti (solo icona) -->
+                                                    <button type="button" 
+                                                            class="btn <?php echo isset($favorite_influencers[$influencer['id']]) ? 'btn-outline-danger' : 'btn-outline-secondary'; ?> btn-sm favorite-btn"
+                                                            data-influencer-id="<?php echo $influencer['id']; ?>"
+                                                            data-is-favorite="<?php echo isset($favorite_influencers[$influencer['id']]) ? '1' : '0'; ?>"
+                                                            title="<?php echo isset($favorite_influencers[$influencer['id']]) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>">
+                                                        <i class="<?php echo isset($favorite_influencers[$influencer['id']]) ? 'fas fa-heart text-danger' : 'far fa-heart text-secondary'; ?>"></i>
+                                                    </button>
+                                                </div>
+                                                
                                                 <?php 
                                                 // Controlla se esiste già una conversazione con questo influencer
                                                 $conversation_id = $existing_conversations[$influencer['id']] ?? false;
                                                 ?>
                                                 
+                                                <!-- RIGA INFERIORE: Pulsanti Conversazione -->
                                                 <?php if (!$conversation_id): ?>
                                                     <!-- Se NON esiste conversazione: mostra pulsante per inviare messaggio -->
                                                     <button type="button" 
-                                                            class="btn btn-primary btn-sm w-100 mt-2 send-message-btn"
+                                                            class="btn btn-primary btn-sm w-100 send-message-btn"
                                                             data-influencer-id="<?php echo $influencer['id']; ?>"
                                                             data-influencer-name="<?php echo htmlspecialchars($influencer['full_name']); ?>">
                                                         <i class="fas fa-envelope"></i> Invia Messaggio
@@ -437,7 +489,7 @@ if ($brand_id && !empty($influencers)) {
                                                     </form>
                                                 <?php else: ?>
                                                     <!-- Se ESISTE conversazione: mostra pulsanti per andare alla conversazione o nuovo messaggio -->
-                                                    <div class="d-flex gap-1 mt-2">
+                                                    <div class="d-flex gap-1">
                                                         <a href="messages/conversation.php?id=<?php echo $conversation_id; ?>" 
                                                            class="btn btn-primary btn-sm flex-grow-1">
                                                             <i class="fas fa-comments"></i> Vai alla Conversazione
@@ -462,7 +514,21 @@ if ($brand_id && !empty($influencers)) {
                                                     </form>
                                                 <?php endif; ?>
                                             <?php else: ?>
-                                                <button class="btn btn-secondary btn-sm w-100 mt-2" disabled title="Completa il profilo brand per inviare messaggi">
+                                                <!-- Se non c'è brand_id -->
+                                                <div class="d-flex gap-1">
+                                                    <!-- Pulsante Dettagli Profilo -->
+                                                    <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
+                                                       class="btn btn-outline-primary btn-sm flex-grow-1">
+                                                        <i class="fas fa-eye"></i> Dettagli profilo
+                                                    </a>
+                                                    
+                                                    <!-- Pulsante Preferiti disabilitato -->
+                                                    <button class="btn btn-outline-secondary btn-sm" disabled title="Completa il profilo brand per aggiungere ai preferiti">
+                                                        <i class="far fa-heart text-secondary"></i>
+                                                    </button>
+                                                </div>
+                                                
+                                                <button class="btn btn-secondary btn-sm w-100" disabled title="Completa il profilo brand per inviare messaggi">
                                                     <i class="fas fa-exclamation-circle"></i> Completa Profilo
                                                 </button>
                                             <?php endif; ?>
@@ -621,6 +687,49 @@ if ($brand_id && !empty($influencers)) {
 [title] {
     cursor: help;
 }
+
+/* Stili per i pulsanti preferiti */
+.favorite-btn.btn-danger {
+    color: white !important;
+}
+
+.favorite-btn.btn-outline-danger {
+    color: #dc3545 !important;
+}
+
+.favorite-btn:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease-in-out;
+}
+
+.toast {
+    min-width: 250px;
+}
+
+/* Stili per pulsanti uniformi */
+.btn-outline-danger.btn-sm,
+.btn-outline-secondary.btn-sm {
+    width: 40px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+/* RIMUOVI OVERLAY HOVER PER PULSANTI PREFERITI */
+.favorite-btn.btn-outline-danger:hover,
+.favorite-btn.btn-outline-secondary:hover {
+    background-color: transparent !important;
+}
+
+/* Colori specifici per hover */
+.favorite-btn.btn-outline-danger:hover {
+    color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+.favorite-btn.btn-outline-secondary:hover {
+    color: #6c757d !important;
+    border-color: #6c757d !important;
+}
 </style>
 
 <script>
@@ -772,6 +881,97 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
     });
+    
+     // Gestione Preferiti con AJAX
+    document.querySelectorAll('.favorite-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const influencerId = this.getAttribute('data-influencer-id');
+            const isFavorite = this.getAttribute('data-is-favorite') === '1';
+            
+            // Disabilita il pulsante durante la richiesta
+            this.disabled = true;
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            // Invia richiesta AJAX
+            fetch('toggle-favorite.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `influencer_id=${influencerId}&action=${isFavorite ? 'remove' : 'add'}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Aggiorna lo stato del pulsante
+                    const isNowFavorite = data.is_favorite;
+                    
+                    this.setAttribute('data-is-favorite', isNowFavorite ? '1' : '0');
+                    
+                    if (isNowFavorite) {
+                        this.innerHTML = '<i class="fas fa-heart text-danger"></i>';
+                        this.classList.remove('btn-outline-secondary');
+                        this.classList.add('btn-outline-danger');
+                        this.title = 'Rimuovi dai preferiti';
+                    } else {
+                        this.innerHTML = '<i class="far fa-heart text-secondary"></i>';
+                        this.classList.remove('btn-outline-danger');
+                        this.classList.add('btn-outline-secondary');
+                        this.title = 'Aggiungi ai preferiti';
+                    }
+                    
+                    // Mostra notifica
+                    showToast(isNowFavorite ? 'Aggiunto ai preferiti!' : 'Rimosso dai preferiti!', 'success');
+                } else {
+                    showToast('Errore: ' + data.message, 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Errore di connessione', 'error');
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+    });
+    
+    // Funzione per mostrare notifiche toast
+    function showToast(message, type = 'success') {
+        // Crea elemento toast se non esiste
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1055;';
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toastId = 'toast-' + Date.now();
+        const bgColor = type === 'success' ? 'bg-success' : 'bg-danger';
+        
+        const toastHTML = `
+            <div id="${toastId}" class="toast show align-items-center text-white ${bgColor} border-0 mb-2" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        toastContainer.insertAdjacentHTML('afterbegin', toastHTML);
+        
+        // Rimuovi automaticamente dopo 3 secondi
+        setTimeout(() => {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.remove();
+            }
+        }, 3000);
+    }
 });
 </script>
 

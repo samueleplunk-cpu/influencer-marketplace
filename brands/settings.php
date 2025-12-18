@@ -242,16 +242,20 @@ $page_title = $page_titles[$action] ?? 'Impostazioni Brand';
         <div class="row">
             <div class="col-md-3">
                 <div class="list-group">
-    <a href="settings.php?action=notifications" class="list-group-item list-group-item-action <?php echo $action === 'notifications' ? 'active' : ''; ?>">
-        Preferenze notifiche
-    </a>
-    <a href="settings.php?action=personal-data" class="list-group-item list-group-item-action <?php echo $action === 'personal-data' ? 'active' : ''; ?>">
-        Dati personali
-    </a>
-    <a href="settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $action === 'delete-account' ? 'active list-group-item-danger' : 'text-danger'; ?>">
-        Elimina account
-    </a>
-</div>
+                    <a href="settings.php?action=notifications" class="list-group-item list-group-item-action <?php echo $action === 'notifications' ? 'active' : ''; ?>">
+                        Preferenze notifiche
+                    </a>
+                    <a href="settings.php?action=personal-data" class="list-group-item list-group-item-action <?php echo $action === 'personal-data' ? 'active' : ''; ?>">
+                        Dati personali
+                    </a>
+                    <!-- Nuova voce per gli influencer preferiti -->
+                    <a href="saved-influencers.php" class="list-group-item list-group-item-action <?php echo basename($_SERVER['PHP_SELF']) === 'saved-influencers.php' ? 'active' : ''; ?>">
+                        <i class="fas fa-heart text-danger me-2"></i>Influencer salvati
+                    </a>
+                    <a href="settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $action === 'delete-account' ? 'active list-group-item-danger' : 'text-danger'; ?>">
+                        Elimina account
+                    </a>
+                </div>
             </div>
             
             <div class="col-md-9">
@@ -398,6 +402,17 @@ $page_title = $page_titles[$action] ?? 'Impostazioni Brand';
                                     </div>
                                 </div>
                                 
+                                <!-- Influencer Preferiti -->
+                                <div class="mb-4">
+                                    <h6><i class="fas fa-heart text-danger me-2"></i>Influencer Preferiti</h6>
+                                    <div class="alert alert-light border">
+                                        <p class="mb-2">Gestisci gli influencer che hai salvato come preferiti.</p>
+                                        <a href="saved-influencers.php" class="btn btn-outline-danger">
+                                            <i class="fas fa-heart me-2"></i>Vedi tutti i preferiti
+                                        </a>
+                                    </div>
+                                </div>
+                                
                                 <!-- Note importanti -->
                                 <div class="alert alert-info mb-4">
                                     <h6><i class="fas fa-info-circle me-2"></i>Note importanti:</h6>
@@ -447,6 +462,7 @@ $page_title = $page_titles[$action] ?? 'Impostazioni Brand';
                                     <li><i class="fas fa-image text-danger me-2"></i><strong>Immagini caricate</strong> - Logo aziendale e immagini delle campagne</li>
                                     <li><i class="fas fa-file text-danger me-2"></i><strong>Documenti</strong> - Documenti caricati per le campagne</li>
                                     <li><i class="fas fa-comments text-danger me-2"></i><strong>Conversazioni</strong> - Tutte le chat con gli influencer</li>
+                                    <li><i class="fas fa-heart text-danger me-2"></i><strong>Influencer preferiti</strong> - Lista influencer salvati</li>
                                     <li><i class="fas fa-bell text-danger me-2"></i><strong>Notifiche e preferenze</strong> - Storico notifiche e impostazioni</li>
                                     <li><i class="fas fa-history text-danger me-2"></i><strong>Storico attività</strong> - Tutte le attività registrate</li>
                                 </ul>
