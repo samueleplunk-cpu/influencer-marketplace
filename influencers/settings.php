@@ -8,10 +8,16 @@ if (!isset($_SESSION['user_id']) || $_SESSION['user_type'] !== 'influencer') {
     exit;
 }
 
-// Se l'utente accede alla pagina di eliminazione account
-$delete_page = isset($_GET['action']) && $_GET['action'] === 'delete-account';
+// Determinazione della sezione attiva
+$action = isset($_GET['action']) ? $_GET['action'] : 'notifications';
+$valid_actions = ['notifications', 'personal-data', 'delete-account'];
 
-// Gestione salvataggio preferenze
+// Validazione dell'azione
+if (!in_array($action, $valid_actions)) {
+    $action = 'notifications'; // Default
+}
+
+// Gestione salvataggio preferenze notifiche
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_preferences'])) {
     $preferences = [];
     
@@ -28,7 +34,101 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_preferences'])
         $_SESSION['error_message'] = "Errore durante l'aggiornamento delle preferenze";
     }
     
-    header("Location: settings.php#notifications");
+    header("Location: settings.php?action=notifications");
+    exit;
+}
+
+// Gestione aggiornamento dati personali
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_personal_data'])) {
+    $new_email = trim($_POST['email'] ?? '');
+    $new_password = $_POST['password'] ?? '';
+    $confirm_password = $_POST['confirm_password'] ?? '';
+    $current_password = $_POST['current_password'] ?? '';
+    
+    // Recupera l'email attuale
+    $stmt = $pdo->prepare("SELECT email, password FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+    $current_email = $user_data['email'] ?? '';
+    $current_hashed_password = $user_data['password'] ?? '';
+    
+    $personal_data_error = '';
+    $personal_data_success = '';
+    
+    // Validazione email
+    if (empty($new_email)) {
+        $personal_data_error = "L'email è obbligatoria.";
+    } elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) {
+        $personal_data_error = "Inserisci un'email valida.";
+    } else {
+        // Verifica se l'email è già in uso da un altro utente
+        if ($new_email !== $current_email) {
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
+            $stmt->execute([$new_email, $_SESSION['user_id']]);
+            if ($stmt->fetch()) {
+                $personal_data_error = "Questa email è già associata a un altro account.";
+            }
+        }
+    }
+    
+    // Validazione password (se fornita)
+    $password_changed = false;
+    if (!empty($new_password)) {
+        if (strlen($new_password) < 6) {
+            $personal_data_error = "La nuova password deve avere almeno 6 caratteri.";
+        } elseif ($new_password !== $confirm_password) {
+            $personal_data_error = "Le password non corrispondono.";
+        } elseif (empty($current_password)) {
+            $personal_data_error = "Devi inserire la password attuale per cambiare la password.";
+        } else {
+            // Verifica password corrente
+            if (!password_verify($current_password, $current_hashed_password)) {
+                $personal_data_error = "La password attuale non è corretta.";
+            } else {
+                $password_changed = true;
+            }
+        }
+    }
+    
+    // Se non ci sono errori, aggiorna i dati
+    if (empty($personal_data_error)) {
+        try {
+            $pdo->beginTransaction();
+            
+            // Aggiorna email
+            $stmt = $pdo->prepare("UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$new_email, $_SESSION['user_id']]);
+            
+            // Aggiorna password se necessario
+            if ($password_changed) {
+                $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                $stmt = $pdo->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$hashed_password, $_SESSION['user_id']]);
+            }
+            
+            // Aggiorna la sessione se l'email è cambiata
+            if ($new_email !== $current_email) {
+                $_SESSION['user_email'] = $new_email;
+            }
+            
+            $pdo->commit();
+            
+            $personal_data_success = "Dati personali aggiornati con successo!";
+            
+        } catch (PDOException $e) {
+            $pdo->rollBack();
+            $personal_data_error = "Errore durante l'aggiornamento dei dati: " . $e->getMessage();
+        }
+    }
+    
+    // Salva i messaggi nella sessione per mostrarli dopo il redirect
+    if ($personal_data_error) {
+        $_SESSION['error_message'] = $personal_data_error;
+    } elseif ($personal_data_success) {
+        $_SESSION['success_message'] = $personal_data_success;
+    }
+    
+    header("Location: settings.php?action=personal-data");
     exit;
 }
 
@@ -76,8 +176,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_account'])) {
     }
 }
 
-// Ottieni le preferenze attuali
-$preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influencer');
+// Ottieni le preferenze notifiche (solo se nella sezione notifiche)
+if ($action === 'notifications') {
+    $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influencer');
+}
+
+// Ottieni i dati personali (solo se nella sezione personal-data)
+if ($action === 'personal-data') {
+    $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+    $stmt->execute([$_SESSION['user_id']]);
+    $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
+    $current_email = $user_data['email'] ?? '';
+}
+
+// Titolo in base alla sezione
+$page_titles = [
+    'notifications' => 'Preferenze Notifiche',
+    'personal-data' => 'Dati Personali',
+    'delete-account' => 'Elimina Account'
+];
+$page_title = $page_titles[$action] ?? 'Impostazioni Influencer';
 ?>
 
 <!DOCTYPE html>
@@ -85,7 +203,7 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo $delete_page ? 'Elimina Account - Influencer' : 'Impostazioni Influencer - Influencer Marketplace'; ?></title>
+    <title><?php echo $page_title . ' - Influencer Marketplace'; ?></title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
@@ -116,42 +234,29 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
     <main class="container mt-4">
         <div class="row">
             <div class="col-12">
-                <nav aria-label="breadcrumb">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="/infl/influencers/dashboard.php">Dashboard</a></li>
-                        <li class="breadcrumb-item"><a href="/infl/influencers/settings.php">Impostazioni</a></li>
-                        <?php if ($delete_page): ?>
-                            <li class="breadcrumb-item active">Elimina Account</li>
-                        <?php endif; ?>
-                    </ol>
-                </nav>
-                
-                <h1 class="h2 mb-4"><?php echo $delete_page ? 'Elimina Account Influencer' : 'Impostazioni Influencer'; ?></h1>
+                <h1 class="h2 mb-4"><?php echo $page_title; ?></h1>
             </div>
         </div>
 
         <div class="row">
             <div class="col-md-3">
                 <div class="list-group">
-                    <a href="#notifications" class="list-group-item list-group-item-action <?php echo !$delete_page ? 'active' : ''; ?>">
-                        <i class="fas fa-bell me-2"></i>Preferenze Notifiche
+                    <a href="settings.php?action=notifications" class="list-group-item list-group-item-action <?php echo $action === 'notifications' ? 'active' : ''; ?>">
+                        Preferenze notifiche
                     </a>
-                    <a href="#personal-data" class="list-group-item list-group-item-action">
-                        <i class="fas fa-user me-2"></i>Dati personali
+                    <a href="settings.php?action=personal-data" class="list-group-item list-group-item-action <?php echo $action === 'personal-data' ? 'active' : ''; ?>">
+                        Dati personali
                     </a>
-                    <a href="/infl/influencers/profile.php" class="list-group-item list-group-item-action">
-                        <i class="fas fa-user-circle me-2"></i>Profilo Influencer
-                    </a>
-                    <a href="/infl/influencers/settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $delete_page ? 'active list-group-item-danger' : 'text-danger'; ?>">
-                        <i class="fas fa-trash-alt me-2"></i>Elimina account
+                    <a href="settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $action === 'delete-account' ? 'active list-group-item-danger' : 'text-danger'; ?>">
+                        Elimina account
                     </a>
                 </div>
             </div>
             
             <div class="col-md-9">
-                <?php if (!$delete_page): ?>
-                    <!-- Contenuto originale delle impostazioni -->
-                    <div class="card" id="notifications">
+                <?php if ($action === 'notifications'): ?>
+                    <!-- Sezione Notifiche -->
+                    <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-bell me-2"></i>Preferenze Notifiche
@@ -202,140 +307,57 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
                                     </table>
                                 </div>
                                 
-                                <div class="mt-4">
+                                <div class="mt-4 d-flex justify-content-end">
                                     <button type="submit" name="update_preferences" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i>Salva Preferenze
+                                        Salva preferenze
                                     </button>
-                                    <a href="/infl/influencers/dashboard.php" class="btn btn-secondary">
-                                        <i class="fas fa-arrow-left me-2"></i>Torna alla Dashboard
-                                    </a>
                                 </div>
                             </form>
                         </div>
                     </div>
                     
-                    <!-- NUOVA SEZIONE: Dati Personali -->
-                    <div class="card mt-4" id="personal-data">
+                    <!-- Ultime notifiche (solo in questa sezione) -->
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-history me-2"></i>Ultime Notifiche
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <?php 
+                            $recent_notifications = get_all_notifications($pdo, $_SESSION['user_id'], 'influencer', 5);
+                            if (empty($recent_notifications)): ?>
+                                <p class="text-muted">Nessuna notifica recente</p>
+                            <?php else: ?>
+                                <div class="list-group">
+                                    <?php foreach ($recent_notifications as $notification): ?>
+                                        <div class="list-group-item <?php echo !$notification['is_read'] ? 'list-group-item-warning' : ''; ?>">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1"><?php echo htmlspecialchars($notification['title']); ?></h6>
+                                                <small><?php echo date('d/m/Y H:i', strtotime($notification['created_at'])); ?></small>
+                                            </div>
+                                            <p class="mb-1"><?php echo htmlspecialchars($notification['message']); ?></p>
+                                            <?php if (!$notification['is_read']): ?>
+                                                <small class="text-warning">
+                                                    <i class="fas fa-circle me-1"></i>Non letta
+                                                </small>
+                                            <?php endif; ?>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                    
+                <?php elseif ($action === 'personal-data'): ?>
+                    <!-- Sezione Dati Personali -->
+                    <div class="card">
                         <div class="card-header">
                             <h5 class="card-title mb-0">
                                 <i class="fas fa-user me-2"></i>Dati Personali
                             </h5>
                         </div>
                         <div class="card-body">
-                            <?php
-                            // Recupera i dati utente correnti
-                            $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
-                            $stmt->execute([$_SESSION['user_id']]);
-                            $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
-                            $current_email = $user_data['email'] ?? '';
-                            
-                            // Gestione invio form dati personali
-                            $personal_data_error = '';
-                            $personal_data_success = '';
-                            
-                            if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_personal_data'])) {
-                                $new_email = trim($_POST['email'] ?? '');
-                                $new_password = $_POST['password'] ?? '';
-                                $confirm_password = $_POST['confirm_password'] ?? '';
-                                $current_password = $_POST['current_password'] ?? '';
-                                
-                                // Validazione email
-                                if (empty($new_email)) {
-                                    $personal_data_error = "L'email è obbligatoria.";
-                                } elseif (!filter_var($new_email, FILTER_VALIDATE_EMAIL)) {
-                                    $personal_data_error = "Inserisci un'email valida.";
-                                } else {
-                                    // Verifica se l'email è già in uso da un altro utente
-                                    if ($new_email !== $current_email) {
-                                        $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ? AND id != ?");
-                                        $stmt->execute([$new_email, $_SESSION['user_id']]);
-                                        if ($stmt->fetch()) {
-                                            $personal_data_error = "Questa email è già associata a un altro account.";
-                                        }
-                                    }
-                                }
-                                
-                                // Validazione password (se fornita)
-                                $password_changed = false;
-                                if (!empty($new_password)) {
-                                    if (strlen($new_password) < 6) {
-                                        $personal_data_error = "La nuova password deve avere almeno 6 caratteri.";
-                                    } elseif ($new_password !== $confirm_password) {
-                                        $personal_data_error = "Le password non corrispondono.";
-                                    } elseif (empty($current_password)) {
-                                        $personal_data_error = "Devi inserire la password attuale per cambiare la password.";
-                                    } else {
-                                        // Verifica password corrente
-                                        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
-                                        $stmt->execute([$_SESSION['user_id']]);
-                                        $user = $stmt->fetch(PDO::FETCH_ASSOC);
-                                        
-                                        if (!$user || !password_verify($current_password, $user['password'])) {
-                                            $personal_data_error = "La password attuale non è corretta.";
-                                        } else {
-                                            $password_changed = true;
-                                        }
-                                    }
-                                }
-                                
-                                // Se non ci sono errori, aggiorna i dati
-                                if (empty($personal_data_error)) {
-                                    try {
-                                        $pdo->beginTransaction();
-                                        
-                                        // Aggiorna email
-                                        $stmt = $pdo->prepare("UPDATE users SET email = ?, updated_at = NOW() WHERE id = ?");
-                                        $stmt->execute([$new_email, $_SESSION['user_id']]);
-                                        
-                                        // Aggiorna password se necessario
-                                        if ($password_changed) {
-                                            $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                                            $stmt = $pdo->prepare("UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?");
-                                            $stmt->execute([$hashed_password, $_SESSION['user_id']]);
-                                            
-                                            // Aggiorna la sessione se l'email è cambiata
-                                            if ($new_email !== $current_email) {
-                                                $_SESSION['user_email'] = $new_email;
-                                            }
-                                            
-                                            $personal_data_success = "Dati personali aggiornati con successo!";
-                                        } else {
-                                            // Aggiorna solo l'email
-                                            $_SESSION['user_email'] = $new_email;
-                                            $personal_data_success = "Email aggiornata con successo!";
-                                        }
-                                        
-                                        $pdo->commit();
-                                        
-                                        // Ricarica i dati dell'utente
-                                        $stmt = $pdo->prepare("SELECT email FROM users WHERE id = ?");
-                                        $stmt->execute([$_SESSION['user_id']]);
-                                        $user_data = $stmt->fetch(PDO::FETCH_ASSOC);
-                                        $current_email = $user_data['email'] ?? '';
-                                        
-                                    } catch (PDOException $e) {
-                                        $pdo->rollBack();
-                                        $personal_data_error = "Errore durante l'aggiornamento dei dati: " . $e->getMessage();
-                                    }
-                                }
-                            }
-                            ?>
-                            
-                            <!-- Messaggi di stato -->
-                            <?php if ($personal_data_error): ?>
-                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                                    <?php echo htmlspecialchars($personal_data_error); ?>
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                </div>
-                            <?php endif; ?>
-                            
-                            <?php if ($personal_data_success): ?>
-                                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                    <?php echo htmlspecialchars($personal_data_success); ?>
-                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                                </div>
-                            <?php endif; ?>
-                            
                             <form method="POST" id="personalDataForm">
                                 <div class="row">
                                     <div class="col-md-6">
@@ -385,108 +407,16 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
                                     </ul>
                                 </div>
                                 
-                                <div class="d-flex justify-content-between">
+                                <div class="d-flex justify-content-end">
                                     <button type="submit" name="update_personal_data" class="btn btn-primary">
-                                        <i class="fas fa-save me-2"></i>Salva Modifiche
+                                        Salva modifiche
                                     </button>
-                                    <a href="#notifications" class="btn btn-outline-secondary">
-                                        <i class="fas fa-arrow-up me-2"></i>Torna alle Notifiche
-                                    </a>
                                 </div>
                             </form>
-                            
-                            <!-- Script per validazione client-side -->
-                            <script>
-                                document.addEventListener('DOMContentLoaded', function() {
-                                    const form = document.getElementById('personalDataForm');
-                                    
-                                    form.addEventListener('submit', function(e) {
-                                        const email = document.getElementById('email').value.trim();
-                                        const password = document.getElementById('password').value;
-                                        const confirmPassword = document.getElementById('confirm_password').value;
-                                        const currentPassword = document.getElementById('current_password').value;
-                                        
-                                        // Validazione email
-                                        if (!email) {
-                                            e.preventDefault();
-                                            alert('L\'email è obbligatoria');
-                                            document.getElementById('email').focus();
-                                            return false;
-                                        }
-                                        
-                                        // Validazione formato email
-                                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-                                        if (!emailRegex.test(email)) {
-                                            e.preventDefault();
-                                            alert('Inserisci un\'email valida');
-                                            document.getElementById('email').focus();
-                                            return false;
-                                        }
-                                        
-                                        // Validazione password
-                                        if (password) {
-                                            if (password.length < 6) {
-                                                e.preventDefault();
-                                                alert('La nuova password deve avere almeno 6 caratteri');
-                                                document.getElementById('password').focus();
-                                                return false;
-                                            }
-                                            
-                                            if (password !== confirmPassword) {
-                                                e.preventDefault();
-                                                alert('Le password non corrispondono');
-                                                document.getElementById('confirm_password').focus();
-                                                return false;
-                                            }
-                                        }
-                                        
-                                        // Validazione password attuale
-                                        if (!currentPassword) {
-                                            e.preventDefault();
-                                            alert('Devi inserire la password attuale per confermare le modifiche');
-                                            document.getElementById('current_password').focus();
-                                            return false;
-                                        }
-                                        
-                                        return confirm('Sei sicuro di voler aggiornare i tuoi dati personali?');
-                                    });
-                                });
-                            </script>
                         </div>
                     </div>
                     
-                    <div class="card mt-4">
-                        <div class="card-header">
-                            <h5 class="card-title mb-0">
-                                <i class="fas fa-history me-2"></i>Ultime Notifiche
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <?php 
-                            $recent_notifications = get_all_notifications($pdo, $_SESSION['user_id'], 'influencer', 5);
-                            if (empty($recent_notifications)): ?>
-                                <p class="text-muted">Nessuna notifica recente</p>
-                            <?php else: ?>
-                                <div class="list-group">
-                                    <?php foreach ($recent_notifications as $notification): ?>
-                                        <div class="list-group-item <?php echo !$notification['is_read'] ? 'list-group-item-warning' : ''; ?>">
-                                            <div class="d-flex w-100 justify-content-between">
-                                                <h6 class="mb-1"><?php echo htmlspecialchars($notification['title']); ?></h6>
-                                                <small><?php echo date('d/m/Y H:i', strtotime($notification['created_at'])); ?></small>
-                                            </div>
-                                            <p class="mb-1"><?php echo htmlspecialchars($notification['message']); ?></p>
-                                            <?php if (!$notification['is_read']): ?>
-                                                <small class="text-warning">
-                                                    <i class="fas fa-circle me-1"></i>Non letta
-                                                </small>
-                                            <?php endif; ?>
-                                    </div>
-                                    <?php endforeach; ?>
-                                </div>
-                            <?php endif; ?>
-                        </div>
-                    </div>
-                <?php else: ?>
+                <?php elseif ($action === 'delete-account'): ?>
                     <!-- Pagina di eliminazione account -->
                     <div class="card border-danger">
                         <div class="card-header bg-danger text-white">
@@ -559,7 +489,7 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
                                 
                                 <!-- Pulsanti di azione -->
                                 <div class="d-flex justify-content-between">
-                                    <a href="/infl/influencers/settings.php" class="btn btn-secondary">
+                                    <a href="settings.php?action=notifications" class="btn btn-secondary">
                                         <i class="fas fa-arrow-left me-2"></i>Torna alle Impostazioni
                                     </a>
                                     <button type="submit" name="delete_account" class="btn btn-danger" onclick="return confirmDelete()">
@@ -579,6 +509,66 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
 
     <?php include '../includes/footer.php'; ?>
     
+    <?php if ($action === 'personal-data'): ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('personalDataForm');
+            
+            form.addEventListener('submit', function(e) {
+                const email = document.getElementById('email').value.trim();
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirm_password').value;
+                const currentPassword = document.getElementById('current_password').value;
+                
+                // Validazione email
+                if (!email) {
+                    e.preventDefault();
+                    alert('L\'email è obbligatoria');
+                    document.getElementById('email').focus();
+                    return false;
+                }
+                
+                // Validazione formato email
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(email)) {
+                    e.preventDefault();
+                    alert('Inserisci un\'email valida');
+                    document.getElementById('email').focus();
+                    return false;
+                }
+                
+                // Validazione password
+                if (password) {
+                    if (password.length < 6) {
+                        e.preventDefault();
+                        alert('La nuova password deve avere almeno 6 caratteri');
+                        document.getElementById('password').focus();
+                        return false;
+                    }
+                    
+                    if (password !== confirmPassword) {
+                        e.preventDefault();
+                        alert('Le password non corrispondono');
+                        document.getElementById('confirm_password').focus();
+                        return false;
+                    }
+                }
+                
+                // Validazione password attuale
+                if (!currentPassword) {
+                    e.preventDefault();
+                    alert('Devi inserire la password attuale per confermare le modifiche');
+                    document.getElementById('current_password').focus();
+                    return false;
+                }
+                
+                return confirm('Sei sicuro di voler aggiornare i tuoi dati personali?');
+            });
+        });
+    </script>
+    <?php endif; ?>
+    
+    <?php if ($action === 'delete-account'): ?>
     <script>
         function confirmDelete() {
             if (!document.getElementById('confirm_delete').checked) {
@@ -595,5 +585,6 @@ $preferences = get_notification_preferences($pdo, $_SESSION['user_id'], 'influen
             return confirm('SEI ASSOLUTAMENTE SICURO?\n\nQuesta azione eliminerà PERMANENTEMENTE il tuo account e tutti i dati associati.\n\nQuesta operazione NON può essere annullata!');
         }
     </script>
+    <?php endif; ?>
 </body>
 </html>
