@@ -107,7 +107,6 @@ function update_category($pdo, $category_id, $category_data) {
  */
 function delete_category($pdo, $category_id) {
     try {
-        // Controlla se la categoria è utilizzata da qualche brand
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as count FROM brands 
             WHERE industry = (SELECT name FROM categories WHERE id = ?)
@@ -122,7 +121,6 @@ function delete_category($pdo, $category_id) {
             ];
         }
         
-        // Elimina la categoria
         $stmt = $pdo->prepare("DELETE FROM categories WHERE id = ?");
         $stmt->execute([$category_id]);
         

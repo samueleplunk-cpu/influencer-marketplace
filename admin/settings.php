@@ -208,14 +208,6 @@ $is_maintenance_mode = is_maintenance_mode($pdo);
                         </div>
                         <span class="badge bg-info"><?php echo phpversion(); ?></span>
                     </div>
-                    <div class="list-group-item d-flex justify-content-between align-items-center">
-                        <div>
-                            <i class="fas fa-users me-2 text-primary"></i>
-                            Sessioni Attive
-                        </div>
-                        <span class="badge bg-primary"><?php echo count_sessions($pdo); ?></span>
-                    </div>
-                    <!-- Rimossa la voce Spazio Disco -->
                 </div>
             </div>
         </div>

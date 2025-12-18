@@ -1,5 +1,4 @@
 <?php
-
 // =============================================
 // INCLUSIONE CONFIG CON PERCORSO ASSOLUTO
 // =============================================
@@ -8,20 +7,6 @@ if (!file_exists($config_file)) {
     die("Errore: File di configurazione non trovato in: " . $config_file);
 }
 require_once $config_file;
-
-// =============================================
-// MAPPA CATEGORIE PER VISUALIZZAZIONE
-// =============================================
-$category_mapping = [
-    'lifestyle' => 'Lifestyle',
-    'fashion' => 'Fashion',
-    'beauty' => 'Beauty & Makeup',
-    'fitness' => 'Fitness & Wellness',
-    'travel' => 'Travel',
-    'food' => 'Food',
-    'tech' => 'Tech',
-    'gaming' => 'Gaming'
-];
 
 // =============================================
 // VERIFICA AUTENTICAZIONE UTENTE
@@ -52,7 +37,6 @@ $error = '';
 $success = '';
 
 try {
-    // QUERY CORRETTA - RATING SENZA 'S'
     $stmt = $pdo->prepare("
         SELECT id, user_id, full_name, bio, niche, 
                instagram_handle, tiktok_handle, youtube_handle, 
@@ -69,6 +53,17 @@ try {
 }
 
 // =============================================
+// RECUPERO CATEGORIE DAL DATABASE
+// =============================================
+$categories = [];
+try {
+    require_once dirname(__DIR__) . '/includes/category_functions.php';
+    $categories = get_active_categories($pdo);
+} catch (Exception $e) {
+    // Silenzioso
+}
+
+// =============================================
 // RECUPERO CANDIDATURE PER LA SEZIONE AGGIUNTA
 // =============================================
 $applications = [];
@@ -80,7 +75,6 @@ $application_stats = [
 
 if ($influencer) {
     try {
-        // Recupera candidature recenti (SOLO campagne non eliminate)
         $stmt = $pdo->prepare("
             SELECT ca.*, c.name as campaign_name, c.budget, b.company_name,
                    ca.status, ca.created_at as application_date
@@ -95,8 +89,6 @@ if ($influencer) {
         $stmt->execute([$influencer['id']]);
         $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
-        // Statistiche candidature (TUTTE le candidature, anche per campagne eliminate)
-        // Questo per mantenere le statistiche accurate
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as total_applications,
                    COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_applications,
@@ -107,7 +99,6 @@ if ($influencer) {
         $stmt->execute([$influencer['id']]);
         $application_stats = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Se non ci sono candidature, imposta valori di default
         if (!$application_stats) {
             $application_stats = [
                 'total_applications' => 0,
@@ -117,7 +108,6 @@ if ($influencer) {
         }
         
     } catch (PDOException $e) {
-        // Se la tabella non esiste ancora, continua senza errori
         $applications = [];
         $application_stats = [
             'total_applications' => 0,
@@ -127,9 +117,6 @@ if ($influencer) {
     }
 }
 
-// =============================================
-// CONTENUTO PRINCIPALE DELLA DASHBOARD
-// =============================================
 ?>
 
 <div class="row">
@@ -181,37 +168,70 @@ if ($influencer) {
         <?php else: ?>
             <div class="row">
                 <!-- Immagine Profilo e Dati Base -->
-<div class="col-md-4">
-    <div class="card mb-4">
-        <div class="card-header bg-primary text-white">
-            <h5 class="card-title mb-0">Profilo</h5>
-        </div>
-        <div class="card-body text-center">
-            <?php 
-            $profile_image_src = '/infl/uploads/placeholder/influencer_admin_edit.png';
-            if (!empty($influencer['profile_image'])) {
-                // Verifica se l'immagine esiste fisicamente sul server
-                $full_image_path = dirname(__DIR__) . '/uploads/' . $influencer['profile_image'];
-                if (file_exists($full_image_path)) {
-                    $profile_image_src = '/infl/uploads/' . $influencer['profile_image'];
-                }
-            }
-            ?>
-            <img src="<?php echo htmlspecialchars($profile_image_src); ?>" 
-                 class="rounded-circle mb-3" 
-                 alt="Profile Image" 
-                 style="width: 150px; height: 150px; object-fit: cover;">
-               
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">Profilo</h5>
+                        </div>
+                        <div class="card-body text-center">
+                            <?php 
+                            $profile_image_src = '/infl/uploads/placeholder/influencer_admin_edit.png';
+                            if (!empty($influencer['profile_image'])) {
+                                $full_image_path = dirname(__DIR__) . '/uploads/' . $influencer['profile_image'];
+                                if (file_exists($full_image_path)) {
+                                    $profile_image_src = '/infl/uploads/' . $influencer['profile_image'];
+                                }
+                            }
+                            ?>
+                            <img src="<?php echo htmlspecialchars($profile_image_src); ?>" 
+                                 class="rounded-circle mb-3" 
+                                 alt="Profile Image" 
+                                 style="width: 150px; height: 150px; object-fit: cover;">
+                               
                             <h4><?php echo htmlspecialchars_decode($influencer['full_name']); ?></h4>
                             <?php if (!empty($influencer['niche'])): ?>
-    <?php 
-    $display_niche = htmlspecialchars_decode($influencer['niche']);
-    if (isset($category_mapping[$influencer['niche']])) {
-        $display_niche = $category_mapping[$influencer['niche']];
-    }
-    ?>
-    <span class="badge bg-info"><?php echo $display_niche; ?></span>
-<?php endif; ?>
+                                <?php 
+                                $display_niche = htmlspecialchars_decode($influencer['niche']);
+                                $found_category_name = $display_niche;
+                                
+                                // Cerca il nome della categoria nel database
+                                foreach ($categories as $cat) {
+                                    if (is_array($cat)) {
+                                        $cat_slug = $cat['slug'] ?? '';
+                                        $cat_name = $cat['name'] ?? '';
+                                        
+                                        // Confronta con lo slug o il nome
+                                        if (strtolower($cat_slug) === strtolower($display_niche) || 
+                                            strtolower($cat_name) === strtolower($display_niche)) {
+                                            $found_category_name = $cat_name;
+                                            break;
+                                        }
+                                    }
+                                }
+                                
+                                // Fallback per mappature comuni
+                                $niche_display_map = [
+                                    'beauty' => 'Beauty & Makeup',
+                                    'fitness' => 'Fitness & Wellness',
+                                    'finance' => 'Finance & Business',
+                                    'entertainment' => 'Entertainment',
+                                    'pet' => 'Pet',
+                                    'education' => 'Education',
+                                    'fashion' => 'Fashion',
+                                    'lifestyle' => 'Lifestyle',
+                                    'food' => 'Food',
+                                    'travel' => 'Travel',
+                                    'gaming' => 'Gaming',
+                                    'tech' => 'Tech'
+                                ];
+                                
+                                $lower_niche = strtolower(trim($found_category_name));
+                                if (isset($niche_display_map[$lower_niche])) {
+                                    $found_category_name = $niche_display_map[$lower_niche];
+                                }
+                                ?>
+                                <span class="badge bg-info"><?php echo htmlspecialchars($found_category_name); ?></span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -290,67 +310,66 @@ if ($influencer) {
             <?php endif; ?>
 
             <!-- Sponsor Recenti -->
-<?php
-// Recupera gli sponsor recenti dell'influencer
-$recent_sponsors = [];
-if ($influencer) {
-    try {
-        $stmt = $pdo->prepare("
-            SELECT id, title, image_url, budget, currency, created_at
-            FROM sponsors 
-            WHERE influencer_id = ? 
-            AND status = 'active'
-            AND deleted_at IS NULL
-            ORDER BY created_at DESC 
-            LIMIT 3
-        ");
-        $stmt->execute([$influencer['id']]);
-        $recent_sponsors = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    } catch (PDOException $e) {
-        // Silenzioso in caso di errore
-    }
-}
-?>
+            <?php
+            $recent_sponsors = [];
+            if ($influencer) {
+                try {
+                    $stmt = $pdo->prepare("
+                        SELECT id, title, image_url, budget, currency, created_at
+                        FROM sponsors 
+                        WHERE influencer_id = ? 
+                        AND status = 'active'
+                        AND deleted_at IS NULL
+                        ORDER BY created_at DESC 
+                        LIMIT 3
+                    ");
+                    $stmt->execute([$influencer['id']]);
+                    $recent_sponsors = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                } catch (PDOException $e) {
+                    // Silenzioso
+                }
+            }
+            ?>
 
-<?php if (!empty($recent_sponsors)): ?>
-    <div class="card mb-4">
-        <div class="card-header">
-            <h5 class="card-title mb-0">Sponsor recenti</h5>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <?php foreach ($recent_sponsors as $sponsor): ?>
-                    <div class="col-md-4 mb-3">
-                        <div class="card h-100">
-                            <div class="card-body text-center">
-                                <?php if (!empty($sponsor['image_url'])): ?>
-    <img src="/infl/uploads/sponsor/<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
-         class="rounded mb-3" 
-         alt="<?php echo htmlspecialchars($sponsor['title']); ?>"
-         style="width: 100%; height: 120px; object-fit: cover;">
-<?php else: ?>
-    <img src="/infl/uploads/placeholder/sponsor_influencer_dashboard.png" 
-         class="rounded mb-3" 
-         alt="Placeholder sponsor"
-         style="width: 100%; height: 120px; object-fit: cover;">
-<?php endif; ?>
-                                
-                                <h6 class="card-title"><?php echo htmlspecialchars($sponsor['title']); ?></h6>
-                                <p class="card-text text-success fw-bold">
-                                    €<?php echo number_format($sponsor['budget'], 2); ?>
-                                </p>
-                                <a href="/infl/influencers/sponsors/view.php?id=<?php echo $sponsor['id']; ?>" 
-                                   class="btn btn-outline-primary btn-sm">
-                                    Visualizza dettagli
-                                </a>
-                            </div>
+            <?php if (!empty($recent_sponsors)): ?>
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Sponsor recenti</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <?php foreach ($recent_sponsors as $sponsor): ?>
+                                <div class="col-md-4 mb-3">
+                                    <div class="card h-100">
+                                        <div class="card-body text-center">
+                                            <?php if (!empty($sponsor['image_url'])): ?>
+                                                <img src="/infl/uploads/sponsor/<?php echo htmlspecialchars($sponsor['image_url']); ?>" 
+                                                     class="rounded mb-3" 
+                                                     alt="<?php echo htmlspecialchars($sponsor['title']); ?>"
+                                                     style="width: 100%; height: 120px; object-fit: cover;">
+                                            <?php else: ?>
+                                                <img src="/infl/uploads/placeholder/sponsor_influencer_dashboard.png" 
+                                                     class="rounded mb-3" 
+                                                     alt="Placeholder sponsor"
+                                                     style="width: 100%; height: 120px; object-fit: cover;">
+                                            <?php endif; ?>
+                                            
+                                            <h6 class="card-title"><?php echo htmlspecialchars($sponsor['title']); ?></h6>
+                                            <p class="card-text text-success fw-bold">
+                                                €<?php echo number_format($sponsor['budget'], 2); ?>
+                                            </p>
+                                            <a href="/infl/influencers/sponsors/view.php?id=<?php echo $sponsor['id']; ?>" 
+                                               class="btn btn-outline-primary btn-sm">
+                                                Visualizza dettagli
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            <?php endforeach; ?>
                         </div>
                     </div>
-                <?php endforeach; ?>
-            </div>
-        </div>
-    </div>
-<?php endif; ?>
+                </div>
+            <?php endif; ?>
 
             <!-- Statistiche Completamento Profilo -->
             <div class="card mb-4">
@@ -360,7 +379,7 @@ if ($influencer) {
                 <div class="card-body">
                     <?php 
                     $completed = 0;
-                    $total_fields = 8; // full_name, bio, niche, instagram_handle, rate, profile_image, website, almeno un social
+                    $total_fields = 8;
                     
                     if (!empty($influencer['full_name'])) $completed++;
                     if (!empty($influencer['bio'])) $completed++;

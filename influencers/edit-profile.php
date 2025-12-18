@@ -52,11 +52,9 @@ try {
             ADD COLUMN profile_image VARCHAR(255) NULL AFTER rate
         ");
         $alter_table_stmt->execute();
-        
-        error_log("Colonna profile_image aggiunta alla tabella influencers");
     }
 } catch (PDOException $e) {
-    error_log("Errore nella verifica/aggiunta colonna profile_image: " . $e->getMessage());
+    // Silenzioso - solo log
 }
 
 // =============================================
@@ -90,38 +88,150 @@ try {
     $categories = get_active_categories($pdo);
     
     if (empty($categories)) {
-        error_log("Nessuna categoria attiva trovata nel database");
-        $categories = [
-            ['id' => 'fashion', 'name' => 'Fashion'],
-            ['id' => 'lifestyle', 'name' => 'Lifestyle'],
-            ['id' => 'beauty', 'name' => 'Beauty & Makeup'],
-            ['id' => 'food', 'name' => 'Food'],
-            ['id' => 'travel', 'name' => 'Travel'],
-            ['id' => 'gaming', 'name' => 'Gaming'],
-            ['id' => 'fitness', 'name' => 'Fitness & Wellness'],
-            ['id' => 'entertainment', 'name' => 'Entertainment'],
-            ['id' => 'tech', 'name' => 'Tech'],
-            ['id' => 'finance', 'name' => 'Finance & Business'],
-            ['id' => 'pet', 'name' => 'Pet'],
-            ['id' => 'education', 'name' => 'Education']
-        ];
+        $error = "Nessuna categoria disponibile. Contatta l'amministratore del sistema.";
     }
 } catch (Exception $e) {
-    error_log("Errore nel recupero delle categorie: " . $e->getMessage());
-    $categories = [
-        ['id' => 'fashion', 'name' => 'Fashion'],
-        ['id' => 'lifestyle', 'name' => 'Lifestyle'],
-        ['id' => 'beauty', 'name' => 'Beauty & Makeup'],
-        ['id' => 'food', 'name' => 'Food'],
-        ['id' => 'travel', 'name' => 'Travel'],
-        ['id' => 'gaming', 'name' => 'Gaming'],
-        ['id' => 'fitness', 'name' => 'Fitness & Wellness'],
-        ['id' => 'entertainment', 'name' => 'Entertainment'],
-        ['id' => 'tech', 'name' => 'Tech'],
-        ['id' => 'finance', 'name' => 'Finance & Business'],
-        ['id' => 'pet', 'name' => 'Pet'],
-        ['id' => 'education', 'name' => 'Education']
+    $error = "Errore nel caricamento delle categorie. Riprova più tardi.";
+}
+
+// =============================================
+// FUNZIONE PER GENERARE SLUG DAL NOME
+// =============================================
+function generate_slug_from_name($name) {
+    if (empty($name)) {
+        return '';
+    }
+    
+    $slug = strtolower(trim($name));
+    $slug = str_replace(' & ', '-', $slug);
+    $slug = str_replace(' ', '-', $slug);
+    $slug = preg_replace('/[^a-z0-9\-]/', '', $slug);
+    $slug = preg_replace('/-+/', '-', $slug);
+    $slug = trim($slug, '-');
+    
+    return $slug;
+}
+
+// =============================================
+// MAPPA SLUG PER COMPATIBILITÀ DINAMICA
+// =============================================
+function map_category_slug($slug, $all_categories = []) {
+    if (empty($slug)) {
+        return '';
+    }
+    
+    $slug = strtolower(trim($slug));
+    
+    // Mappature fisse per compatibilità
+    $static_mapping = [
+        'beauty-makeup' => 'beauty',
+        'fitness-wellness' => 'fitness',
+        'finance-business' => 'finance',
+        'beauty' => 'beauty',
+        'makeup' => 'beauty',
+        'fitness' => 'fitness',
+        'wellness' => 'fitness',
+        'finance' => 'finance',
+        'business' => 'finance',
     ];
+    
+    // Prima controlla le mappature fisse
+    if (isset($static_mapping[$slug])) {
+        return $static_mapping[$slug];
+    }
+    
+    // Per le altre categorie, cerca nel database
+    foreach ($all_categories as $cat) {
+        if (is_array($cat)) {
+            $cat_slug = $cat['slug'] ?? '';
+            $cat_name = $cat['name'] ?? '';
+            
+            // Confronta slug
+            if (strtolower($cat_slug) === $slug) {
+                // Se lo slug è già un valore ENUM valido, usalo
+                if (in_array($slug, ['entertainment', 'pet', 'education', 'fashion', 
+                                     'lifestyle', 'food', 'travel', 'gaming', 'tech'])) {
+                    return $slug;
+                }
+                // Altrimenti usa il nome generato come slug
+                return generate_slug_from_name($cat_name);
+            }
+            
+            // Confronta nome
+            $cat_name_slug = generate_slug_from_name($cat_name);
+            if (strtolower($cat_name_slug) === $slug) {
+                return $slug;
+            }
+        }
+    }
+    
+    // Se non trovato, usa lo slug originale
+    return $slug;
+}
+
+// =============================================
+// FUNZIONE PER CONVERTIRE DA ENUM A SLUG LEGGIBILE
+// =============================================
+function enum_to_display_name($enum_value, $categories) {
+    if (empty($enum_value)) {
+        return '';
+    }
+    
+    $enum_value = strtolower(trim($enum_value));
+    
+    // Mappatura inversa: ENUM -> slug completo
+    $reverse_mapping = [
+        'beauty' => 'beauty-makeup',
+        'fitness' => 'fitness-wellness',
+        'finance' => 'finance-business',
+        'entertainment' => 'entertainment',
+        'pet' => 'pet',
+        'education' => 'education',
+        'fashion' => 'fashion',
+        'lifestyle' => 'lifestyle',
+        'food' => 'food',
+        'travel' => 'travel',
+        'gaming' => 'gaming',
+        'tech' => 'tech',
+    ];
+    
+    $target_slug = $reverse_mapping[$enum_value] ?? $enum_value;
+    
+    // Cerca il nome della categoria corrispondente
+    foreach ($categories as $category) {
+        if (is_array($category)) {
+            $category_name = $category['name'] ?? $category['category_name'] ?? '';
+            $category_slug = $category['slug'] ?? generate_slug_from_name($category_name);
+            
+            if (strtolower($category_slug) === strtolower($target_slug)) {
+                return $category_slug;
+            }
+        }
+    }
+    
+    return $target_slug;
+}
+
+// =============================================
+// FUNZIONE PER NORMALIZZARE IL VALORE ATTUALE
+// =============================================
+function get_normalized_niche($current_niche, $categories) {
+    if (empty($current_niche)) {
+        return '';
+    }
+    
+    // Prima converte il valore ENUM in uno slug leggibile
+    $readable_slug = enum_to_display_name($current_niche, $categories);
+    
+    if (!empty($readable_slug)) {
+        return $readable_slug;
+    }
+    
+    // Se la conversione non funziona, usa la logica esistente
+    $current_slug = generate_slug_from_name($current_niche);
+    $mapped_slug = map_category_slug($current_slug, $categories);
+    
+    return $mapped_slug;
 }
 
 // =============================================
@@ -134,6 +244,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $website = trim($_POST['website'] ?? '');
     $rate = floatval($_POST['rate'] ?? 0);
     
+    // CONVERSIONE: da slug nuovo a valore ENUM
+    $niche_for_db = map_category_slug($niche, $categories);
+    
     $social_handles = [];
     $social_networks = get_active_social_networks();
     foreach ($social_networks as $social) {
@@ -145,7 +258,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Nome completo, biografia e categoria sono campi obbligatori!";
     } elseif ($rate < 0) {
         $error = "La tariffa non può essere negativa!";
-    } else {
+    } elseif (empty($error)) {
         try {
             $profile_image = $influencer['profile_image'] ?? null;
             $old_image_to_delete = null;
@@ -204,7 +317,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $params = [
                     ':full_name' => $full_name,
                     ':bio' => $bio,
-                    ':niche' => $niche,
+                    ':niche' => $niche_for_db,
                     ':website' => $website,
                     ':rate' => $rate,
                     ':profile_image' => $profile_image,
@@ -234,10 +347,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
             }
         } catch (PDOException $e) {
-            error_log("Database error in edit-profile: " . $e->getMessage());
             $error = "Errore di sistema durante l'aggiornamento del profilo. Riprova più tardi.";
         } catch (Exception $e) {
-            error_log("General error in edit-profile: " . $e->getMessage());
             $error = "Errore: " . $e->getMessage();
         }
     }
@@ -251,6 +362,9 @@ if (!file_exists($header_file)) {
     die("Errore: File header non trovato in: " . $header_file);
 }
 require_once $header_file;
+
+// Ottieni il valore normalizzato per la selezione del dropdown
+$normalized_niche = get_normalized_niche($influencer['niche'] ?? '', $categories);
 ?>
 
 <div class="row">
@@ -301,20 +415,40 @@ require_once $header_file;
                                 <label for="niche" class="form-label">Categoria *</label>
                                 <select class="form-select" id="niche" name="niche" required>
                                     <option value="">Seleziona una categoria</option>
-                                    <?php foreach ($categories as $category): 
-                                        $category_id = isset($category['id']) ? $category['id'] : $category;
-                                        $category_name = isset($category['name']) ? $category['name'] : ucfirst($category);
-                                        $is_selected = ($influencer['niche'] ?? '') === $category_id;
+                                    <?php 
+                                    if (!empty($categories)) {
+                                        foreach ($categories as $category): 
+                                            if (is_array($category)) {
+                                                $category_name = $category['name'] ?? $category['category_name'] ?? '';
+                                                $category_slug = $category['slug'] ?? generate_slug_from_name($category_name);
+                                                
+                                                if (empty($category_slug) || empty($category_name)) {
+                                                    continue;
+                                                }
+                                                
+                                                $option_value = $category_slug;
+                                                $display_name = $category_name;
+                                                
+                                                // Confronto CASE INSENSITIVE
+                                                $is_selected = (strtolower($normalized_niche) === strtolower($option_value));
+                                            ?>
+                                                <option value="<?php echo htmlspecialchars($option_value); ?>" 
+                                                        <?php echo $is_selected ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($display_name); ?>
+                                                </option>
+                                            <?php 
+                                            }
+                                        endforeach; 
+                                    }
                                     ?>
-                                        <option value="<?php echo htmlspecialchars($category_id); ?>" 
-                                                <?php echo $is_selected ? 'selected' : ''; ?>>
-                                            <?php echo htmlspecialchars($category_name); ?>
-                                            <?php if (isset($category['description']) && !empty($category['description'])): ?>
-                                                - <?php echo htmlspecialchars($category['description']); ?>
-                                            <?php endif; ?>
-                                        </option>
-                                    <?php endforeach; ?>
                                 </select>
+                                
+                                <?php if (empty($categories)): ?>
+                                    <div class="alert alert-warning mt-2">
+                                        <i class="fas fa-exclamation-triangle"></i> 
+                                        Nessuna categoria disponibile. Contatta l'amministratore del sistema.
+                                    </div>
+                                <?php endif; ?>
                             </div>
 
                             <div class="mb-3">
@@ -333,7 +467,6 @@ require_once $header_file;
                                 <!-- Area Upload Immagine Profilo -->
                                 <div id="profileImageUploadArea">
                                     <?php 
-                                    // Determina quale immagine mostrare
                                     $current_image_url = '/infl/uploads/placeholder/influencer_admin_edit.png';
                                     $has_custom_image = false;
                                     
@@ -473,7 +606,45 @@ require_once $header_file;
                         <div class="mb-2">
                             <strong>Categoria attuale:</strong> 
                             <span class="float-end">
-                                <?php echo !empty($influencer['niche']) ? htmlspecialchars($influencer['niche']) : 'Non impostata'; ?>
+                                <?php 
+                                $current_niche_display = htmlspecialchars($influencer['niche'] ?? 'Non impostata');
+                                // Converti il valore ENUM in nome leggibile
+                                $niche_display_map = [
+                                    'beauty' => 'Beauty & Makeup',
+                                    'fitness' => 'Fitness & Wellness',
+                                    'finance' => 'Finance & Business',
+                                    'entertainment' => 'Entertainment',
+                                    'pet' => 'Pet',
+                                    'education' => 'Education',
+                                    'fashion' => 'Fashion',
+                                    'lifestyle' => 'Lifestyle',
+                                    'food' => 'Food',
+                                    'travel' => 'Travel',
+                                    'gaming' => 'Gaming',
+                                    'tech' => 'Tech'
+                                ];
+                                
+                                $lower_niche = strtolower(trim($current_niche_display));
+                                if (isset($niche_display_map[$lower_niche])) {
+                                    $current_niche_display = $niche_display_map[$lower_niche];
+                                } else {
+                                    // Cerca nel database per nomi personalizzati
+                                    foreach ($categories as $cat) {
+                                        if (is_array($cat)) {
+                                            $cat_slug = $cat['slug'] ?? '';
+                                            $cat_name = $cat['name'] ?? '';
+                                            
+                                            if (strtolower($cat_slug) === $lower_niche || 
+                                                strtolower($cat_name) === $lower_niche) {
+                                                $current_niche_display = $cat_name;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    $current_niche_display = ucfirst($lower_niche);
+                                }
+                                echo $current_niche_display;
+                                ?>
                             </span>
                         </div>
                     </div>
@@ -544,20 +715,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const removeImageField = document.getElementById('removeImageField');
     const currentImageSection = document.getElementById('currentImageSection');
     
-    // Elementi dei pulsanti
     const changeImageBtn = document.getElementById('changeImageBtn');
     const removeCurrentImageBtn = document.getElementById('removeCurrentImageBtn');
     const changeNewImageBtn = document.getElementById('changeNewImageBtn');
     const removeNewImageBtn = document.getElementById('removeNewImageBtn');
     
-    // Gestione click su "Cambia Immagine" (immagine attuale)
     if (changeImageBtn) {
         changeImageBtn.addEventListener('click', function() {
             profileImageInput.click();
         });
     }
     
-    // Gestione click su "Rimuovi Immagine" (immagine attuale)
     if (removeCurrentImageBtn) {
         removeCurrentImageBtn.addEventListener('click', function() {
             if (confirm('Sei sicuro di voler rimuovere l\'immagine profilo attuale?')) {
@@ -567,14 +735,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Gestione click su "Cambia Immagine" (anteprima)
     if (changeNewImageBtn) {
         changeNewImageBtn.addEventListener('click', function() {
             profileImageInput.click();
         });
     }
     
-    // Gestione click su "Rimuovi Immagine" (anteprima)
     if (removeNewImageBtn) {
         removeNewImageBtn.addEventListener('click', function() {
             resetImageInput();
@@ -588,13 +754,11 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Gestione cambio file
     if (profileImageInput) {
         profileImageInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                // Validazione client-side del file
-                const maxSize = 5 * 1024 * 1024; // 5MB
+                const maxSize = 5 * 1024 * 1024;
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
                 
                 if (!allowedTypes.includes(file.type)) {
@@ -609,18 +773,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     return;
                 }
                 
-                // Mostra anteprima
                 const reader = new FileReader();
                 reader.onload = function(e) {
                     previewImage.src = e.target.result;
                     imagePreviewContainer.style.display = 'block';
                     
-                    // Nascondi la sezione dell'immagine attuale
                     if (currentImageSection) {
                         currentImageSection.style.display = 'none';
                     }
                     
-                    // Reset del campo remove_image se stiamo caricando una nuova immagine
                     removeImageField.value = '0';
                 }
                 reader.readAsDataURL(file);
@@ -628,7 +789,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Funzione per resettare l'input file
     function resetImageInput() {
         if (profileImageInput) {
             profileImageInput.value = '';
@@ -636,7 +796,6 @@ document.addEventListener('DOMContentLoaded', function() {
         removeImageField.value = '0';
     }
     
-    // Funzione per mostrare il placeholder
     function showPlaceholderImage() {
         if (currentImageSection) {
             currentImageSection.innerHTML = `
@@ -652,7 +811,6 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             currentImageSection.style.display = 'block';
             
-            // Re-attach event listener al nuovo pulsante
             document.getElementById('changeImageBtn').addEventListener('click', function() {
                 profileImageInput.click();
             });
@@ -660,14 +818,12 @@ document.addEventListener('DOMContentLoaded', function() {
         imagePreviewContainer.style.display = 'none';
     }
     
-    // Validazione client-side del form
     form.addEventListener('submit', function(e) {
         const fullName = document.getElementById('full_name').value.trim();
         const bio = document.getElementById('bio').value.trim();
         const niche = document.getElementById('niche').value;
         const rate = document.getElementById('rate').value;
         
-        // Validazione campi obbligatori
         if (!fullName) {
             e.preventDefault();
             alert('Il nome completo è obbligatorio');
@@ -696,10 +852,9 @@ document.addEventListener('DOMContentLoaded', function() {
             return false;
         }
         
-        // Validazione file se selezionato
         if (profileImageInput && profileImageInput.files.length > 0) {
             const file = profileImageInput.files[0];
-            const maxSize = 5 * 1024 * 1024; // 5MB
+            const maxSize = 5 * 1024 * 1024;
             const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
             
             if (!allowedTypes.includes(file.type)) {
@@ -716,7 +871,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Validazione URL in tempo reale
     const websiteInput = document.getElementById('website');
     if (websiteInput) {
         websiteInput.addEventListener('blur', function() {
@@ -748,7 +902,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Notifica se non ci sono categorie disponibili
     const nicheSelect = document.getElementById('niche');
     if (nicheSelect && nicheSelect.options.length <= 1) {
         const alertDiv = document.createElement('div');
