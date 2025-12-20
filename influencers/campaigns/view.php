@@ -101,6 +101,20 @@ try {
 }
 
 // =============================================
+// VERIFICA SE LA CAMPAGNA È NEI PREFERITI
+// =============================================
+$is_favorite = false;
+if ($influencer) {
+    try {
+        $stmt_fav = $pdo->prepare("SELECT id FROM favorite_campaigns WHERE influencer_id = ? AND campaign_id = ?");
+        $stmt_fav->execute([$influencer['id'], $campaign_id]);
+        $is_favorite = $stmt_fav->fetch() !== false;
+    } catch (PDOException $e) {
+        // Silenzioso in caso di errore
+    }
+}
+
+// =============================================
 // GESTIONE CANDIDATURA (VERSIONE SEMPLIFICATA)
 // =============================================
 $success_msg = '';
@@ -351,6 +365,17 @@ require_once $header_file;
                         <h5 class="card-title mb-0">Stato Candidatura</h5>
                     </div>
                     <div class="card-body text-center">
+                        <!-- Pulsante Preferiti -->
+                        <div class="mb-3">
+                            <button type="button" 
+                                    class="btn <?php echo $is_favorite ? 'btn-outline-danger' : 'btn-outline-primary'; ?> btn-sm favorite-campaign-btn"
+                                    data-campaign-id="<?php echo $campaign_id; ?>"
+                                    data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>">
+                                <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-primary'; ?> me-1"></i>
+                                <?php echo $is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>
+                            </button>
+                        </div>
+                        
                         <?php if (!$has_applied): ?>
                             <?php if ($campaign_paused): ?>
                                 <p class="card-text text-muted">Campagna in fase di revisione</p>
@@ -523,6 +548,129 @@ require_once $header_file;
     </div>
 </div>
 <?php endif; ?>
+
+<script>
+// Gestione Preferiti Campagne con AJAX (per view.php)
+document.addEventListener('DOMContentLoaded', function() {
+    // Trova tutti i pulsanti preferiti campagne
+    const favoriteCampaignButtons = document.querySelectorAll('.favorite-campaign-btn');
+    
+    favoriteCampaignButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const campaignId = this.getAttribute('data-campaign-id');
+            const isFavorite = this.getAttribute('data-is-favorite') === '1';
+            
+            // Disabilita il pulsante durante la richiesta
+            this.disabled = true;
+            const originalHTML = this.innerHTML;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> ';
+            
+            // Invia richiesta AJAX
+            fetch('toggle-campaign-favorite.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `campaign_id=${campaignId}&action=${isFavorite ? 'remove' : 'add'}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Aggiorna lo stato del pulsante
+                    const isNowFavorite = data.is_favorite;
+                    
+                    this.setAttribute('data-is-favorite', isNowFavorite ? '1' : '0');
+                    
+                    if (isNowFavorite) {
+                        // Per view.php (testo e stile)
+                        this.innerHTML = '<i class="fas fa-heart text-danger me-1"></i> Rimuovi dai preferiti';
+                        this.classList.remove('btn-outline-primary');
+                        this.classList.add('btn-outline-danger');
+                    } else {
+                        // Per view.php (testo e stile)
+                        this.innerHTML = '<i class="far fa-heart text-primary me-1"></i> Aggiungi ai preferiti';
+                        this.classList.remove('btn-outline-danger');
+                        this.classList.add('btn-outline-primary');
+                    }
+                    
+                    // Mostra notifica
+                    showToast(isNowFavorite ? 'Campagna aggiunta ai preferiti!' : 'Campagna rimossa dai preferiti!', 'success');
+                } else {
+                    showToast('Errore: ' + data.message, 'error');
+                    this.innerHTML = originalHTML;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Errore di connessione', 'error');
+                this.innerHTML = originalHTML;
+            })
+            .finally(() => {
+                this.disabled = false;
+            });
+        });
+    });
+    
+    // Funzione per mostrare notifiche toast
+    function showToast(message, type = 'success') {
+        // Crea elemento toast se non esiste
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 1055;';
+            document.body.appendChild(toastContainer);
+        }
+        
+        const toastId = 'toast-' + Date.now();
+        const bgColor = type === 'success' ? 'bg-success' : 'bg-danger';
+        
+        const toastHTML = `
+            <div id="${toastId}" class="toast show align-items-center text-white ${bgColor} border-0 mb-2" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        
+        toastContainer.insertAdjacentHTML('afterbegin', toastHTML);
+        
+        // Rimuovi automaticamente dopo 3 secondi
+        setTimeout(() => {
+            const toast = document.getElementById(toastId);
+            if (toast) {
+                toast.remove();
+            }
+        }, 3000);
+    }
+});
+</script>
+
+<style>
+/* Stili per i pulsanti preferiti campagne */
+.favorite-campaign-btn.btn-outline-danger {
+    color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+.favorite-campaign-btn.btn-outline-primary {
+    color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.favorite-campaign-btn:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Toast notifications */
+.toast {
+    min-width: 250px;
+}
+</style>
 
 <?php
 // Funzione helper per niche simili

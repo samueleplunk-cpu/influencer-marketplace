@@ -74,12 +74,12 @@ require_once dirname(__DIR__) . '/includes/header.php';
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2><i class="fas fa-heart text-danger me-2"></i>Influencer Preferiti</h2>
+            <h2>Influencer Preferiti</h2>
             <div>
                 <a href="/infl/brands/search-influencers.php" class="btn btn-outline-primary me-2">
-                    <i class="fas fa-search"></i> Cerca Altri Influencer
+                    <i class="fas fa-search"></i> Cerca Influencer
                 </a>
-                <a href="/infl/brands/settings.php?action=personal-data" class="btn btn-outline-secondary">
+                <a href="/infl/brands/settings.php" class="btn btn-outline-secondary">
                     <i class="fas fa-cog"></i> Impostazioni
                 </a>
             </div>
@@ -169,10 +169,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
         <div class="card">
             <div class="card-header bg-light">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-list me-2"></i>Lista Influencer Preferiti
-                    <?php if ($total_results > 0): ?>
-                        <span class="badge bg-primary"><?php echo $total_results; ?> totali</span>
-                    <?php endif; ?>
+                    <i class="fas fa-list me-2"></i>Lista Influencer preferiti
                 </h5>
             </div>
             <div class="card-body">
@@ -196,7 +193,6 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                     <th>Piattaforme</th>
                                     <th>Tariffa</th>
                                     <th>Rating</th>
-                                    <th>Salvato il</th>
                                     <th>Azioni</th>
                                 </tr>
                             </thead>
@@ -215,35 +211,37 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                                      alt="<?php echo htmlspecialchars($influencer['full_name']); ?>"
                                                      style="width: 50px; height: 50px; object-fit: cover;">
                                                 <div>
-                                                    <strong><?php echo htmlspecialchars($influencer['full_name']); ?></strong><br>
-                                                    <small class="text-muted">ID: <?php echo $influencer['id']; ?></small>
+                                                    <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
+                                                       class="text-decoration-none text-dark fw-bold">
+                                                        <?php echo htmlspecialchars($influencer['full_name']); ?>
+                                                    </a>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>
+                                        <td class="align-middle">
                                             <?php if (!empty($influencer['niche'])): ?>
-                                                <span class="badge bg-info"><?php echo htmlspecialchars($influencer['niche']); ?></span>
+                                                <?php echo ucfirst(htmlspecialchars($influencer['niche'])); ?>
                                             <?php else: ?>
                                                 <span class="text-muted">N/A</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
+                                        <td class="align-middle">
                                             <?php
                                             $platforms = [];
-                                            if (!empty($influencer['instagram_handle'])) $platforms[] = '<i class="fab fa-instagram text-danger"></i>';
-                                            if (!empty($influencer['tiktok_handle'])) $platforms[] = '<i class="fab fa-tiktok"></i>';
-                                            if (!empty($influencer['youtube_handle'])) $platforms[] = '<i class="fab fa-youtube text-danger"></i>';
+                                            if (!empty($influencer['instagram_handle'])) $platforms[] = '<i class="fab fa-instagram text-danger me-1"></i>';
+                                            if (!empty($influencer['tiktok_handle'])) $platforms[] = '<i class="fab fa-tiktok me-1"></i>';
+                                            if (!empty($influencer['youtube_handle'])) $platforms[] = '<i class="fab fa-youtube text-danger me-1"></i>';
                                             echo implode(' ', $platforms);
                                             ?>
                                         </td>
-                                        <td>
+                                        <td class="align-middle">
                                             <?php if (!empty($influencer['rate'])): ?>
-                                                <span class="badge bg-success">€<?php echo number_format($influencer['rate'], 2); ?></span>
+                                                €<?php echo number_format($influencer['rate'], 2); ?>
                                             <?php else: ?>
                                                 <span class="text-muted">N/D</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
+                                        <td class="align-middle">
                                             <?php if (!empty($influencer['rating'])): ?>
                                                 <span class="badge bg-warning text-dark">
                                                     ★ <?php echo number_format($influencer['rating'], 1); ?>
@@ -252,15 +250,10 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                                 <span class="text-muted">N/A</span>
                                             <?php endif; ?>
                                         </td>
-                                        <td>
-                                            <small class="text-muted">
-                                                <?php echo date('d/m/Y', strtotime($influencer['saved_at'])); ?>
-                                            </small>
-                                        </td>
-                                        <td>
+                                        <td class="align-middle">
                                             <div class="btn-group" role="group">
                                                 <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
-                                                   class="btn btn-sm btn-outline-primary" title="Vedi profilo">
+                                                   class="btn btn-sm btn-outline-primary me-2" title="Vedi profilo">
                                                     <i class="fas fa-eye"></i>
                                                 </a>
                                                 <form method="POST" class="d-inline" onsubmit="return confirm('Rimuovere questo influencer dai preferiti?');">
@@ -283,8 +276,8 @@ require_once dirname(__DIR__) . '/includes/header.php';
                             <div class="col-12 mb-3">
                                 <div class="card">
                                     <div class="card-body">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div class="d-flex">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div class="d-flex align-items-center">
                                                 <?php 
                                                 $profile_image = !empty($influencer['profile_image']) 
                                                     ? '/infl/uploads/' . htmlspecialchars($influencer['profile_image'])
@@ -295,9 +288,12 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                                      alt="<?php echo htmlspecialchars($influencer['full_name']); ?>"
                                                      style="width: 60px; height: 60px; object-fit: cover;">
                                                 <div>
-                                                    <h6 class="mb-1"><?php echo htmlspecialchars($influencer['full_name']); ?></h6>
+                                                    <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
+                                                       class="text-decoration-none text-dark">
+                                                        <h6 class="mb-1"><?php echo htmlspecialchars($influencer['full_name']); ?></h6>
+                                                    </a>
                                                     <?php if (!empty($influencer['niche'])): ?>
-                                                        <span class="badge bg-info"><?php echo htmlspecialchars($influencer['niche']); ?></span>
+                                                        <?php echo ucfirst(htmlspecialchars($influencer['niche'])); ?>
                                                     <?php endif; ?>
                                                 </div>
                                             </div>
@@ -309,10 +305,10 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                             </form>
                                         </div>
                                         
-                                        <div class="row mt-3">
-                                            <div class="col-6">
-                                                <small class="text-muted d-block">Piattaforme:</small>
-                                                <div>
+                                        <div class="row">
+                                            <div class="col-3 d-flex flex-column align-items-center">
+                                                <small class="text-muted d-block mb-1">Piattaforme</small>
+                                                <div class="text-center">
                                                     <?php
                                                     if (!empty($influencer['instagram_handle'])) echo '<i class="fab fa-instagram text-danger me-1"></i>';
                                                     if (!empty($influencer['tiktok_handle'])) echo '<i class="fab fa-tiktok me-1"></i>';
@@ -320,33 +316,33 @@ require_once dirname(__DIR__) . '/includes/header.php';
                                                     ?>
                                                 </div>
                                             </div>
-                                            <div class="col-3">
-                                                <small class="text-muted d-block">Tariffa:</small>
+                                            <div class="col-3 d-flex flex-column align-items-center">
+                                                <small class="text-muted d-block mb-1">Tariffa</small>
                                                 <?php if (!empty($influencer['rate'])): ?>
-                                                    <span class="badge bg-success">€<?php echo number_format($influencer['rate'], 2); ?></span>
+                                                    <div class="text-center">€<?php echo number_format($influencer['rate'], 2); ?></div>
                                                 <?php else: ?>
-                                                    <span class="text-muted">N/D</span>
+                                                    <div class="text-center text-muted">N/D</div>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="col-3">
-                                                <small class="text-muted d-block">Rating:</small>
+                                            <div class="col-3 d-flex flex-column align-items-center">
+                                                <small class="text-muted d-block mb-1">Rating</small>
                                                 <?php if (!empty($influencer['rating'])): ?>
-                                                    <span class="badge bg-warning text-dark">★ <?php echo number_format($influencer['rating'], 1); ?></span>
+                                                    <div class="text-center">
+                                                        <span class="badge bg-warning text-dark">★ <?php echo number_format($influencer['rating'], 1); ?></span>
+                                                    </div>
                                                 <?php else: ?>
-                                                    <span class="text-muted">N/A</span>
+                                                    <div class="text-center text-muted">N/A</div>
                                                 <?php endif; ?>
                                             </div>
-                                        </div>
-                                        
-                                        <div class="mt-3 d-flex justify-content-between">
-                                            <small class="text-muted">
-                                                <i class="far fa-calendar me-1"></i>
-                                                <?php echo date('d/m/Y', strtotime($influencer['saved_at'])); ?>
-                                            </small>
-                                            <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
-                                               class="btn btn-sm btn-outline-primary">
-                                                <i class="fas fa-eye me-1"></i> Profilo
-                                            </a>
+                                            <div class="col-3 d-flex flex-column align-items-center">
+                                                <small class="text-muted d-block mb-1">Azioni</small>
+                                                <div class="text-center">
+                                                    <a href="/infl/influencers/profile.php?id=<?php echo $influencer['id']; ?>" 
+                                                       class="btn btn-sm btn-outline-primary" title="Vedi profilo">
+                                                        <i class="fas fa-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

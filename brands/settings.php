@@ -250,8 +250,8 @@ $page_title = $page_titles[$action] ?? 'Impostazioni Brand';
                     </a>
                     <!-- Nuova voce per gli influencer preferiti -->
                     <a href="saved-influencers.php" class="list-group-item list-group-item-action <?php echo basename($_SERVER['PHP_SELF']) === 'saved-influencers.php' ? 'active' : ''; ?>">
-                        <i class="fas fa-heart text-danger me-2"></i>Influencer salvati
-                    </a>
+    Influencer salvati
+</a>
                     <a href="settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $action === 'delete-account' ? 'active list-group-item-danger' : 'text-danger'; ?>">
                         Elimina account
                     </a>
@@ -399,17 +399,6 @@ $page_title = $page_titles[$action] ?? 'Impostazioni Brand';
                                                 <div class="form-text">Inserisci la tua password attuale per confermare le modifiche</div>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
-                                
-                                <!-- Influencer Preferiti -->
-                                <div class="mb-4">
-                                    <h6><i class="fas fa-heart text-danger me-2"></i>Influencer Preferiti</h6>
-                                    <div class="alert alert-light border">
-                                        <p class="mb-2">Gestisci gli influencer che hai salvato come preferiti.</p>
-                                        <a href="saved-influencers.php" class="btn btn-outline-danger">
-                                            <i class="fas fa-heart me-2"></i>Vedi tutti i preferiti
-                                        </a>
                                     </div>
                                 </div>
                                 

@@ -28,16 +28,6 @@ if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'influencer') {
 }
 
 // =============================================
-// INCLUSIONE FUNZIONI SOCIAL NETWORK
-// =============================================
-require_once dirname(dirname(dirname(__FILE__))) . '/includes/social_network_functions.php';
-
-// =============================================
-// INCLUSIONE FUNZIONI CATEGORIE
-// =============================================
-require_once dirname(dirname(dirname(__FILE__))) . '/includes/category_functions.php';
-
-// =============================================
 // RECUPERO DATI INFLUENCER
 // =============================================
 $influencer = null;
@@ -53,6 +43,12 @@ try {
 } catch (PDOException $e) {
     die("Errore nel caricamento del profilo: " . $e->getMessage());
 }
+
+// =============================================
+// INCLUSIONE FUNZIONI SOCIAL NETWORK E CATEGORIE
+// =============================================
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/social_network_functions.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/includes/category_functions.php';
 
 // =============================================
 // PARAMETRI RICERCA E FILTRI
@@ -74,41 +70,40 @@ $offset = ($current_page - 1) * $campaigns_per_page;
 $active_categories = get_active_categories($pdo);
 
 // =============================================
-// QUERY CAMPAIGNE CON FILTRI
+// QUERY CAMPAIGNE PREFERITE
 // =============================================
 $campaigns = [];
 $total_campaigns = 0;
 $total_pages = 0;
 
 try {
-    // Query base
+    // Query base per le campagne preferite
     $query = "
         SELECT c.*, b.company_name, b.website as brand_website,
                COUNT(ca.id) as application_count,
                EXISTS(
                    SELECT 1 FROM campaign_applications ca2 
                    WHERE ca2.campaign_id = c.id AND ca2.influencer_id = ?
-               ) as has_applied
-        FROM campaigns c
+               ) as has_applied,
+               fc.created_at as saved_at
+        FROM favorite_campaigns fc
+        JOIN campaigns c ON fc.campaign_id = c.id
         JOIN brands b ON c.brand_id = b.id
         LEFT JOIN campaign_applications ca ON c.id = ca.campaign_id
-        WHERE c.status = 'active' 
-          AND c.is_public = TRUE 
-          AND c.allow_applications = TRUE
+        WHERE fc.influencer_id = ?
           AND c.deleted_at IS NULL
     ";
     
     $count_query = "
-        SELECT COUNT(DISTINCT c.id)
-        FROM campaigns c
-        WHERE c.status = 'active' 
-          AND c.is_public = TRUE 
-          AND c.allow_applications = TRUE
+        SELECT COUNT(*)
+        FROM favorite_campaigns fc
+        JOIN campaigns c ON fc.campaign_id = c.id
+        WHERE fc.influencer_id = ?
           AND c.deleted_at IS NULL
     ";
     
-    $params = [$influencer['id']];
-    $count_params = [];
+    $params = [$influencer['id'], $influencer['id']];
+    $count_params = [$influencer['id']];
     
     // Applica filtri
     if (!empty($search)) {
@@ -150,15 +145,13 @@ try {
     }
     
     // Conteggio totale
-    $query .= " GROUP BY c.id ORDER BY c.created_at DESC";
-    
     $stmt = $pdo->prepare($count_query);
     $stmt->execute($count_params);
     $total_campaigns = $stmt->fetchColumn();
     $total_pages = ceil($total_campaigns / $campaigns_per_page);
     
-    // Query con paginazione
-    $query .= " LIMIT ? OFFSET ?";
+    // Query con ordinamento e paginazione
+    $query .= " GROUP BY c.id ORDER BY fc.created_at DESC LIMIT ? OFFSET ?";
     $params[] = $campaigns_per_page;
     $params[] = $offset;
     
@@ -167,45 +160,7 @@ try {
     $campaigns = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
 } catch (PDOException $e) {
-    die("Errore nel caricamento delle campagne: " . $e->getMessage());
-}
-
-// =============================================
-// RECUPERO CAMPAIGNE PREFERITE PER L'INFLUENCER
-// =============================================
-$favorite_campaigns = [];
-if ($influencer && !empty($campaigns)) {
-    // Estrai tutti gli ID campagna dai risultati
-    $campaign_ids = array_column($campaigns, 'id');
-    
-    // Recupera tutte le campagne preferite in una sola query
-    try {
-        if (!empty($campaign_ids)) {
-            // Crea i placeholder per la query
-            $placeholders = implode(',', array_fill(0, count($campaign_ids), '?'));
-            
-            $stmt = $pdo->prepare("
-                SELECT campaign_id 
-                FROM favorite_campaigns 
-                WHERE influencer_id = ? 
-                AND campaign_id IN ($placeholders)
-            ");
-            
-            // Parametri: influencer_id + tutti i campaign_ids
-            $params_fav = array_merge([$influencer['id']], $campaign_ids);
-            $stmt->execute($params_fav);
-            
-            $results = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Trasforma in array associativo campaign_id => true
-            foreach ($results as $row) {
-                $favorite_campaigns[$row['campaign_id']] = true;
-            }
-        }
-    } catch (PDOException $e) {
-        error_log("Errore recupero campagne preferite: " . $e->getMessage());
-        // Continua senza preferiti
-    }
+    die("Errore nel caricamento delle campagne salvate: " . $e->getMessage());
 }
 
 // =============================================
@@ -221,16 +176,48 @@ require_once $header_file;
 <div class="row">
     <div class="col-md-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Campagne Pubbliche</h2>
+            <h2>Campagne Salvate</h2>
             <a href="../dashboard.php" class="btn btn-outline-secondary">
                 ← Torna alla Dashboard
             </a>
         </div>
 
+        <!-- Statistiche -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-white bg-danger">
+                    <div class="card-body">
+                        <h5 class="card-title"><?php echo $total_campaigns; ?></h5>
+                        <p class="card-text">Campagne Salvate</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-success">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <?php echo count(array_filter($campaigns, function($c) { return !$c['has_applied']; })); ?>
+                        </h5>
+                        <p class="card-text">Da Candidarsi</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-white bg-info">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <?php echo count(array_filter($campaigns, function($c) { return $c['has_applied']; })); ?>
+                        </h5>
+                        <p class="card-text">Già Candidate</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Filtri -->
         <div class="card mb-4">
             <div class="card-header">
-                <h5 class="card-title mb-0">Filtri</h5>
+                <h5 class="card-title mb-0">Filtri Campagne Salvate</h5>
             </div>
             <div class="card-body">
                 <form method="GET" class="row g-3">
@@ -244,14 +231,16 @@ require_once $header_file;
                         <label class="form-label">Categoria</label>
                         <select name="niche" class="form-select">
                             <option value="">Tutte</option>
-                            <?php
-                            // CATEGORIE DINAMICHE DAL DATABASE
-                            foreach ($active_categories as $category): ?>
+                            <?php 
+                            foreach ($active_categories as $category) {
+                            ?>
                                 <option value="<?php echo htmlspecialchars($category['name']); ?>" 
                                     <?php echo $niche_filter === $category['name'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($category['name']); ?>
                                 </option>
-                            <?php endforeach; ?>
+                            <?php 
+                            }
+                            ?>
                         </select>
                     </div>
                     <div class="col-md-2">
@@ -272,12 +261,15 @@ require_once $header_file;
                             <option value="">Tutte</option>
                             <?php
                             $social_networks = get_active_social_networks();
-                            foreach ($social_networks as $social): ?>
+                            foreach ($social_networks as $social) {
+                            ?>
                                 <option value="<?php echo $social['slug']; ?>" 
                                     <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($social['name']); ?>
                                 </option>
-                            <?php endforeach; ?>
+                            <?php 
+                            }
+                            ?>
                         </select>
                     </div>
                     <div class="col-md-1 d-flex align-items-end">
@@ -287,71 +279,34 @@ require_once $header_file;
             </div>
         </div>
 
-        <!-- Statistiche -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card text-white bg-primary">
-                    <div class="card-body">
-                        <h5 class="card-title"><?php echo $total_campaigns; ?></h5>
-                        <p class="card-text">Campagne Trovate</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-success">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <?php echo count(array_filter($campaigns, function($c) { return !$c['has_applied']; })); ?>
-                        </h5>
-                        <p class="card-text">Nuove Opportunità</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-info">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <?php echo count(array_filter($campaigns, function($c) { return $c['has_applied']; })); ?>
-                        </h5>
-                        <p class="card-text">Già Candidate</p>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card text-white bg-warning">
-                    <div class="card-body">
-                        <h5 class="card-title">
-                            <?php echo array_sum(array_column($campaigns, 'application_count')); ?>
-                        </h5>
-                        <p class="card-text">Candidature Totali</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Lista Campagne -->
+        <!-- Lista Campagne Salvate -->
         <?php if (empty($campaigns)): ?>
             <div class="card">
                 <div class="card-body text-center py-5">
-                    <h4>Nessuna campagna trovata</h4>
+                    <h4>Nessuna campagna salvata</h4>
                     <p class="text-muted">
-                        <?php echo $total_campaigns > 0 ? 'Prova a modificare i filtri di ricerca.' : 'Al momento non ci sono campagne pubbliche disponibili.'; ?>
+                        Salva le campagne che ti interessano cliccando sull'icona ❤️ nelle liste campagne
                     </p>
-                    <?php if (!empty($search) || !empty($niche_filter)): ?>
-                        <a href="list.php" class="btn btn-primary">Rimuovi Filtri</a>
-                    <?php endif; ?>
+                    <a href="list.php" class="btn btn-primary">Esplora Campagne</a>
                 </div>
             </div>
         <?php else: ?>
             <div class="row">
-                <?php foreach ($campaigns as $campaign): ?>
+                <?php 
+                foreach ($campaigns as $campaign) {
+                ?>
                     <div class="col-md-6 col-lg-4 mb-4">
                         <div class="card h-100 <?php echo $campaign['has_applied'] ? 'border-success' : ''; ?>">
                             <div class="card-header d-flex justify-content-between align-items-center">
                                 <h6 class="card-title mb-0"><?php echo htmlspecialchars($campaign['name']); ?></h6>
-                                <?php if ($campaign['has_applied']): ?>
-                                    <span class="badge bg-success">Già candidato</span>
-                                <?php endif; ?>
+                                <div>
+                                    <?php if ($campaign['has_applied']): ?>
+                                        <span class="badge bg-success">Già candidato</span>
+                                    <?php endif; ?>
+                                    <span class="badge bg-danger ms-1">
+                                        <i class="fas fa-heart"></i> Salvata
+                                    </span>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <p class="card-text text-muted small">
@@ -379,20 +334,27 @@ require_once $header_file;
                                     <strong>Piattaforme:</strong><br>
                                     <?php 
                                     $platforms = json_decode($campaign['platforms'], true);
-                                    if ($platforms): 
-                                        foreach ($platforms as $platform): 
+                                    if ($platforms) { 
+                                        foreach ($platforms as $platform) { 
                                             $social_network = get_social_network_by_slug($platform);
-                                            if ($social_network):
+                                            if ($social_network) {
                                     ?>
                                         <span class="badge bg-light text-dark me-1 mb-1">
                                             <i class="<?php echo $social_network['icon']; ?> me-1"></i>
                                             <?php echo htmlspecialchars($social_network['name']); ?>
                                         </span>
                                     <?php 
-                                            endif;
-                                        endforeach; 
-                                    endif; 
+                                            }
+                                        } 
+                                    } 
                                     ?>
+                                </div>
+                                
+                                <div class="mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar-alt me-1"></i>
+                                        Salvata il: <?php echo date('d/m/Y', strtotime($campaign['saved_at'])); ?>
+                                    </small>
                                 </div>
                                 
                                 <small class="text-muted">
@@ -400,33 +362,29 @@ require_once $header_file;
                                 </small>
                             </div>
                             <div class="card-footer">
-                                <div class="d-flex flex-column gap-2">
-                                    <!-- RIGA SUPERIORE: Pulsanti Dettagli campagna e Preferiti -->
-                                    <div class="d-flex gap-1">
-                                        <!-- Pulsante Dettagli campagna -->
+                                <div class="d-grid gap-2">
+                                    <div class="d-flex justify-content-between align-items-center">
                                         <a href="view.php?id=<?php echo $campaign['id']; ?>" 
-                                           class="btn btn-outline-primary btn-sm flex-grow-1">
-                                            Dettagli campagna
+                                           class="btn btn-outline-primary btn-sm">
+                                            Dettagli Campagna
                                         </a>
                                         
-                                        <!-- Pulsante Preferiti (solo icona) -->
+                                        <!-- Pulsante Rimuovi dai preferiti -->
                                         <button type="button" 
-                                                class="btn <?php echo isset($favorite_campaigns[$campaign['id']]) ? 'btn-outline-danger' : 'btn-outline-secondary'; ?> btn-sm favorite-campaign-btn"
+                                                class="btn btn-outline-danger btn-sm remove-favorite-btn"
                                                 data-campaign-id="<?php echo $campaign['id']; ?>"
-                                                data-is-favorite="<?php echo isset($favorite_campaigns[$campaign['id']]) ? '1' : '0'; ?>"
-                                                title="<?php echo isset($favorite_campaigns[$campaign['id']]) ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>">
-                                            <i class="<?php echo isset($favorite_campaigns[$campaign['id']]) ? 'fas fa-heart text-danger' : 'far fa-heart text-secondary'; ?>"></i>
+                                                title="Rimuovi dai preferiti">
+                                            <i class="fas fa-heart text-danger"></i>
                                         </button>
                                     </div>
                                     
-                                    <!-- RIGA INFERIORE: Pulsante Candidati/Già Candidato -->
                                     <?php if (!$campaign['has_applied']): ?>
                                         <a href="view.php?id=<?php echo $campaign['id']; ?>&apply=1" 
-                                           class="btn btn-success btn-sm w-100">
+                                           class="btn btn-success btn-sm">
                                             Candidati Ora
                                         </a>
                                     <?php else: ?>
-                                        <button class="btn btn-success btn-sm w-100" disabled>
+                                        <button class="btn btn-success btn-sm" disabled>
                                             Già Candidato
                                         </button>
                                     <?php endif; ?>
@@ -434,12 +392,14 @@ require_once $header_file;
                             </div>
                         </div>
                     </div>
-                <?php endforeach; ?>
+                <?php 
+                }
+                ?>
             </div>
 
             <!-- Paginazione -->
             <?php if ($total_pages > 1): ?>
-                <nav aria-label="Paginazione campagne">
+                <nav aria-label="Paginazione campagne salvate">
                     <ul class="pagination justify-content-center">
                         <!-- Previous Page -->
                         <li class="page-item <?php echo $current_page <= 1 ? 'disabled' : ''; ?>">
@@ -450,14 +410,18 @@ require_once $header_file;
                         </li>
                         
                         <!-- Page Numbers -->
-                        <?php for ($i = 1; $i <= $total_pages; $i++): ?>
+                        <?php 
+                        for ($i = 1; $i <= $total_pages; $i++) {
+                        ?>
                             <li class="page-item <?php echo $i == $current_page ? 'active' : ''; ?>">
                                 <a class="page-link" 
                                    href="?<?php echo http_build_query(array_merge($_GET, ['page' => $i])); ?>">
                                     <?php echo $i; ?>
                                 </a>
                             </li>
-                        <?php endfor; ?>
+                        <?php 
+                        }
+                        ?>
                         
                         <!-- Next Page -->
                         <li class="page-item <?php echo $current_page >= $total_pages ? 'disabled' : ''; ?>">
@@ -474,15 +438,19 @@ require_once $header_file;
 </div>
 
 <script>
-// Gestione Preferiti Campagne con AJAX
+// Gestione Rimozione dai preferiti nella pagina salvati
 document.addEventListener('DOMContentLoaded', function() {
-    // Trova tutti i pulsanti preferiti campagne
-    const favoriteCampaignButtons = document.querySelectorAll('.favorite-campaign-btn');
+    // Trova tutti i pulsanti rimuovi preferiti
+    const removeFavoriteButtons = document.querySelectorAll('.remove-favorite-btn');
     
-    favoriteCampaignButtons.forEach(button => {
+    removeFavoriteButtons.forEach(button => {
         button.addEventListener('click', function() {
             const campaignId = this.getAttribute('data-campaign-id');
-            const isFavorite = this.getAttribute('data-is-favorite') === '1';
+            const campaignCard = this.closest('.col-md-6.col-lg-4.mb-4');
+            
+            if (!confirm('Sei sicuro di voler rimuovere questa campagna dai preferiti?')) {
+                return;
+            }
             
             // Disabilita il pulsante durante la richiesta
             this.disabled = true;
@@ -495,48 +463,42 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
-                body: `campaign_id=${campaignId}&action=${isFavorite ? 'remove' : 'add'}`
+                body: `campaign_id=${campaignId}&action=remove`
             })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Aggiorna lo stato del pulsante
-                    const isNowFavorite = data.is_favorite;
+                    // Rimuovi la card dalla vista con animazione
+                    campaignCard.style.transition = 'opacity 0.3s, transform 0.3s';
+                    campaignCard.style.opacity = '0';
+                    campaignCard.style.transform = 'translateY(-20px)';
                     
-                    this.setAttribute('data-is-favorite', isNowFavorite ? '1' : '0');
+                    setTimeout(() => {
+                        campaignCard.remove();
+                        showToast('Campagna rimossa dai preferiti', 'success');
+                        
+                        // Aggiorna il contatore
+                        const totalCards = document.querySelectorAll('.col-md-6.col-lg-4.mb-4').length;
+                        const savedCountElement = document.querySelector('.card.text-white.bg-danger .card-title');
+                        if (savedCountElement && totalCards === 0) {
+                            // Se non ci sono più campagne, ricarica la pagina per mostrare il messaggio "nessuna campagna"
+                            location.reload();
+                        } else if (savedCountElement) {
+                            savedCountElement.textContent = totalCards;
+                        }
+                    }, 300);
                     
-                    if (isNowFavorite) {
-                        // Aggiorna stile per list.php
-                        this.classList.remove('btn-outline-secondary');
-                        this.classList.add('btn-outline-danger');
-                        this.title = 'Rimuovi dai preferiti';
-                        const icon = this.querySelector('i');
-                        if (icon) icon.className = 'fas fa-heart text-danger';
-                    } else {
-                        // Aggiorna stile per list.php
-                        this.classList.remove('btn-outline-danger');
-                        this.classList.add('btn-outline-secondary');
-                        this.title = 'Aggiungi ai preferiti';
-                        const icon = this.querySelector('i');
-                        if (icon) icon.className = 'far fa-heart text-secondary';
-                    }
-                    
-                    // Mostra notifica
-                    showToast(isNowFavorite ? 'Campagna aggiunta ai preferiti!' : 'Campagna rimossa dai preferiti!', 'success');
                 } else {
                     showToast('Errore: ' + data.message, 'error');
+                    this.innerHTML = originalHTML;
+                    this.disabled = false;
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 showToast('Errore di connessione', 'error');
-            })
-            .finally(() => {
+                this.innerHTML = originalHTML;
                 this.disabled = false;
-                // Ripristina HTML originale se l'aggiornamento fallisce
-                if (!this.hasAttribute('data-updated')) {
-                    this.innerHTML = originalHTML;
-                }
             });
         });
     });
@@ -578,59 +540,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-
-<style>
-/* Stili per i pulsanti preferiti campagne */
-.favorite-campaign-btn.btn-outline-danger {
-    color: #dc3545 !important;
-    border-color: #dc3545 !important;
-}
-
-.favorite-campaign-btn.btn-outline-secondary {
-    color: #6c757d !important;
-    border-color: #6c757d !important;
-}
-
-.favorite-campaign-btn:hover {
-    transform: scale(1.05);
-    transition: transform 0.2s ease-in-out;
-}
-
-/* Toast notifications */
-.toast {
-    min-width: 250px;
-}
-
-/* Stili per pulsanti uniformi */
-.btn-outline-danger.btn-sm,
-.btn-outline-secondary.btn-sm {
-    width: 40px;
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
-}
-
-/* RIMUOVI OVERLAY HOVER PER PULSANTI PREFERITI (come in search-influencers.php) */
-.favorite-campaign-btn.btn-outline-danger:hover,
-.favorite-campaign-btn.btn-outline-secondary:hover {
-    background-color: transparent !important;
-}
-
-/* Colori specifici per hover (come in search-influencers.php) */
-.favorite-campaign-btn.btn-outline-danger:hover {
-    color: #dc3545 !important;
-    border-color: #dc3545 !important;
-}
-
-.favorite-campaign-btn.btn-outline-secondary:hover {
-    color: #6c757d !important;
-    border-color: #6c757d !important;
-}
-
-/* Stili per layout pulsanti (come in search-influencers.php) */
-.btn-outline-primary.btn-sm.flex-grow-1 {
-    flex: 1 1 auto;
-}
-</style>
 
 <?php
 // =============================================

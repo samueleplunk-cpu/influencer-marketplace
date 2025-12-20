@@ -147,41 +147,36 @@ require_once $header_file;
                             <h4><?php echo htmlspecialchars($influencer['full_name']); ?></h4>
                             
                             <div class="d-flex justify-content-center align-items-center gap-2 mb-3">
-                                <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand'): ?>
-                                    <?php
-                                    // Verifica se l'influencer è nei preferiti del brand
-                                    $is_favorite = false;
-                                    try {
-                                        $stmt_brand = $pdo->prepare("SELECT id FROM brands WHERE user_id = ?");
-                                        $stmt_brand->execute([$_SESSION['user_id']]);
-                                        $brand_data = $stmt_brand->fetch(PDO::FETCH_ASSOC);
-                                        
-                                        if ($brand_data) {
-                                            $brand_id = $brand_data['id'];
-                                            $stmt_fav = $pdo->prepare("SELECT id FROM favorite_influencers WHERE brand_id = ? AND influencer_id = ?");
-                                            $stmt_fav->execute([$brand_id, $influencer_id]);
-                                            $is_favorite = $stmt_fav->fetch() !== false;
-                                        }
-                                    } catch (PDOException $e) {
-                                        // Silenzioso in caso di errore
-                                    }
-                                    
-                                    // Determina il testo del tooltip
-                                    $tooltip_text = $is_favorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
-                                    ?>
-                                    <button type="button" 
-                                            class="btn btn-sm favorite-btn-profile"
-                                            data-influencer-id="<?php echo $influencer_id; ?>"
-                                            data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>"
-                                            data-bs-toggle="tooltip"
-                                            data-bs-placement="top"
-                                            title="<?php echo htmlspecialchars($tooltip_text); ?>"
-                                            style="padding: 0.25rem 0.5rem; border-radius: 50%;">
-                                        <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-muted'; ?>" 
-                                           style="font-size: 1.2rem;"></i>
-                                    </button>
-                                <?php endif; ?>
-                            </div>
+    <?php if (isset($_SESSION['user_type']) && $_SESSION['user_type'] === 'brand'): ?>
+        <?php
+        // Verifica se l'influencer è nei preferiti del brand
+        $is_favorite = false;
+        try {
+            $stmt_brand = $pdo->prepare("SELECT id FROM brands WHERE user_id = ?");
+            $stmt_brand->execute([$_SESSION['user_id']]);
+            $brand_data = $stmt_brand->fetch(PDO::FETCH_ASSOC);
+            
+            if ($brand_data) {
+                $brand_id = $brand_data['id'];
+                $stmt_fav = $pdo->prepare("SELECT id FROM favorite_influencers WHERE brand_id = ? AND influencer_id = ?");
+                $stmt_fav->execute([$brand_id, $influencer_id]);
+                $is_favorite = $stmt_fav->fetch() !== false;
+            }
+        } catch (PDOException $e) {
+            // Silenzioso in caso di errore
+        }
+        ?>
+        <button type="button" 
+                class="btn btn-sm favorite-btn-profile"
+                data-influencer-id="<?php echo $influencer_id; ?>"
+                data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>"
+                style="padding: 0.25rem 0.5rem; border-radius: 50%;"
+                title="<?php echo $is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>">
+            <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-muted'; ?>" 
+               style="font-size: 1.2rem;"></i>
+        </button>
+    <?php endif; ?>
+</div>
                         </div>
                     </div>
 
@@ -486,140 +481,152 @@ if ($influencer) {
 </div>
 
 <script>
-// Gestione Preferiti nella pagina profilo
+// Gestione Preferiti - Versione minimale senza tooltip Bootstrap
 document.addEventListener('DOMContentLoaded', function() {
-    // Inizializza i tooltip Bootstrap
-    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
+    // Trova tutti i pulsanti preferiti
+    const favoriteButtons = document.querySelectorAll('.favorite-btn-profile');
     
-    // Funzione per gestire il click sui pulsanti preferiti
-    function handleFavoriteClick(event) {
-        const button = event.currentTarget;
-        const influencerId = button.getAttribute('data-influencer-id');
-        const isFavorite = button.getAttribute('data-is-favorite') === '1';
-        const tooltipInstance = bootstrap.Tooltip.getInstance(button);
-        
-        // Cambia immediatamente l'icona per feedback visivo
-        const icon = button.querySelector('i');
-        if (isFavorite) {
-            icon.className = 'far fa-heart text-muted';
-        } else {
-            icon.className = 'fas fa-heart text-danger';
-        }
-        button.setAttribute('data-is-favorite', isFavorite ? '0' : '1');
-        
-        // Aggiorna il tooltip
-        const newTooltipText = isFavorite ? "Aggiungi ai preferiti" : "Rimuovi dai preferiti";
-        button.setAttribute('title', newTooltipText);
-        if (tooltipInstance) {
-            tooltipInstance.setContent({'.tooltip-inner': newTooltipText});
-        }
-        
-        // Invia richiesta AJAX
-        fetch('/infl/brands/toggle-favorite.php', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `influencer_id=${influencerId}&action=${isFavorite ? 'remove' : 'add'}`
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
+    favoriteButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const influencerId = this.getAttribute('data-influencer-id');
+            const isFavorite = this.getAttribute('data-is-favorite') === '1';
+            const icon = this.querySelector('i');
+            
+            // Stato nuovo
+            const newIsFavorite = !isFavorite;
+            
+            // Cambia immediatamente l'icona per feedback visivo
+            if (newIsFavorite) {
+                icon.className = 'fas fa-heart text-danger';
+            } else {
+                icon.className = 'far fa-heart text-muted';
             }
-            return response.json();
-        })
-        .then(data => {
-            if (!data.success) {
-                // Ripristina stato originale in caso di errore
+            this.setAttribute('data-is-favorite', newIsFavorite ? '1' : '0');
+            this.title = newIsFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+            
+            // Invia richiesta AJAX con XMLHttpRequest (più compatibile)
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/infl/brands/toggle-favorite.php', true);
+            xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        
+                        if (data.success) {
+                            // Mostra messaggio di successo semplice
+                            showMessage(data.message || 'Operazione completata!', 'success');
+                        } else {
+                            // Ripristina stato originale in caso di errore
+                            if (isFavorite) {
+                                icon.className = 'fas fa-heart text-danger';
+                            } else {
+                                icon.className = 'far fa-heart text-muted';
+                            }
+                            button.setAttribute('data-is-favorite', isFavorite ? '1' : '0');
+                            button.title = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+                            
+                            showMessage('Errore: ' + (data.message || 'Operazione fallita'), 'danger');
+                        }
+                    } catch (e) {
+                        // Errore nel parsing JSON
+                        if (isFavorite) {
+                            icon.className = 'fas fa-heart text-danger';
+                        } else {
+                            icon.className = 'far fa-heart text-muted';
+                        }
+                        button.setAttribute('data-is-favorite', isFavorite ? '1' : '0');
+                        button.title = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+                        
+                        showMessage('Errore nella risposta del server', 'danger');
+                    }
+                } else {
+                    // Errore HTTP
+                    if (isFavorite) {
+                        icon.className = 'fas fa-heart text-danger';
+                    } else {
+                        icon.className = 'far fa-heart text-muted';
+                    }
+                    button.setAttribute('data-is-favorite', isFavorite ? '1' : '0');
+                    button.title = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
+                    
+                    showMessage('Errore di connessione: ' + xhr.status, 'danger');
+                }
+            };
+            
+            xhr.onerror = function() {
+                // Errore di rete
                 if (isFavorite) {
                     icon.className = 'fas fa-heart text-danger';
                 } else {
                     icon.className = 'far fa-heart text-muted';
                 }
                 button.setAttribute('data-is-favorite', isFavorite ? '1' : '0');
+                button.title = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
                 
-                // Ripristina il tooltip
-                const originalTooltipText = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
-                button.setAttribute('title', originalTooltipText);
-                if (tooltipInstance) {
-                    tooltipInstance.setContent({'.tooltip-inner': originalTooltipText});
-                }
-                
-                // Mostra errore
-                showToast('Errore: ' + data.message, 'danger');
-            } else {
-                // Aggiorna stato basato sulla risposta server
-                const newIsFavorite = data.is_favorite;
-                if (newIsFavorite !== !isFavorite) {
-                    // Se il server dice uno stato diverso, aggiorna
-                    if (newIsFavorite) {
-                        icon.className = 'fas fa-heart text-danger';
-                    } else {
-                        icon.className = 'far fa-heart text-muted';
-                    }
-                    button.setAttribute('data-is-favorite', newIsFavorite ? '1' : '0');
-                    
-                    // Aggiorna il tooltip
-                    const updatedTooltipText = newIsFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
-                    button.setAttribute('title', updatedTooltipText);
-                    if (tooltipInstance) {
-                        tooltipInstance.setContent({'.tooltip-inner': updatedTooltipText});
-                    }
-                }
-                
-                // Mostra messaggio di successo
-                const message = isFavorite ? 'Rimosso dai preferiti!' : 'Aggiunto ai preferiti!';
-                showToast(message, 'success');
-            }
-        })
-        .catch(error => {
-            // Ripristina stato originale
-            if (isFavorite) {
-                icon.className = 'fas fa-heart text-danger';
-            } else {
-                icon.className = 'far fa-heart text-muted';
-            }
-            button.setAttribute('data-is-favorite', isFavorite ? '1' : '0');
+                showMessage('Errore di rete', 'danger');
+            };
             
-            // Ripristina il tooltip
-            const originalTooltipText = isFavorite ? "Rimuovi dai preferiti" : "Aggiungi ai preferiti";
-            button.setAttribute('title', originalTooltipText);
-            if (tooltipInstance) {
-                tooltipInstance.setContent({'.tooltip-inner': originalTooltipText});
-            }
-            
-            // Mostra errore
-            showToast('Errore di connessione al server', 'danger');
+            xhr.send('influencer_id=' + encodeURIComponent(influencerId) + 
+                     '&action=' + encodeURIComponent(newIsFavorite ? 'add' : 'remove'));
         });
-    }
-    
-    // Funzione per mostrare toast
-    function showToast(message, type) {
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type} position-fixed top-0 end-0 m-3`;
-        toast.style.zIndex = '9999';
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transition = 'opacity 0.5s';
-            setTimeout(() => toast.remove(), 500);
-        }, 2000);
-    }
-    
-    // Aggiungi event listener a tutti i pulsanti preferiti
-    const favoriteButtons = document.querySelectorAll('.favorite-btn-profile');
-    
-    favoriteButtons.forEach(button => {
-        // Rimuovi eventuali listener precedenti
-        button.removeEventListener('click', handleFavoriteClick);
-        // Aggiungi nuovo listener
-        button.addEventListener('click', handleFavoriteClick);
     });
+    
+    // Funzione per mostrare messaggi semplici (senza Bootstrap)
+    function showMessage(message, type) {
+        // Rimuovi messaggi precedenti
+        const oldMessages = document.querySelectorAll('.favorite-message');
+        oldMessages.forEach(msg => msg.remove());
+        
+        // Crea nuovo messaggio
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'favorite-message alert alert-' + type;
+        messageDiv.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999; padding: 10px 15px; border-radius: 4px;';
+        
+        if (type === 'success') {
+            messageDiv.style.backgroundColor = '#d4edda';
+            messageDiv.style.color = '#155724';
+            messageDiv.style.border = '1px solid #c3e6cb';
+        } else {
+            messageDiv.style.backgroundColor = '#f8d7da';
+            messageDiv.style.color = '#721c24';
+            messageDiv.style.border = '1px solid #f5c6cb';
+        }
+        
+        messageDiv.textContent = message;
+        document.body.appendChild(messageDiv);
+        
+        // Rimuovi dopo 3 secondi
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.style.opacity = '0';
+                messageDiv.style.transition = 'opacity 0.5s';
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.parentNode.removeChild(messageDiv);
+                    }
+                }, 500);
+            }
+        }, 3000);
+    }
+    
+    // Aggiungi stili per i messaggi
+    const style = document.createElement('style');
+    style.textContent = `
+        .favorite-message {
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    `;
+    document.head.appendChild(style);
 });
 </script>
 

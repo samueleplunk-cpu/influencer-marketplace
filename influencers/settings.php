@@ -240,18 +240,21 @@ $page_title = $page_titles[$action] ?? 'Impostazioni Influencer';
 
         <div class="row">
             <div class="col-md-3">
-                <div class="list-group">
-                    <a href="settings.php?action=notifications" class="list-group-item list-group-item-action <?php echo $action === 'notifications' ? 'active' : ''; ?>">
-                        Preferenze notifiche
-                    </a>
-                    <a href="settings.php?action=personal-data" class="list-group-item list-group-item-action <?php echo $action === 'personal-data' ? 'active' : ''; ?>">
-                        Dati personali
-                    </a>
-                    <a href="settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $action === 'delete-account' ? 'active list-group-item-danger' : 'text-danger'; ?>">
-                        Elimina account
-                    </a>
-                </div>
-            </div>
+    <div class="list-group">
+        <a href="settings.php?action=notifications" class="list-group-item list-group-item-action <?php echo $action === 'notifications' ? 'active' : ''; ?>">
+            Preferenze notifiche
+        </a>
+        <a href="settings.php?action=personal-data" class="list-group-item list-group-item-action <?php echo $action === 'personal-data' ? 'active' : ''; ?>">
+            Dati personali
+        </a>
+        <a href="campaigns/saved-campaigns.php" class="list-group-item list-group-item-action">
+            Campagne salvate
+        </a>
+        <a href="settings.php?action=delete-account" class="list-group-item list-group-item-action <?php echo $action === 'delete-account' ? 'active list-group-item-danger' : 'text-danger'; ?>">
+            Elimina account
+        </a>
+    </div>
+</div>
             
             <div class="col-md-9">
                 <?php if ($action === 'notifications'): ?>
