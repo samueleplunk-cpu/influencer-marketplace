@@ -45,29 +45,16 @@ try {
 }
 
 // =============================================
-// INCLUSIONE FUNZIONI SOCIAL NETWORK E CATEGORIE
+// INCLUSIONE FUNZIONI SOCIAL NETWORK
 // =============================================
 require_once dirname(dirname(dirname(__FILE__))) . '/includes/social_network_functions.php';
-require_once dirname(dirname(dirname(__FILE__))) . '/includes/category_functions.php';
 
 // =============================================
-// PARAMETRI RICERCA E FILTRI
+// PAGINAZIONE
 // =============================================
-$search = $_GET['search'] ?? '';
-$niche_filter = $_GET['niche'] ?? '';
-$min_budget = $_GET['min_budget'] ?? '';
-$max_budget = $_GET['max_budget'] ?? '';
-$platform_filter = $_GET['platform'] ?? '';
-
-// Paginazione
 $current_page = isset($_GET['page']) ? max(1, intval($_GET['page'])) : 1;
 $campaigns_per_page = 12;
 $offset = ($current_page - 1) * $campaigns_per_page;
-
-// =============================================
-// RECUPERO CATEGORIE ATTIVE DAL DATABASE
-// =============================================
-$active_categories = get_active_categories($pdo);
 
 // =============================================
 // QUERY CAMPAIGNE PREFERITE
@@ -104,45 +91,6 @@ try {
     
     $params = [$influencer['id'], $influencer['id']];
     $count_params = [$influencer['id']];
-    
-    // Applica filtri
-    if (!empty($search)) {
-        $query .= " AND (c.name LIKE ? OR c.description LIKE ?)";
-        $count_query .= " AND (c.name LIKE ? OR c.description LIKE ?)";
-        $search_term = "%$search%";
-        $params[] = $search_term;
-        $params[] = $search_term;
-        $count_params[] = $search_term;
-        $count_params[] = $search_term;
-    }
-    
-    if (!empty($niche_filter)) {
-        $query .= " AND c.niche = ?";
-        $count_query .= " AND c.niche = ?";
-        $params[] = $niche_filter;
-        $count_params[] = $niche_filter;
-    }
-    
-    if (!empty($min_budget)) {
-        $query .= " AND c.budget >= ?";
-        $count_query .= " AND c.budget >= ?";
-        $params[] = floatval($min_budget);
-        $count_params[] = floatval($min_budget);
-    }
-    
-    if (!empty($max_budget)) {
-        $query .= " AND c.budget <= ?";
-        $count_query .= " AND c.budget <= ?";
-        $params[] = floatval($max_budget);
-        $count_params[] = floatval($max_budget);
-    }
-    
-    if (!empty($platform_filter)) {
-        $query .= " AND JSON_CONTAINS(c.platforms, ?)";
-        $count_query .= " AND JSON_CONTAINS(c.platforms, ?)";
-        $params[] = json_encode($platform_filter);
-        $count_params[] = json_encode($platform_filter);
-    }
     
     // Conteggio totale
     $stmt = $pdo->prepare($count_query);
@@ -214,68 +162,12 @@ require_once $header_file;
             </div>
         </div>
 
-        <!-- Filtri -->
+        <!-- Intestazione Lista Campagne Salvate -->
         <div class="card mb-4">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Filtri Campagne Salvate</h5>
-            </div>
-            <div class="card-body">
-                <form method="GET" class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Cerca</label>
-                        <input type="text" name="search" class="form-control" 
-                               value="<?php echo htmlspecialchars($search); ?>" 
-                               placeholder="Nome campagna...">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Categoria</label>
-                        <select name="niche" class="form-select">
-                            <option value="">Tutte</option>
-                            <?php 
-                            foreach ($active_categories as $category) {
-                            ?>
-                                <option value="<?php echo htmlspecialchars($category['name']); ?>" 
-                                    <?php echo $niche_filter === $category['name'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($category['name']); ?>
-                                </option>
-                            <?php 
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Budget Min</label>
-                        <input type="number" name="min_budget" class="form-control" 
-                               value="<?php echo htmlspecialchars($min_budget); ?>" 
-                               placeholder="€ Min">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Budget Max</label>
-                        <input type="number" name="max_budget" class="form-control" 
-                               value="<?php echo htmlspecialchars($max_budget); ?>" 
-                               placeholder="€ Max">
-                    </div>
-                    <div class="col-md-2">
-                        <label class="form-label">Piattaforma</label>
-                        <select name="platform" class="form-select">
-                            <option value="">Tutte</option>
-                            <?php
-                            $social_networks = get_active_social_networks();
-                            foreach ($social_networks as $social) {
-                            ?>
-                                <option value="<?php echo $social['slug']; ?>" 
-                                    <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($social['name']); ?>
-                                </option>
-                            <?php 
-                            }
-                            ?>
-                        </select>
-                    </div>
-                    <div class="col-md-1 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary w-100">Filtra</button>
-                    </div>
-                </form>
+            <div class="card-header bg-light">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list me-2"></i>Lista campagne salvate
+                </h5>
             </div>
         </div>
 
@@ -303,9 +195,6 @@ require_once $header_file;
                                     <?php if ($campaign['has_applied']): ?>
                                         <span class="badge bg-success">Già candidato</span>
                                     <?php endif; ?>
-                                    <span class="badge bg-danger ms-1">
-                                        <i class="fas fa-heart"></i> Salvata
-                                    </span>
                                 </div>
                             </div>
                             <div class="card-body">
@@ -362,11 +251,13 @@ require_once $header_file;
                                 </small>
                             </div>
                             <div class="card-footer">
-                                <div class="d-grid gap-2">
-                                    <div class="d-flex justify-content-between align-items-center">
+                                <div class="d-flex flex-column gap-2">
+                                    <!-- RIGA SUPERIORE: Pulsanti Dettagli campagna e Rimuovi preferiti -->
+                                    <div class="d-flex gap-1">
+                                        <!-- Pulsante Dettagli campagna -->
                                         <a href="view.php?id=<?php echo $campaign['id']; ?>" 
-                                           class="btn btn-outline-primary btn-sm">
-                                            Dettagli Campagna
+                                           class="btn btn-outline-primary btn-sm flex-grow-1">
+                                            Dettagli campagna
                                         </a>
                                         
                                         <!-- Pulsante Rimuovi dai preferiti -->
@@ -378,13 +269,14 @@ require_once $header_file;
                                         </button>
                                     </div>
                                     
+                                    <!-- RIGA INFERIORE: Pulsante Candidati/Già Candidato -->
                                     <?php if (!$campaign['has_applied']): ?>
                                         <a href="view.php?id=<?php echo $campaign['id']; ?>&apply=1" 
-                                           class="btn btn-success btn-sm">
+                                           class="btn btn-success btn-sm w-100">
                                             Candidati Ora
                                         </a>
                                     <?php else: ?>
-                                        <button class="btn btn-success btn-sm" disabled>
+                                        <button class="btn btn-success btn-sm w-100" disabled>
                                             Già Candidato
                                         </button>
                                     <?php endif; ?>
@@ -540,6 +432,43 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+
+<style>
+/* Stili per i pulsanti rimuovi preferiti */
+.remove-favorite-btn.btn-outline-danger {
+    color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+.remove-favorite-btn:hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease-in-out;
+}
+
+/* Toast notifications */
+.toast {
+    min-width: 250px;
+}
+
+/* Stili per pulsanti uniformi */
+.btn-outline-danger.btn-sm {
+    width: 40px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+/* RIMUOVI OVERLAY HOVER PER PULSANTI PREFERITI (come in search-influencers.php) */
+.remove-favorite-btn.btn-outline-danger:hover {
+    background-color: transparent !important;
+    color: #dc3545 !important;
+    border-color: #dc3545 !important;
+}
+
+/* Stili per layout pulsanti (come in search-influencers.php) */
+.btn-outline-primary.btn-sm.flex-grow-1 {
+    flex: 1 1 auto;
+}
+</style>
 
 <?php
 // =============================================

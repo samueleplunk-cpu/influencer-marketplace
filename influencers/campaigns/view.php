@@ -365,28 +365,37 @@ require_once $header_file;
                         <h5 class="card-title mb-0">Stato Candidatura</h5>
                     </div>
                     <div class="card-body text-center">
-                        <!-- Pulsante Preferiti -->
-                        <div class="mb-3">
-                            <button type="button" 
-                                    class="btn <?php echo $is_favorite ? 'btn-outline-danger' : 'btn-outline-primary'; ?> btn-sm favorite-campaign-btn"
-                                    data-campaign-id="<?php echo $campaign_id; ?>"
-                                    data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>">
-                                <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-primary'; ?> me-1"></i>
-                                <?php echo $is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>
-                            </button>
-                        </div>
-                        
                         <?php if (!$has_applied): ?>
                             <?php if ($campaign_paused): ?>
                                 <p class="card-text text-muted">Campagna in fase di revisione</p>
                                 <button type="button" class="btn btn-secondary w-100" disabled>
                                     Candidatura Non Disponibile
                                 </button>
+                                <!-- Pulsante Preferiti - quando campagna in pausa -->
+                                <div class="mt-3">
+                                    <button type="button" 
+                                            class="btn <?php echo $is_favorite ? 'btn-outline-danger' : 'btn-outline-primary'; ?> w-100 favorite-campaign-btn"
+                                            data-campaign-id="<?php echo $campaign_id; ?>"
+                                            data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>">
+                                        <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-primary'; ?> me-1"></i>
+                                        <?php echo $is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>
+                                    </button>
+                                </div>
                             <?php else: ?>
                                 <p class="card-text">Non ti sei ancora candidato a questa campagna</p>
                                 <button type="button" class="btn btn-success w-100" data-bs-toggle="modal" data-bs-target="#applyModal">
                                     Candidati Ora
                                 </button>
+                                <!-- Pulsante Preferiti - NUOVA POSIZIONE -->
+                                <div class="mt-3">
+                                    <button type="button" 
+                                            class="btn <?php echo $is_favorite ? 'btn-outline-danger' : 'btn-outline-primary'; ?> w-100 favorite-campaign-btn"
+                                            data-campaign-id="<?php echo $campaign_id; ?>"
+                                            data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>">
+                                        <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-primary'; ?> me-1"></i>
+                                        <?php echo $is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>
+                                    </button>
+                                </div>
                             <?php endif; ?>
                         <?php else: ?>
                             <?php
@@ -407,6 +416,17 @@ require_once $header_file;
                             <p class="small text-muted">
                                 Candidatura inviata il: <?php echo date('d/m/Y H:i', strtotime($application['created_at'])); ?>
                             </p>
+                            
+                            <!-- Pulsante Preferiti - NUOVA POSIZIONE (quando già candidato) -->
+                            <div class="mb-3">
+                                <button type="button" 
+                                        class="btn <?php echo $is_favorite ? 'btn-outline-danger' : 'btn-outline-primary'; ?> w-100 favorite-campaign-btn"
+                                        data-campaign-id="<?php echo $campaign_id; ?>"
+                                        data-is-favorite="<?php echo $is_favorite ? '1' : '0'; ?>">
+                                    <i class="<?php echo $is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-primary'; ?> me-1"></i>
+                                    <?php echo $is_favorite ? 'Rimuovi dai preferiti' : 'Aggiungi ai preferiti'; ?>
+                                </button>
+                            </div>
                             
                             <?php if ($application['status'] === 'accepted'): ?>
                                 <div class="alert alert-success mt-3">
@@ -650,21 +670,35 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Stili per i pulsanti preferiti campagne */
+/* Stili per i pulsanti preferiti campagne - MODIFICATO */
 .favorite-campaign-btn.btn-outline-danger {
     color: #dc3545 !important;
     border-color: #dc3545 !important;
+    background-color: transparent !important;
 }
 
 .favorite-campaign-btn.btn-outline-primary {
     color: #0d6efd !important;
     border-color: #0d6efd !important;
+    background-color: transparent !important;
 }
 
-.favorite-campaign-btn:hover {
+/* NESSUN effetto hover per entrambi i pulsanti preferiti */
+.favorite-campaign-btn.btn-outline-primary:hover {
+    background-color: transparent !important;
+    color: #0d6efd !important;
+}
+
+.favorite-campaign-btn.btn-outline-danger:hover {
+    background-color: transparent !important;
+    color: #dc3545 !important;
+}
+
+/* RIMOSSO l'effetto di ingrandimento */
+/* .favorite-campaign-btn:hover {
     transform: scale(1.05);
     transition: transform 0.2s ease-in-out;
-}
+} */
 
 /* Toast notifications */
 .toast {
