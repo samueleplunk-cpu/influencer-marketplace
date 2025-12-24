@@ -94,8 +94,8 @@ require_once $header_file;
                     <div class="text-center py-5">
                         <h4 class="text-muted">Nessuna conversazione</h4>
                         <p class="text-muted">Le conversazioni con i brand appariranno qui</p>
-                        <a href="../search-campaigns.php" class="btn btn-primary mt-3">
-                            Cerca Campagne
+                        <a href="../campaigns/list.php" class="btn btn-primary mt-3">
+                            Cerca campagne
                         </a>
                     </div>
                 <?php else: ?>

@@ -60,6 +60,33 @@ if ($brand_data) {
 $active_categories = get_active_categories($pdo);
 
 // =============================================
+// RECUPERO TUTTI I SOCIAL NETWORK CONFIGURATI
+// =============================================
+$all_social_networks = get_active_social_networks();
+
+// =============================================
+// RECUPERO BUDGET MASSIMO DINAMICO
+// =============================================
+$max_budget = 1000; // Valore di default
+try {
+    $stmt_max = $pdo->query("SELECT MAX(rate) as max_rate FROM influencers WHERE rate IS NOT NULL AND rate > 0");
+    $result = $stmt_max->fetch(PDO::FETCH_ASSOC);
+    
+    if ($result && $result['max_rate'] > 0) {
+        // Arrotonda al multiplo di 10 superiore per un migliore utilizzo dello slider
+        $max_budget = ceil($result['max_rate'] / 10) * 10;
+        
+        // Assicuriamoci che il minimo sia 1000 per mantenere una buona esperienza utente
+        if ($max_budget < 1000) {
+            $max_budget = 1000;
+        }
+    }
+} catch (PDOException $e) {
+    error_log("Errore recupero budget massimo: " . $e->getMessage());
+    // Utilizza il valore di default in caso di errore
+}
+
+// =============================================
 // PARAMETRI DI RICERCA E FILTRI
 // =============================================
 $search_query = $_GET['search'] ?? '';
@@ -67,6 +94,7 @@ $niche_filter = $_GET['niche'] ?? '';
 $platform_filter = $_GET['platform'] ?? '';
 $min_rate = $_GET['min_rate'] ?? '';
 $max_rate = $_GET['max_rate'] ?? '';
+$budget_filter = $_GET['budget'] ?? '';
 $min_rating = $_GET['min_rating'] ?? '';
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $limit = 12; // Risultati per pagina
@@ -78,14 +106,22 @@ $offset = ($page - 1) * $limit;
 $where_conditions = [];
 $params = [];
 
-// Filtro ricerca per nome/handle
+// Filtro ricerca per nome/handle - MODIFICATO PER INCLUIRE TUTTE LE PIATTAFORME
 if (!empty($search_query)) {
-    $where_conditions[] = "(full_name LIKE ? OR instagram_handle LIKE ? OR tiktok_handle LIKE ? OR youtube_handle LIKE ?)";
+    // Inizia con il campo full_name
+    $search_conditions = ["full_name LIKE ?"];
     $search_param = "%$search_query%";
     $params[] = $search_param;
-    $params[] = $search_param;
-    $params[] = $search_param;
-    $params[] = $search_param;
+    
+    // Aggiungi condizioni per tutti gli handle dei social network configurati
+    foreach ($all_social_networks as $social) {
+        $column_name = $social['slug'] . '_handle';
+        $search_conditions[] = "$column_name LIKE ?";
+        $params[] = $search_param;
+    }
+    
+    // Combina tutte le condizioni con OR
+    $where_conditions[] = "(" . implode(" OR ", $search_conditions) . ")";
 }
 
 // Filtro per categorie - DINAMICO DAL DATABASE
@@ -105,11 +141,10 @@ if (!empty($niche_filter)) {
 
 // Filtro per piattaforma
 if (!empty($platform_filter)) {
-    $social_networks = get_active_social_networks();
     $platform_exists = false;
     
     // Verifica che la piattaforma selezionata esista tra quelle attive
-    foreach ($social_networks as $social) {
+    foreach ($all_social_networks as $social) {
         if ($social['slug'] === $platform_filter) {
             $platform_exists = true;
             break;
@@ -121,22 +156,40 @@ if (!empty($platform_filter)) {
     }
 }
 
-// Filtro per tariffa minima
-if (!empty($min_rate) && is_numeric($min_rate)) {
-    $where_conditions[] = "rate >= ?";
-    $params[] = $min_rate;
-}
-
-// Filtro per tariffa massima
-if (!empty($max_rate) && is_numeric($max_rate)) {
+// GESTIONE RETROCOMPATIBILITÀ: supporto sia min_rate/max_rate che budget
+if (!empty($budget_filter) && is_numeric($budget_filter)) {
+    // Nuovo filtro: budget massimo (rate ≤ budget)
     $where_conditions[] = "rate <= ?";
-    $params[] = $max_rate;
+    $params[] = $budget_filter;
+} else {
+    // Mantenimento compatibilità con i vecchi filtri
+    if (!empty($min_rate) && is_numeric($min_rate)) {
+        $where_conditions[] = "rate >= ?";
+        $params[] = $min_rate;
+    }
+    
+    if (!empty($max_rate) && is_numeric($max_rate)) {
+        $where_conditions[] = "rate <= ?";
+        $params[] = $max_rate;
+    }
 }
 
-// Filtro per rating minimo
+// Filtro per rating minimo - MODIFICATO PER INTERVALLI PRECISI
 if (!empty($min_rating) && is_numeric($min_rating)) {
-    $where_conditions[] = "rating >= ?";
-    $params[] = $min_rating;
+    // Calcola i limiti dell'intervallo in base al valore selezionato
+    $rating_min = (float)$min_rating;
+    
+    if ($rating_min == 5) {
+        // Per 5 stelle: rating ≥ 5.0
+        $where_conditions[] = "rating >= ?";
+        $params[] = $rating_min;
+    } else {
+        // Per altri valori: rating ≥ X AND rating < X+1
+        $rating_max = $rating_min + 1;
+        $where_conditions[] = "rating >= ? AND rating < ?";
+        $params[] = $rating_min;
+        $params[] = $rating_max;
+    }
 }
 
 // Query base
@@ -246,92 +299,99 @@ if ($brand_id && !empty($influencers)) {
         </div>
 
         <!-- FILTRI DI RICERCA -->
-        <div class="card mb-4">
-            <div class="card-header bg-light">
-                <h5 class="card-title mb-0">Filtri di Ricerca</h5>
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="card-title mb-0">Filtri di ricerca</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" action="" class="row g-3">
+            <div class="mb-3"></div>
+            
+            <div class="row mb-3">
+                <div class="col-md-3">
+                    <label for="search" class="form-label">Cerca per nome / Account social</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="<?php echo htmlspecialchars($search_query); ?>" 
+                           placeholder="Nome o username social...">
+                </div>
+
+                <div class="col-md-3">
+                    <label for="niche" class="form-label">Categoria</label>
+                    <select class="form-select" id="niche" name="niche">
+                        <option value="">Tutte le categorie</option>
+                        <?php foreach ($active_categories as $category): ?>
+                            <option value="<?php echo htmlspecialchars($category['name']); ?>" 
+                                <?php echo $niche_filter === $category['name'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($category['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="platform" class="form-label">Social Network</label>
+                    <select class="form-select" id="platform" name="platform">
+                        <option value="">Tutti i social</option>
+                        <?php foreach ($all_social_networks as $social): ?>
+                            <option value="<?php echo $social['slug']; ?>" 
+                                <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
+                                <?php echo htmlspecialchars($social['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label for="min_rating" class="form-label">Rating</label>
+                    <select class="form-select" id="min_rating" name="min_rating">
+                        <option value="">Qualsiasi</option>
+                        <option value="5" <?php echo $min_rating === '5' ? 'selected' : ''; ?>>5 stelle</option>
+                        <option value="4" <?php echo $min_rating === '4' ? 'selected' : ''; ?>>4 stelle</option>
+                        <option value="3" <?php echo $min_rating === '3' ? 'selected' : ''; ?>>3 stelle</option>
+                        <option value="2" <?php echo $min_rating === '2' ? 'selected' : ''; ?>>2 stelle</option>
+                        <option value="1" <?php echo $min_rating === '1' ? 'selected' : ''; ?>>1 stella</option>
+                        <option value="0" <?php echo $min_rating === '0' ? 'selected' : ''; ?>>0 stelle</option>
+                    </select>
+                </div>
             </div>
-            <div class="card-body">
-                <form method="GET" action="" class="row g-3">
-                    <!-- Ricerca per Nome/Handle -->
-                    <div class="col-md-4">
-                        <label for="search" class="form-label">Cerca per Nome/Handle</label>
-                        <input type="text" class="form-control" id="search" name="search" 
-                               value="<?php echo htmlspecialchars($search_query); ?>" 
-                               placeholder="Nome, Instagram, TikTok, YouTube...">
-                    </div>
 
-                    <!-- Filtro Categoria -->
-                    <div class="col-md-3">
-                        <label for="niche" class="form-label">Categoria</label>
-                        <select class="form-select" id="niche" name="niche">
-                            <option value="">Tutte le categorie</option>
-                            <?php foreach ($active_categories as $category): ?>
-                                <option value="<?php echo htmlspecialchars($category['name']); ?>" 
-                                    <?php echo $niche_filter === $category['name'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($category['name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- Filtro Piattaforma -->
-                    <div class="col-md-2">
-                        <label for="platform" class="form-label">Piattaforma</label>
-                        <select class="form-select" id="platform" name="platform">
-                            <option value="">Tutte</option>
-                            <?php
-                            $social_networks = get_active_social_networks();
-                            foreach ($social_networks as $social): ?>
-                                <option value="<?php echo $social['slug']; ?>" 
-                                    <?php echo $platform_filter === $social['slug'] ? 'selected' : ''; ?>>
-                                    <?php echo htmlspecialchars($social['name']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-
-                    <!-- Filtro Tariffa -->
-                    <div class="col-md-3">
-                        <label class="form-label">Tariffa (€)</label>
-                        <div class="row g-2">
-                            <div class="col">
-                                <input type="number" class="form-control" name="min_rate" 
-                                       value="<?php echo htmlspecialchars($min_rate); ?>" 
-                                       placeholder="Min" min="0" step="10">
-                            </div>
-                            <div class="col">
-                                <input type="number" class="form-control" name="max_rate" 
-                                       value="<?php echo htmlspecialchars($max_rate); ?>" 
-                                       placeholder="Max" min="0" step="10">
-                            </div>
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="budget" class="form-label d-flex justify-content-between">
+                            <span>Budget massimo:</span>
+                            <span id="budget-value" class="text-primary fw-bold">
+                                €<?php echo !empty($budget_filter) && is_numeric($budget_filter) ? $budget_filter : '0'; ?>
+                            </span>
+                        </label>
+                        <input type="range" class="form-range" id="budget" name="budget" 
+                               min="0" max="<?php echo $max_budget; ?>" step="10"
+                               value="<?php echo !empty($budget_filter) && is_numeric($budget_filter) ? $budget_filter : '0'; ?>"
+                               style="width: 100%;">
+                        <div class="d-flex justify-content-between mt-1">
+                            <small class="text-muted">€0</small>
+                            <small class="text-muted">€<?php echo $max_budget; ?></small>
                         </div>
+                        <input type="hidden" name="budget" value="<?php echo !empty($budget_filter) && is_numeric($budget_filter) ? $budget_filter : '0'; ?>">
                     </div>
+                </div>
 
-                    <!-- Filtro Rating -->
-                    <div class="col-md-2">
-                        <label for="min_rating" class="form-label">Rating Minimo</label>
-                        <select class="form-select" id="min_rating" name="min_rating">
-                            <option value="">Qualsiasi</option>
-                            <option value="4" <?php echo $min_rating === '4' ? 'selected' : ''; ?>>4+ Stelle</option>
-                            <option value="3" <?php echo $min_rating === '3' ? 'selected' : ''; ?>>3+ Stelle</option>
-                            <option value="2" <?php echo $min_rating === '2' ? 'selected' : ''; ?>>2+ Stelle</option>
-                        </select>
+                <div class="col-md-9">
+                    <div class="d-flex gap-2 justify-content-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Cerca
+                        </button>
+                        <a href="search-influencers.php" class="btn btn-outline-secondary">
+                            Reset Filtri
+                        </a>
                     </div>
-
-                    <!-- Pulsanti -->
-                    <div class="col-md-12">
-                        <div class="d-flex gap-2">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-search"></i> Cerca
-                            </button>
-                            <a href="search-influencers.php" class="btn btn-outline-secondary">
-                                Reset Filtri
-                            </a>
-                        </div>
-                    </div>
-                </form>
+                </div>
             </div>
-        </div>
+            
+            <div class="mt-3"></div>
+        </form>
+    </div>
+</div>
 
         <!-- RISULTATI RICERCA -->
         <div class="card">
@@ -410,9 +470,10 @@ if ($brand_id && !empty($influencers)) {
                                         <!-- Handles Social -->
                                         <div class="mb-2">
                                             <?php
-                                            $social_networks = get_active_social_networks();
-                                            foreach ($social_networks as $social): 
-                                                $handle_value = $influencer[$social['slug'] . '_handle'] ?? '';
+                                            // Usa la variabile globale per i social network
+                                            foreach ($all_social_networks as $social): 
+                                                $column_name = $social['slug'] . '_handle';
+                                                $handle_value = $influencer[$column_name] ?? '';
                                                 if (!empty($handle_value)): 
                                             ?>
                                                 <small class="text-muted d-block">
@@ -733,7 +794,32 @@ if ($brand_id && !empty($influencers)) {
 </style>
 
 <script>
+// JavaScript per aggiornare il valore dello slider in tempo reale
 document.addEventListener('DOMContentLoaded', function() {
+    const budgetSlider = document.getElementById('budget');
+    const budgetValue = document.getElementById('budget-value');
+    const budgetHiddenInput = document.querySelector('input[name="budget"][type="hidden"]');
+    
+    if (budgetSlider && budgetValue) {
+        // Aggiorna il valore visualizzato quando lo slider viene spostato
+        budgetSlider.addEventListener('input', function() {
+            const value = this.value;
+            budgetValue.textContent = '€' + value;
+            budgetHiddenInput.value = value;
+        });
+        
+        // Aggiorna anche quando cambia (per compatibilità)
+        budgetSlider.addEventListener('change', function() {
+            const value = this.value;
+            budgetValue.textContent = '€' + value;
+            budgetHiddenInput.value = value;
+        });
+        
+        // Inizializza il valore visualizzato
+        budgetValue.textContent = '€' + budgetSlider.value;
+        budgetHiddenInput.value = budgetSlider.value;
+    }
+
     // Nascondi form fallback se JavaScript è abilitato
     document.querySelectorAll('.no-js-form').forEach(form => {
         form.style.display = 'none';
