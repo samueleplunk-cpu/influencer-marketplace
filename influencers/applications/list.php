@@ -121,11 +121,13 @@ try {
 try {
     $stats_stmt = $pdo->prepare("
         SELECT COUNT(*) as total,
-               COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted,
-               COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
-               COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected
-        FROM campaign_applications 
-        WHERE influencer_id = ?
+               COUNT(CASE WHEN ca.status = 'accepted' THEN 1 END) as accepted,
+               COUNT(CASE WHEN ca.status = 'pending' THEN 1 END) as pending,
+               COUNT(CASE WHEN ca.status = 'rejected' THEN 1 END) as rejected
+        FROM campaign_applications ca
+        JOIN campaigns c ON ca.campaign_id = c.id
+        WHERE ca.influencer_id = ?
+        AND c.deleted_at IS NULL
     ");
     $stats_stmt->execute([$influencer['id']]);
     $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
@@ -192,7 +194,7 @@ require_once $header_file;
                 <div class="card text-white bg-primary">
                     <div class="card-body text-center py-3">
                         <h5 class="card-title"><?php echo $stats['total']; ?></h5>
-                        <p class="card-text">Totale Candidature</p>
+                        <p class="card-text">Totale candidature</p>
                     </div>
                 </div>
             </div>
@@ -208,7 +210,7 @@ require_once $header_file;
                 <div class="card text-white bg-warning">
                     <div class="card-body text-center py-3">
                         <h5 class="card-title"><?php echo $stats['pending']; ?></h5>
-                        <p class="card-text">In Attesa</p>
+                        <p class="card-text">In attesa</p>
                     </div>
                 </div>
             </div>
