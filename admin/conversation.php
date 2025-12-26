@@ -16,10 +16,11 @@ try {
         SELECT 
             c.*,
             
-            -- Brand info
+            -- Brand info - MODIFICATO per corrispondere a messages.php
             COALESCE(
-                (SELECT u.company_name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
+                (SELECT b.company_name FROM brands b WHERE b.id = c.brand_id LIMIT 1),
                 (SELECT u.name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
+                (SELECT u.company_name FROM users u JOIN brands b ON u.id = b.user_id WHERE b.id = c.brand_id LIMIT 1),
                 CONCAT('Brand #', c.brand_id)
             ) as brand_name,
             
@@ -105,15 +106,6 @@ try {
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <div>
         <h1 class="h2">Conversazione</h1>
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                <li class="breadcrumb-item"><a href="/infl/admin/dashboard.php">Dashboard</a></li>
-                <li class="breadcrumb-item"><a href="/infl/admin/messages.php">Messaggi</a></li>
-                <li class="breadcrumb-item active" aria-current="page">
-                    Conversazione #<?php echo htmlspecialchars($conversation_id); ?>
-                </li>
-            </ol>
-        </nav>
     </div>
     <div class="btn-toolbar mb-2 mb-md-0">
         <a href="/infl/admin/messages.php" class="btn btn-outline-secondary">
@@ -128,92 +120,64 @@ try {
         <div class="card h-100">
             <div class="card-header bg-light">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-info-circle me-2"></i>Informazioni Conversazione
+                    Informazioni conversazione
                 </h5>
             </div>
             <div class="card-body">
                 <div class="row mb-3">
-                    <div class="col-6">
-                        <h6 class="text-muted mb-2">
-                            <i class="fas fa-building me-1"></i> Brand
-                        </h6>
-                        <p class="mb-0">
-                            <?php if ($conversation['brand_user_id']): ?>
-                                <a href="/infl/brand/profile.php?id=<?php echo htmlspecialchars($conversation['brand_user_id']); ?>" 
-                                   target="_blank" 
-                                   class="text-decoration-none fw-bold">
-                                    <i class="fas fa-external-link-alt me-1"></i>
-                                    <?php echo htmlspecialchars($conversation['brand_name']); ?>
-                                </a>
-                            <?php else: ?>
-                                <span class="fw-bold">
-                                    <i class="fas fa-building me-1"></i>
-                                    <?php echo htmlspecialchars($conversation['brand_name']); ?>
-                                </span>
-                            <?php endif; ?>
-                        </p>
-                        <small class="text-muted">
-                            ID: <?php echo htmlspecialchars($conversation['brand_id']); ?>
-                        </small>
-                    </div>
-                    <div class="col-6">
-                        <h6 class="text-muted mb-2">
-                            <i class="fas fa-user-check me-1"></i> Influencer
-                        </h6>
-                        <p class="mb-0">
-                            <?php if ($conversation['influencer_user_id']): ?>
-                                <a href="/infl/influencer/profile.php?id=<?php echo htmlspecialchars($conversation['influencer_user_id']); ?>" 
-                                   target="_blank" 
-                                   class="text-decoration-none fw-bold">
-                                    <i class="fas fa-external-link-alt me-1"></i>
-                                    <?php echo htmlspecialchars($conversation['influencer_name']); ?>
-                                </a>
-                            <?php else: ?>
-                                <span class="fw-bold">
-                                    <i class="fas fa-user-check me-1"></i>
-                                    <?php echo htmlspecialchars($conversation['influencer_name']); ?>
-                                </span>
-                            <?php endif; ?>
-                        </p>
-                        <small class="text-muted">
-                            ID: <?php echo htmlspecialchars($conversation['influencer_id']); ?>
-                        </small>
-                    </div>
-                </div>
+    <div class="col-6">
+        <h6 class="text-muted mb-2">
+            Brand:
+        </h6>
+        <p class="mb-0">
+            <span class="fw-bold">
+                <?php echo htmlspecialchars_decode(htmlspecialchars($conversation['brand_name']), ENT_QUOTES); ?>
+            </span>
+        </p>
+    </div>
+    <div class="col-6">
+        <h6 class="text-muted mb-2">
+            Influencer:
+        </h6>
+        <p class="mb-0">
+            <span class="fw-bold">
+                <?php echo htmlspecialchars_decode(htmlspecialchars($conversation['influencer_name']), ENT_QUOTES); ?>
+            </span>
+        </p>
+    </div>
+</div>
                 
                 <?php if ($conversation['campaign_name']): ?>
-                <div class="row mb-3">
-                    <div class="col-12">
-                        <h6 class="text-muted mb-2">
-                            <i class="fas fa-bullhorn me-1"></i> Campagna
-                        </h6>
-                        <p class="mb-0">
-                            <span class="badge bg-info">
-                                <?php echo htmlspecialchars($conversation['campaign_name']); ?>
-                            </span>
-                        </p>
-                    </div>
-                </div>
-                <?php endif; ?>
+<div class="row mb-3">
+    <div class="col-12">
+        <h6 class="text-muted mb-2">
+            Campagna:
+        </h6>
+        <p class="mb-0">
+            <?php echo htmlspecialchars($conversation['campaign_name']); ?>
+        </p>
+    </div>
+</div>
+<?php endif; ?>
                 
                 <div class="row">
-                    <div class="col-6">
-                        <h6 class="text-muted mb-2">
-                            <i class="far fa-calendar-plus me-1"></i> Data inizio
-                        </h6>
-                        <p class="mb-0">
-                            <?php echo date('d/m/Y H:i', strtotime($conversation['created_at'])); ?>
-                        </p>
-                    </div>
-                    <div class="col-6">
-                        <h6 class="text-muted mb-2">
-                            <i class="far fa-clock me-1"></i> Ultimo aggiornamento
-                        </h6>
-                        <p class="mb-0">
-                            <?php echo date('d/m/Y H:i', strtotime($conversation['updated_at'])); ?>
-                        </p>
-                    </div>
-                </div>
+    <div class="col-6">
+        <h6 class="text-muted mb-2">
+            Data inizio:
+        </h6>
+        <p class="mb-0">
+            <?php echo date('d/m/Y - H:i', strtotime($conversation['created_at'])); ?>
+        </p>
+    </div>
+    <div class="col-6">
+        <h6 class="text-muted mb-2">
+            Ultimo aggiornamento:
+        </h6>
+        <p class="mb-0">
+            <?php echo date('d/m/Y - H:i', strtotime($conversation['updated_at'])); ?>
+        </p>
+    </div>
+</div>
             </div>
         </div>
     </div>
@@ -222,7 +186,7 @@ try {
         <div class="card h-100">
             <div class="card-header bg-light">
                 <h5 class="card-title mb-0">
-                    <i class="fas fa-chart-bar me-2"></i>Statistiche
+                    Statistiche
                 </h5>
             </div>
             <div class="card-body">
@@ -246,28 +210,35 @@ try {
                         </div>
                     </div>
                 </div>
-                <div class="mt-3">
-                    <h6 class="text-muted mb-2">Riepilogo:</h6>
-                    <ul class="list-unstyled mb-0">
-                        <li class="mb-1">
-                            <i class="fas fa-building text-primary me-2"></i>
-                            <strong>Brand:</strong> <?php echo htmlspecialchars($conversation['brand_name']); ?>
-                        </li>
-                        <li class="mb-1">
-                            <i class="fas fa-user-check text-success me-2"></i>
-                            <strong>Influencer:</strong> <?php echo htmlspecialchars($conversation['influencer_name']); ?>
-                        </li>
-                        <li>
-                            <i class="fas fa-history text-info me-2"></i>
-                            <strong>Durata conversazione:</strong> 
+                <!-- Aggiunta: Riepilogo conversazione spostato qui -->
+                <div class="row mt-4 pt-3 border-top">
+                    <div class="col-12">
+                        <h6 class="text-muted mb-2">
+                            Riepilogo conversazione
+                        </h6>
+                        <?php if (!empty($messages)): ?>
                             <?php 
-                            $start = new DateTime($conversation['created_at']);
-                            $end = new DateTime($conversation['updated_at']);
-                            $interval = $start->diff($end);
-                            echo $interval->format('%a giorni, %h ore');
+                            $brand_messages = array_filter($messages, function($msg) {
+                                return $msg['sender_type'] == 'brand';
+                            });
+                            $influencer_messages = array_filter($messages, function($msg) {
+                                return $msg['sender_type'] == 'influencer';
+                            });
                             ?>
-                        </li>
-                    </ul>
+                            <ul class="list-unstyled mb-0">
+                                <li class="mb-1">
+                                    <strong>Messaggi Brand:</strong> 
+                                    <?php echo count($brand_messages); ?>
+                                </li>
+                                <li>
+                                    <strong>Messaggi Influencer:</strong> 
+                                    <?php echo count($influencer_messages); ?>
+                                </li>
+                            </ul>
+                        <?php else: ?>
+                            <p class="text-muted mb-0">Nessun messaggio nella conversazione</p>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </div>
@@ -279,18 +250,9 @@ try {
     <div class="card-header bg-light">
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="card-title mb-0">
-                <i class="fas fa-comments me-2"></i>Conversazione
+                Conversazione
             </h5>
-            <div>
-                <span class="badge bg-primary">
-                    <?php echo $total_messages; ?> messaggi
-                </span>
-                <?php if ($unread_messages > 0): ?>
-                    <span class="badge bg-warning ms-2">
-                        <?php echo $unread_messages; ?> da leggere
-                    </span>
-                <?php endif; ?>
-            </div>
+            <!-- Rimossi i badge numerici -->
         </div>
     </div>
     <div class="card-body">
@@ -341,97 +303,44 @@ try {
                                     border: 1px solid <?php echo $message['sender_type'] == 'brand' ? '#bbdefb' : '#e0e0e0'; ?>;">
                             
                             <!-- Header messaggio -->
-                            <div class="message-header mb-2 d-flex justify-content-between align-items-start">
-                                <div>
-                                    <strong class="<?php echo $message['sender_type'] == 'brand' ? 'text-primary' : 'text-success'; ?>">
-                                        <i class="fas fa-<?php echo $message['sender_type'] == 'brand' ? 'building' : 'user-check'; ?> me-1"></i>
-                                        <?php echo htmlspecialchars($message['sender_display_name']); ?>
-                                    </strong>
-                                    <span class="badge bg-<?php echo $message['sender_type'] == 'brand' ? 'primary' : 'success'; ?> bg-opacity-25 text-<?php echo $message['sender_type'] == 'brand' ? 'primary' : 'success'; ?> ms-2">
-                                        <?php echo $message['sender_type'] == 'brand' ? 'Brand' : 'Influencer'; ?>
-                                    </span>
-                                </div>
-                                <div class="text-end">
-                                    <small class="text-muted">
-                                        <i class="far fa-clock me-1"></i>
-                                        <?php echo date('H:i', strtotime($message['sent_at'])); ?>
-                                    </small>
-                                    <br>
-                                    <small>
-                                        <?php if (!$message['is_read']): ?>
-                                            <span class="badge bg-warning text-dark">
-                                                <i class="fas fa-eye-slash me-1"></i>Non letto
-                                            </span>
-                                        <?php else: ?>
-                                            <span class="badge bg-success">
-                                                <i class="fas fa-eye me-1"></i>Letto
-                                            </span>
-                                        <?php endif; ?>
-                                    </small>
-                                </div>
-                            </div>
-                            
-                            <!-- Contenuto messaggio -->
-                            <div class="message-content" style="line-height: 1.6;">
-                                <?php echo nl2br(htmlspecialchars($message['message'])); ?>
-                            </div>
-                            
-                            <!-- Footer messaggio -->
-                            <div class="message-footer mt-2 pt-2 border-top border-opacity-25">
-                                <small class="text-muted">
-                                    Inviato: <?php echo date('d/m/Y H:i', strtotime($message['sent_at'])); ?>
-                                </small>
-                            </div>
+<div class="message-header mb-2 d-flex justify-content-between align-items-start">
+    <div>
+        <strong class="<?php echo $message['sender_type'] == 'brand' ? 'text-primary' : 'text-success'; ?>">
+            <i class="fas fa-<?php echo $message['sender_type'] == 'brand' ? 'building' : 'user-check'; ?> me-1"></i>
+            <?php echo htmlspecialchars($message['sender_display_name']); ?>
+        </strong>
+        <span class="badge bg-<?php echo $message['sender_type'] == 'brand' ? 'primary' : 'success'; ?> bg-opacity-25 text-<?php echo $message['sender_type'] == 'brand' ? 'primary' : 'success'; ?> ms-2">
+            <?php echo $message['sender_type'] == 'brand' ? 'Brand' : 'Influencer'; ?>
+        </span>
+    </div>
+    <div class="text-end">
+        <?php if (!$message['is_read']): ?>
+            <span class="badge bg-warning text-dark">
+                Non letto
+            </span>
+        <?php else: ?>
+            <span class="badge bg-success">
+                Letto
+            </span>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Contenuto messaggio -->
+<div class="message-content" style="line-height: 1.6;">
+    <?php echo nl2br(htmlspecialchars($message['message'])); ?>
+</div>
+
+<!-- Footer messaggio -->
+<div class="message-footer mt-2 pt-2 border-top border-opacity-25">
+    <small class="text-muted">
+        Inviato: <?php echo date('d/m/Y - H:i', strtotime($message['sent_at'])); ?>
+    </small>
+</div>
                         </div>
                     </div>
                 </div>
                 <?php endforeach; ?>
-            </div>
-            
-            <!-- Riepilogo finale -->
-            <div class="mt-4 p-3 bg-light rounded">
-                <div class="row">
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-chart-pie me-2"></i>Riepilogo conversazione:</h6>
-                        <ul class="list-unstyled mb-0">
-                            <li>
-                                <i class="fas fa-building text-primary me-2"></i>
-                                <strong>Messaggi Brand:</strong> 
-                                <?php 
-                                $brand_messages = array_filter($messages, function($msg) {
-                                    return $msg['sender_type'] == 'brand';
-                                });
-                                echo count($brand_messages);
-                                ?>
-                            </li>
-                            <li>
-                                <i class="fas fa-user-check text-success me-2"></i>
-                                <strong>Messaggi Influencer:</strong> 
-                                <?php 
-                                $influencer_messages = array_filter($messages, function($msg) {
-                                    return $msg['sender_type'] == 'influencer';
-                                });
-                                echo count($influencer_messages);
-                                ?>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="col-md-6">
-                        <h6><i class="fas fa-calendar-alt me-2"></i>Periodo:</h6>
-                        <ul class="list-unstyled mb-0">
-                            <li>
-                                <i class="far fa-calendar-plus text-info me-2"></i>
-                                <strong>Primo messaggio:</strong> 
-                                <?php echo date('d/m/Y H:i', strtotime($messages[0]['sent_at'])); ?>
-                            </li>
-                            <li>
-                                <i class="far fa-calendar-check text-info me-2"></i>
-                                <strong>Ultimo messaggio:</strong> 
-                                <?php echo date('d/m/Y H:i', strtotime(end($messages)['sent_at'])); ?>
-                            </li>
-                        </ul>
-                    </div>
-                </div>
             </div>
         <?php endif; ?>
     </div>

@@ -352,43 +352,6 @@ require_once $header_file;
             </div>
         <?php endif; ?>
 
-        <!-- Informazioni Sponsor -->
-        <div class="card mb-4">
-            <div class="card-header bg-light">
-                <h5 class="mb-0">Informazioni Sponsor</h5>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-6">
-                        <p><strong>ID Sponsor:</strong> #<?php echo htmlspecialchars($sponsor['id']); ?></p>
-                        <p><strong>Stato attuale:</strong> 
-                            <?php
-                            $status_badges = [
-                                'draft' => 'warning',
-                                'active' => 'success',
-                                'completed' => 'info',
-                                'cancelled' => 'danger'
-                            ];
-                            $badge_class = $status_badges[$sponsor['status']] ?? 'secondary';
-                            $status_labels = [
-                                'draft' => 'Bozza',
-                                'active' => 'Attivo',
-                                'completed' => 'Completato',
-                                'cancelled' => 'Cancellato'
-                            ];
-                            $status_label = $status_labels[$sponsor['status']] ?? ucfirst($sponsor['status']);
-                            ?>
-                            <span class="badge bg-<?php echo $badge_class; ?>"><?php echo $status_label; ?></span>
-                        </p>
-                    </div>
-                    <div class="col-md-6">
-                        <p><strong>Creato il:</strong> <?php echo date('d/m/Y H:i', strtotime($sponsor['created_at'])); ?></p>
-                        <p><strong>Ultima modifica:</strong> <?php echo !empty($sponsor['updated_at']) ? date('d/m/Y H:i', strtotime($sponsor['updated_at'])) : 'Mai modificato'; ?></p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Form Modifica Sponsor -->
         <div class="card">
             <div class="card-body">
@@ -429,11 +392,31 @@ require_once $header_file;
                                     <?php endforeach; ?>
                                 </select>
                             </div>
+
+                            <!-- Piattaforme Social - SPOSTATA SOTTO CATEGORIA -->
+                            <div class="mb-3">
+                                <label for="platforms" class="form-label">Piattaforme Social *</label>
+                                <div class="border p-3 rounded">
+                                    <?php foreach ($platforms as $key => $platform): ?>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" 
+                                                   name="platforms[]" value="<?php echo $key; ?>" 
+                                                   id="platform_<?php echo $key; ?>"
+                                                   <?php echo (in_array($key, $sponsor['platforms'])) ? 'checked' : ''; ?>>
+                                            <label class="form-check-label" for="platform_<?php echo $key; ?>">
+                                                <?php echo htmlspecialchars($platform); ?>
+                                            </label>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <div class="form-text">Seleziona le piattaforme su cui sei disponibile</div>
+                            </div>
                         </div>
 
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label class="form-label">Immagine di Anteprima</label>
+                                <!-- MODIFICATO: "Immagine di Anteprima" in "Immagine di copertina" -->
+                                <label class="form-label">Immagine di copertina</label>
                                 
                                 <!-- Anteprima immagine corrente -->
                                 <?php 
@@ -471,24 +454,6 @@ require_once $header_file;
                                 </div>
                                 <div id="imagePreview" class="mt-2"></div>
                             </div>
-
-                            <div class="mb-3">
-                                <label for="platforms" class="form-label">Piattaforme Social *</label>
-                                <div class="border p-3 rounded">
-                                    <?php foreach ($platforms as $key => $platform): ?>
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" 
-                                                   name="platforms[]" value="<?php echo $key; ?>" 
-                                                   id="platform_<?php echo $key; ?>"
-                                                   <?php echo (in_array($key, $sponsor['platforms'])) ? 'checked' : ''; ?>>
-                                            <label class="form-check-label" for="platform_<?php echo $key; ?>">
-                                                <?php echo htmlspecialchars($platform); ?>
-                                            </label>
-                                        </div>
-                                    <?php endforeach; ?>
-                                </div>
-                                <div class="form-text">Seleziona le piattaforme su cui sei disponibile</div>
-                            </div>
                         </div>
                     </div>
 
@@ -521,27 +486,6 @@ require_once $header_file;
                         </div>
                     </div>
 
-                    <!-- Stato Sponsor -->
-                    <div class="mb-4">
-                        <h5>Stato Sponsor</h5>
-                        <div class="alert alert-info">
-                            <p><strong>Stato attuale: 
-                                <?php 
-                                $status_labels = [
-                                    'draft' => 'Bozza (non visibile ai brand)',
-                                    'active' => 'Attivo (visibile ai brand)',
-                                    'completed' => 'Completato (non più disponibile)',
-                                    'cancelled' => 'Cancellato'
-                                ];
-                                echo $status_labels[$sponsor['status']] ?? ucfirst($sponsor['status']);
-                                ?>
-                            </strong></p>
-                            <p class="mb-0">
-                                <strong>Note:</strong> Puoi cambiare lo stato del sponsor usando i pulsanti sottostanti.
-                            </p>
-                        </div>
-                    </div>
-
                     <!-- Pulsanti -->
                     <div class="d-flex gap-2">
                         <?php if ($sponsor['status'] === 'draft'): ?>
@@ -553,28 +497,15 @@ require_once $header_file;
                             </button>
                         <?php elseif ($sponsor['status'] === 'active'): ?>
                             <button type="submit" name="action" value="save_active" class="btn btn-primary">
-                                💾 Salva Modifiche
-                            </button>
-                            <button type="submit" name="action" value="save_draft" class="btn btn-outline-warning">
-                                ✏️ Metti in Bozza
+                                Salva modifiche
                             </button>
                         <?php else: ?>
                             <button type="submit" name="action" value="save_active" class="btn btn-primary">
-                                💾 Salva Modifiche
+                                Salva modifiche
                             </button>
                         <?php endif; ?>
                         
                         <a href="sponsors.php" class="btn btn-secondary">Annulla</a>
-                        <a href="view-sponsor.php?id=<?php echo $sponsor['id']; ?>" 
-                           class="btn btn-outline-info">👁️ Anteprima</a>
-                    </div>
-
-                    <!-- Informazioni aggiuntive -->
-                    <div class="mt-3">
-                        <small class="text-muted">
-                            <strong>Sponsor Bozza:</strong> Non visibile ai brand<br>
-                            <strong>Sponsor Attivo:</strong> Visibile ai brand per le collaborazioni
-                        </small>
                     </div>
                 </form>
             </div>
