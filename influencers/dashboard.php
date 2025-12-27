@@ -89,12 +89,15 @@ if ($influencer) {
         $stmt->execute([$influencer['id']]);
         $applications = $stmt->fetchAll(PDO::FETCH_ASSOC);
         
+        // MODIFICA QUI: Aggiungere JOIN con campaigns e filtro per deleted_at IS NULL
         $stmt = $pdo->prepare("
             SELECT COUNT(*) as total_applications,
-                   COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted_applications,
-                   COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_applications
-            FROM campaign_applications 
-            WHERE influencer_id = ?
+                   COUNT(CASE WHEN ca.status = 'accepted' THEN 1 END) as accepted_applications,
+                   COUNT(CASE WHEN ca.status = 'pending' THEN 1 END) as pending_applications
+            FROM campaign_applications ca
+            JOIN campaigns c ON ca.campaign_id = c.id
+            WHERE ca.influencer_id = ?
+            AND c.deleted_at IS NULL
         ");
         $stmt->execute([$influencer['id']]);
         $application_stats = $stmt->fetch(PDO::FETCH_ASSOC);
